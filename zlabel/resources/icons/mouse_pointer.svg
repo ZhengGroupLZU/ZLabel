@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32">
+    <path stroke="#0064ff" stroke-linecap="round" stroke-width="2.5" d="M12.5 9.5 19.4 24" opacity="0.4"></path>
+    <g filter="url(#move-tool_svg__a)">
+        <path fill="#0064ff"
+            d="M11 8.165v12.838c0 .74 1 .974 1.328.31l2.527-5.114a1 1 0 0 1 1.107-.535l5.822 1.252c.712.153 1.155-.746.602-1.217l-9.737-8.295A1 1 0 0 0 11 8.165Z">
+        </path>
+    </g>
+    <defs>
+        <filter id="move-tool_svg__a" width="17.635" height="20.541" x="8" y="5.164" color-interpolation-filters="sRGB"
+            filterUnits="userSpaceOnUse">
+            <feFlood flood-opacity="0" result="BackgroundImageFix"></feFlood>
+            <feColorMatrix in="SourceAlpha" result="hardAlpha" values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 127 0">
+            </feColorMatrix>
+            <feOffset dy="1"></feOffset>
+            <feGaussianBlur stdDeviation="1.5"></feGaussianBlur>
+            <feColorMatrix values="0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0.4 0"></feColorMatrix>
+            <feBlend in2="BackgroundImageFix" result="effect1_dropShadow"></feBlend>
+            <feBlend in="SourceGraphic" in2="effect1_dropShadow" result="shape"></feBlend>
+        </filter>
+    </defs>
+</svg>

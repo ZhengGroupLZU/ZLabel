@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 32 32">
+    <path fill="#0064ff"
+        d="M5 7h16c2.828 0 4.243 0 5.121.879C27 8.757 27 10.172 27 13v12H11c-2.828 0-4.243 0-5.121-.879C5 23.243 5 21.828 5 19V7Z"
+        opacity="0.4"></path>
+    <g filter="url(#rectangle-tool_svg__a)">
+        <rect width="5" height="5" x="23" y="21" fill="#0064ff" rx="2.5"></rect>
+    </g>
+    <g filter="url(#rectangle-tool_svg__b)">
+        <rect width="5" height="5" x="4" y="6" fill="#0064ff" rx="2.5"></rect>
+    </g>
+</svg>
