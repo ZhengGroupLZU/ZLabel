@@ -1,362 +1,290 @@
+import copy
 import functools
-import glob
-import hashlib
 import json
 import os
-from collections import OrderedDict, namedtuple
-from datetime import datetime
+from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Tuple
+from typing import Any, Callable, Dict, List
 
 import numpy as np
-import pyqtgraph as pg
-from numpy.typing import NDArray
 from PIL import Image
-from qtpy.QtCore import QPointF, QRectF, Qt, QThread, QTranslator, Signal, Slot, QPoint, QSettings
-from qtpy.QtGui import (
-    QAction,
-    QUndoStack,
-    QUndoCommand,
-    QCloseEvent,
-    QColor,
-    QIcon,
-    QImageReader,
-    QKeySequence,
-    QMouseEvent,
-    QPen,
-    QPixmap,
-    QShortcut,
+from qtpy.QtCore import (
+    QPoint,
+    QPointF,
+    QRectF,
+    QSettings,
+    Qt,
+    QThreadPool,
+    QTranslator,
+    Signal,
+    Slot,
 )
-from qtpy.QtWidgets import (
-    QApplication,
-    QComboBox,
-    QFileDialog,
-    QGraphicsItem,
-    QGraphicsScene,
-    QGraphicsWidget,
-    QLabel,
-    QListWidgetItem,
-    QMainWindow,
-    QMessageBox,
-    QPushButton,
-    QSlider,
-    QDialogButtonBox,
+from qtpy.QtGui import QSurfaceFormat, QUndoStack
+from qtpy.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+
+from zlabel.utils import (
+    AlistApiHelper,
+    SamApiHelper,
+    AutoMode,
+    DrawMode,
+    SettingsKey,
+    StatusMode,
+    ZLogger,
+    Annotation,
+    Label,
+    Project,
+    Result,
+    ResultType,
+    Task,
+    User,
+    id_md5,
+    id_uuid4,
 )
-from zlabel.models.sam_onnx import SamOnnxModel
-from zlabel.models.types import SamOnnxEncodedInput
-
-from zlabel.utils.enums import AutoMode, DrawMode, SettingsKey, StatusMode
-from zlabel.utils.logger import ZLogger
-from zlabel.widgets.dialog_new_proj import DialogNewProject
-from zlabel.widgets.dialog_processing import DialogProcessing
-from zlabel.widgets.switch_button import SwitchBtn
-from zlabel.widgets.zundostack import ResultUndoMode, ZResultUndoCmd
-from zlabel.widgets.zwidgets import ZListWidgetItem, ZSlider, ZSwitchButton
-from zlabel.widgets.zworker import SamWorkerResult, ZSamEncodeWorker, ZSamWorker
-
-from ..utils.project import Annotation, Label, Project, Result, ResultType, User, id_md5, id_uuid4, ResultStep, Stack
-from . import (
+from zlabel.utils.enums import RgbMode
+from zlabel.widgets import (
+    ZSettings,
+    DialogProcessing,
+    ZLoginThread,
+    ResultUndoMode,
+    ZResultUndoCmd,
+    Toast,
+    ZListWidgetItem,
+    ZSlider,
+    ZTableWidgetItem,
+    SamWorkerResult,
+    ZGetImageWorker,
+    ZPreuploadImageWorker,
+    ZSamApiWorker,
+    ZUploadFileWorker,
     DialogAbout,
     DialogSettings,
 )
-from .graphic_objects import Polygon, Rectangle
+
 from .ui import Ui_MainWindow
+
+sfmt = QSurfaceFormat()
+sfmt.setSwapInterval(0)
+QSurfaceFormat.setDefaultFormat(sfmt)
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
+    sigSettingsChecked = Signal(bool)
+    sigLoginFinished = Signal(bool)
+
     def __init__(self):
         super(MainWindow, self).__init__()
         self.logger = ZLogger("MainWindow")
-        self.settings = QSettings("zlabel.ini", format=QSettings.Format.IniFormat)
-        # DEBUG
-        self.settings.setValue(SettingsKey.PROJECT_PATH.value, r"C:\DEV\python\zlabel_sam\imgs")
-        self.user_default = User.default()
+        self.root_dir = "."
+        self.settings_path = "zlabel.conf"
+        self.settings_format = QSettings.Format.IniFormat
+
+        self.settings: ZSettings = ZSettings(self.settings_path, self.settings_format)
+        self.api_alist: AlistApiHelper
+        self.api_predict: SamApiHelper
+
+        self.user = User.default()
         self.label_default = Label.default()
+        self.user_token: str | None = None
 
-        self.proj: Project = Project.new(
-            project_path=r"C:\DEV\python\zlabel_sam\imgs",
-            name="test",
-            description="test",
-            users=OrderedDict({self.user_default.id: self.user_default}),
-            labels=OrderedDict({self.label_default.id: self.label_default}),
-            annotations=None,
-        )
-
+        self.proj: Project
+        self.result_old = None
         self.undo_stack = QUndoStack(self)
-
-        self._is_sam_enabled = True
-        self._is_cv_enabled = False
-        self._is_online_mode = False
-        self._project_name = "project.zproj"
+        self.threadpool = QThreadPool()
 
         self.anno_suffix = "zlabel"
-        self.img_suffix = [".png", ".jpg", ".jpeg", ".bmp", ".tif", ".tiff"]
+        self.last_path = "."
+        self._image_cache: Dict[str, Image.Image] = {}
         self.threshold = 100
+        self.rgb_mode = RgbMode.RGB
 
-        self.sam_onnx_encoder_path: str = "data/sam_vit_b_encoder_quantized.onnx"
-        self.sam_onnx_decoder_path: str = "data/sam_vit_b_decoder_quantized.onnx"
-        self.sam_model: SamOnnxModel | None = None
-        self.worker_thread = None
-        self.sam_worker = None
-
-        self.setupUi(self)
         self.init_ui()
         self.init_signals()
-        self.load_model()
+        self.load_settings()
 
-    # region properties
-    @property
-    def anno_id(self):
-        return self.proj.key_anno
-
-    @anno_id.setter
-    def anno_id(self, id_: str):
-        assert id_ in self.proj.annotations, f"key {id_} must in existed annotations"
-        self.proj.key_anno = id_
-
-    @property
-    def label_id(self):
-        return self.proj.key_label
-
-    @label_id.setter
-    def label_id(self, id_: str):
-        assert id_ in self.proj.labels, f"label key {id_} not in labels: {self.proj.labels=}"
-        self.proj.key_label = id_
-
-    @property
-    def user_id(self):
-        return self.proj.key_user
-
-    @user_id.setter
-    def user_id(self, id_: str):
-        assert id_ in self.proj.users, f"{id_=}, {self.proj.users=}"
-        self.proj.key_user = id_
-
-    @property
-    def result_id(self):
-        if self.current_annotation:
-            return self.current_annotation.result_key
-        return None
-
-    @result_id.setter
-    def result_id(self, id_: str):
-        if self.current_annotation and id_ in self.current_annotation.results:
-            self.proj.annotations[self.anno_id].result_key = id_
-        else:
-            self.logger.error(f"{id_=} not in results, ensure that you have created it!")
-
-    @property
-    def annotations(self):
-        return self.proj.annotations
-
-    @property
-    def labels(self):
-        return self.proj.labels
-
-    @property
-    def current_label(self) -> Label | None:
-        return self.proj.current_label
-
-    @property
-    def current_annotation(self) -> Annotation | None:
-        return self.proj.current_annotation
-
-    @current_annotation.setter
-    def current_annotation(self, anno: Annotation | None):
-        """
-        if anno is None, clear results of current annotation
-        if anno is not None and anno.id in self.annotations, set current annotation id to anno.id
-        if anno is not None and anno.id not in self.annotations, add anno to current annotation
-        """
-        if anno is None:
-            self.proj.annotations[self.anno_id].results.clear()
-            return
-        if self.current_annotation and anno.id == self.current_annotation.id:
-            return
-        if anno.id in self.annotations:
-            self.anno_id = anno.id
-            return
-        self.proj.add_annotation(anno)
-
-    @property
-    def current_result(self):
-        return self.proj.current_result
-
-    @current_result.setter
-    def current_result(self, r: Result):
-        if r is None:
-            self.logger.warning(f"{r=}, skipping...")
-            return
-        if self.current_annotation and r.id in self.current_annotation.results:
-            self.proj.annotations[self.anno_id].result_key = r.id
-            return
-        self.logger.debug(f"Adding {r=}")
-        self.add_result_undo_cmd([r], ResultUndoMode.ADD)
-
-    @property
-    def current_user(self):
-        return self.proj.current_user
-
-    @current_user.setter
-    def current_user(self, user: User):
-        ids = [u.id for u in self.proj.users.values()]
-        if user.id in ids:
-            self.user_id = user.id
-
-    @property
-    def image_paths(self):
-        return self.proj.image_paths
-
-    @property
-    def current_image(self) -> NDArray | None:
-        img = self.canvas.current_image
-        if img is None:
-            QMessageBox.warning(
-                self,
-                "Warning",
-                "Please load image first",
-                QMessageBox.StandardButton.Ok,
-            )
-        return img
-
-    @property
-    def project_path(self):
-        return self.proj.project_path
-
-    @project_path.setter
-    def project_path(self, p: str):
-        self.proj.project_path = p
-
-    @property
-    def is_model_loaded(self):
-        return self.sam_model is not None
-
-    @property
-    def auto_mode(self):
-        mode = AutoMode.MANUAL
-        if self._is_sam_enabled and self._is_cv_enabled:
-            mode = AutoMode.SAM & AutoMode.CV
-        elif self._is_sam_enabled:
-            mode = AutoMode.SAM
-        elif self._is_cv_enabled:
-            mode = AutoMode.CV
-        return mode
-
-    # endregion
     # region functions
-    def set_image(self, path: str | None = None):
-        path = path or self.proj.current_image_path
-        if not path:
+    def load_settings(self):
+        path = Path(self.settings_path)
+        if path.exists() and path.is_file():
+            self.settings = ZSettings(self.settings_path, self.settings_format)
+            if not self.settings.validate():
+                self.dialog_settings.show()
+                return
+        else:
+            if not path.parent.exists():
+                path.parent.mkdir(parents=True)
+            self.dialog_settings.show()
             return
-        self.canvas.clear_image()
-        self.canvas.setImage(path)
+        # file exists and check passed
+        self.user.name = self.settings.username
+        self.api_alist = AlistApiHelper(self.settings.host, self.settings.url_prefix)
+        self.api_predict = SamApiHelper(self.settings.model_api)
+        self.login()
+        self.set_loglevel(self.settings.log_level)
 
-        if self.sam_model is not None and self.current_image is not None:
-            key = hashlib.md5(self.current_image.tobytes()).hexdigest()
-            if not self.sam_model.key_cached(key):
-                self.encode_thread = QThread()
-                self.worker_encode = ZSamEncodeWorker(self.sam_model, self.current_image)
-                self.worker_encode.moveToThread(self.encode_thread)
+    def login(self):
+        # TODO: use async or worker?
+        self.login_thread = ZLoginThread(
+            self.api_alist,
+            self.settings.username,
+            self.settings.password,
+        )
+        self.login_thread.login_success.connect(self.on_login_success)
+        self.login_thread.login_fail.connect(self.on_login_failed)
+        self.login_thread.finished.connect(self.login_thread.quit)
+        self.login_thread.finished.connect(self.login_thread.deleteLater)
 
-                self.encode_thread.started.connect(self.dialog_processing.show)
-                self.encode_thread.started.connect(self.worker_encode.run)
-                self.encode_thread.finished.connect(self.encode_thread.deleteLater)
+        self.login_thread.start()
 
-                self.worker_encode.sigFinished.connect(self.on_worker_encode_finished)
-                self.worker_encode.sigFinished.connect(self.encode_thread.quit)
-                self.worker_encode.sigFinished.connect(self.worker_encode.deleteLater)
-                self.encode_thread.start()
+    def on_login_failed(self):
+        self.dialog_processing.close()
 
-            # self.sam_model.encode(self.current_image)
+        QMessageBox.critical(
+            self,
+            "Error",
+            "Login Failed, check internet or username and password",
+            QMessageBox.StandardButton.Ok,
+        )
+        if not self.dialog_settings.isVisible():
+            self.dialog_settings.show()
 
-    def on_worker_encode_finished(self, r: Tuple[str, SamOnnxEncodedInput]):
-        self.sam_model.add_encoded_input(r[0], r[1])  # type: ignore
-        self.dialog_processing.hide()
-        self.statusbar.showMessage("Image load success, start now!")
+    def on_login_success(self, token: str):
+        self.user_token = token
+        self.logger.info(f"Login success, {self.settings.username=}")
+        self.dialog_settings.close()
 
-    def load_project(self):
-        proj_path = self.settings.value(SettingsKey.PROJECT_PATH.value, "")
-        path = Path(str(proj_path))
-        if not path.exists():
-            self.dialog_new_proj.show()
-        else:
-            zproj = list(path.glob("*.zproj"))
-            if len(zproj) == 0:
-                self.dialog_new_proj.show()
-            try:
-                with open(zproj[0], "r", encoding="utf-8") as f:
-                    self.proj = Project.model_validate_json(f.read())
-            except Exception as e:
-                self.logger.error(f"Load project file {zproj[0]} Failed, Check it!\n{e=}")
-        if self.proj is not None:
-            self.refresh_image_paths()
-            self.refresh_annotations()
+        self.restore_project()
+        # self.restore_annotations()
 
-    def set_image_paths(self, paths: List[str], clear=False):
-        if clear:
-            self.proj.annotations.clear()
-        for i, p in enumerate(paths):
-            id_ = id_md5(p)
-            if id_ in self.proj.annotations:
-                continue
-            try:
-                img = Image.open(p)
-                self.proj.add_annotation(
-                    Annotation.new(
-                        p,
-                        img.width,
-                        img.height,
-                        self.current_user,
-                        id_=id_md5(p),
-                        anno_suffix=self.anno_suffix,
-                    )
-                )
-            except Exception:
-                continue
+        self.actionSAM.setChecked(self.sam_enabled)
+        self.actionOpenCV.setChecked(self.cv_enabled)
 
-    def refresh_image_paths(self, clear=False):
-        paths = Path(self.project_path).glob("*")
-        ppaths = [str(pp) for pp in paths if pp.suffix in self.img_suffix]
-        self.set_image_paths(ppaths, clear)
-        keys = list(self.annotations.keys())
-        self.anno_id = keys[0] if keys else ""
+        if len(self.proj.tasks) > 0:
+            tasks = list(self.proj.tasks.values())
+            if self.proj.key_task is None:
+                self.proj.key_task = list(self.proj.tasks.keys())[0]
+            self.dockcnt_files.set_file_list(tasks)
+            self.dockcnt_files.set_row_by_txt(self.proj.key_task)
 
-    def load_model(self):
-        if os.path.exists(self.sam_onnx_encoder_path) and os.path.exists(self.sam_onnx_decoder_path):
-            self.sam_model = SamOnnxModel(
-                encoder_path=self.sam_onnx_encoder_path,
-                decoder_path=self.sam_onnx_decoder_path,
+            if self.proj.crt_anno is None:
+                self.on_dock_files_item_clicked(self.proj.key_task)
+            labels = list(self.proj.crt_anno.labels.keys())  # type: ignore
+            if len(labels) > 0:
+                self.proj.crt_anno.key_label = labels[0]  # type: ignore
+
+        if self.proj.crt_anno and self.proj.crt_anno.labels:
+            self.dockcnt_labels.set_labels(
+                list(self.proj.crt_anno.labels.values()),
+                self.proj.crt_anno.key_label,
             )
-            return True
-        else:
+            self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
+            self.canvas.create_items_by_anno(self.proj.crt_anno)
+            self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self.on_settings_color_changed(self.settings.color)
+        self.try_set_image()
+
+        self.dialog_processing.close()
+
+    def load_tasks(self, path: str):
+        if not os.path.exists(path):
             QMessageBox.critical(
                 self,
-                "Model Error",
-                "Model files not found",
+                "Error",
+                f"Tasks {path=} not exists! Import First!",
                 QMessageBox.StandardButton.Ok,
             )
-            return False
+            return
+        with open(path, "r", encoding="utf-8") as f:
+            tasks = [Task.model_validate(t) for t in json.load(f)]
+        # ^ use anno_id as key to simplify object get/set in files list
+        QMessageBox.information(
+            self,
+            "Info",
+            f"Import {len(tasks)} Tasks Success!",
+            QMessageBox.StandardButton.Ok,
+        )
+        return tasks
+
+    def create_project(self):
+        self.proj = Project.new(
+            name=self.settings.project_name,
+            description=self.settings.project_description,
+        )
+        self.proj.save_json(self.settings.project_path)
+
+    def try_set_image(self, image: Image.Image | None = None):
+        if self.proj.crt_task is None:
+            return
+        if image is None:
+            img_name = self.proj.crt_task.filename
+            if img_name not in self._image_cache:
+                worker = ZGetImageWorker(
+                    self.api_alist,
+                    img_name,
+                    self.settings.username,
+                    self.settings.password,
+                )
+                worker.emitter.success.connect(self.cache_image)
+                worker.emitter.success.connect(self.on_try_set_image_get_success)
+                worker.emitter.fail.connect(self.on_get_image_fail)
+                self.dialog_processing.show()
+                self.threadpool.start(worker)
+                self.logger.info(f"getting {img_name}")
+            else:
+                self.on_try_set_image_get_success(img_name, self._image_cache[img_name])
+        else:
+            self.on_try_set_image_get_success("", image)
+
+    def on_try_set_image_get_success(self, name: str, image: Image.Image):
+        if self.proj.crt_anno is None:
+            return
+        # upload and set image to speed up prediction
+        # TODO: add uploaded cache and ignore if an image is already uploaded
+        self.run_preupload_img_worker(image)
+
+        self.proj.crt_anno.original_height = image.height
+        self.proj.crt_anno.original_width = image.width
+        self.canvas.clear_image()
+        self.canvas.set_image(np.asarray(image, dtype=np.uint8))
+        self.canvas.set_rgb(self.rgb_mode)
+        self.dialog_processing.close()
+
+    def on_get_image_fail(self, msg: str):
+        self.dialog_processing.close()
+        QMessageBox.warning(
+            self,
+            "Warning",
+            f"Get image failed, {msg=}",
+            QMessageBox.StandardButton.Ok,
+        )
 
     def add_result(self, result: Result):
-        self.proj.annotations[self.anno_id].add_result(result)
-        # if result.origin != "manual":
+        if self.proj.crt_anno is None:
+            self.logger.error(f"Current annotation is None! {self.proj.crt_task=}")
+            return
+        self.proj.crt_anno.add_result(result)
         self.canvas.create_item_by_result(result)
         self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.add_item(result.id)
+        self.logger.debug(f"Added result {result}")
 
     def add_results(self, results: List[Result]):
         for result in results:
             self.add_result(result)
 
-    def add_result_undo_cmd(self, results: List[Result], mode: ResultUndoMode):
-        cmd = ZResultUndoCmd(self, results, mode)
+    def add_result_undo_cmd(
+        self,
+        results: List[Result],
+        mode: ResultUndoMode,
+        results_old: List[Result] | None = None,
+    ):
+        cmd = ZResultUndoCmd(self, results, mode, results_old)
         self.undo_stack.push(cmd)
 
     def remove_result(self, id_: str):
-        if id_ not in self.current_annotation.results:  # type: ignore
-            self.logger.debug(f"{id_=}, {self.current_annotation.results.keys()=}")  # type: ignore
+        if self.proj.crt_anno is None or id_ not in self.proj.crt_anno.results:
+            self.logger.debug(f"{id_=}, {self.current_anno.results.keys()=}")  # type: ignore
             return
-        self.proj.annotations[self.anno_id].remove_result(id_)
+        self.proj.crt_anno.remove_result(id_)
         self.canvas.remove_items_by_ids([id_])
         self.dockcnt_anno.remove_item(id_)
 
@@ -364,22 +292,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for id_ in ids:
             self.remove_result(id_)
 
-    def update_ui(self):
-        self.set_image()
+    def modify_result(self, result: Result):
+        if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
+            return
+        self.logger.debug(f"{result=}\n{self.result_old=}")
+        self.proj.crt_anno.results.update({result.id: result})
+        self.dockcnt_info.set_info_by_result(result)
+        self.dockcnt_anno.set_row_by_text(result.id)
+        self.canvas.set_item_state_by_result(result, update=False)
 
-    def check_model_ok(self):
-        if self.sam_model is None:
-            QMessageBox.critical(
-                self,
-                "Model Error",
-                "Model is not loaded!",
-                QMessageBox.StandardButton.Ok,
-            )
-            return False
-        return True
+    def modify_results(self, results: List[Result]):
+        for r in results:
+            self.modify_result(r)
+
+    def add_annotation(self, anno: Annotation):
+        label_key = ""
+        length = 1e3
+        for label in anno.labels.values():
+            if len(label.name) < length:
+                label_key = label.id
+        anno.key_label = label_key
+        self.proj.key_task = anno.id
+        self.proj.add_annotation(anno)
 
     def check_label_ok(self):
-        if self.current_label is None:
+        if self.proj.crt_label is None:
             QMessageBox.critical(
                 self,
                 "Label Error",
@@ -390,15 +327,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return True
 
     def is_current_anno_ok(self):
-        anno = self.current_annotation
-        if anno is None:
-            self.logger.warning(f"current annotation is None, {self.proj=}")
+        if self.proj.crt_anno is None:
+            self.logger.warning(f"current annotation is None, {self.proj.crt_task=}")
             return False
         return True
 
     def is_current_result_ok(self):
-        result = self.current_result
-        if result is None:
+        if self.proj.crt_result is None:
             self.logger.warning("current result is None")
             return False
         return True
@@ -406,89 +341,143 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def is_current_anno_result_ok(self):
         return self.is_current_anno_ok() and self.is_current_result_ok()
 
+    def restore_project(self):
+        path = Path(self.settings.project_path)
+        if not path.exists():
+            if not path.parent.exists():
+                path.parent.mkdir(parents=True)
+            self.create_project()
+        else:
+            try:
+                with open(path, "r", encoding="utf-8") as f:
+                    self.proj = Project.model_validate_json(f.read())
+            except Exception as e:
+                button = QMessageBox.critical(
+                    self,
+                    "Error",
+                    f"Load project Error! {e=}, create new and overwrite?",
+                    QMessageBox.StandardButton.Ok,
+                    QMessageBox.StandardButton.Cancel,
+                )
+                if button == QMessageBox.StandardButton.Ok:
+                    self.create_project()
+
     def restore_annotations(self):
         # restore annotations
-        anno = self.current_annotation
-        if anno:
-            for result in anno.results.values():
-                if result.type_id == ResultType.RECTANGLE:
-                    rect = QRectF(result.x, result.y, result.w, result.h)
-                    item = Rectangle(
-                        rect=rect,
-                        color=result.labels[0].color,
-                        movable=True,
-                    )
-                    self.canvas.addItem(item)
-                else:
-                    raise NotImplementedError
-
-    def refresh_annotations(self):
-        path = Path(self.project_path)
-        anno_paths = path.glob(f"*.{self.anno_suffix}")
-        for p in anno_paths:
+        path = Path(self.settings.project_dir) / "annos"
+        annos = list(path.glob(f"*.{self.anno_suffix}"))
+        for p in annos:
             try:
                 with open(p, "r", encoding="utf-8") as f:
                     anno = Annotation.model_validate_json(f.read())
-                self.proj.add_annotation(anno)
+                self.add_annotation(anno)
             except Exception as e:
-                self.logger.critical(f"load {p=} failed, error: {e=}")
-        self.logger.info(f"Loaded Finished!\n Annotations: {len(self.annotations)}")
+                self.logger.warning(f"validate {p=} failed with {e=}")
+        self.proj.reset_task_key()
 
-    # def on_current_result_changed(self):
-    #     self.dockcnt_info.set_info_by_anno(self.current_annotation)
+    def run_preupload_img_worker(self, image: Image.Image | None):
+        if self.proj.crt_anno is None or image is None:
+            return
+        self.preupload_worker = ZPreuploadImageWorker(
+            self.api_predict,
+            self.proj.crt_anno.id,
+            copy.deepcopy(image),
+        )
+        self.threadpool.start(self.preupload_worker)
 
-    #     if self.is_current_anno_ok():
-    #         self.dockcnt_anno.set_row_by_text(self.result_id)
+    # endregion
+
+    # region properties
+    @functools.cached_property
+    def image_paths(self):
+        return [task.filename for task in self.proj.tasks.values()]
+
+    @property
+    def current_image(self) -> Image.Image | None:
+        if self.proj.crt_task is not None:
+            img_name = self.proj.crt_task.filename
+            if img_name in self._image_cache:
+                return self._image_cache[img_name]
+        return None
+
+    def cache_image(self, img_name: str, img: Image.Image):
+        self._image_cache[img_name] = img
+
+    @property
+    def auto_mode(self):
+        mode = AutoMode.MANUAL
+        if self.sam_enabled and self.cv_enabled:
+            mode = AutoMode.SAM & AutoMode.CV
+        elif self.sam_enabled:
+            mode = AutoMode.SAM
+        elif self.cv_enabled:
+            mode = AutoMode.CV
+        return mode
+
+    @property
+    def sam_enabled(self) -> bool:
+        return self.settings.value(SettingsKey.PROJ_SAM.value, False, type=bool)  # type: ignore
+
+    @sam_enabled.setter
+    def sam_enabled(self, v: bool):
+        self.settings.setValue(SettingsKey.PROJ_SAM.value, v)
+
+    @property
+    def cv_enabled(self) -> bool:
+        return self.settings.value(SettingsKey.PROJ_CV.value, False, type=bool)  # type: ignore
+
+    @cv_enabled.setter
+    def cv_enabled(self, v: bool):
+        self.settings.setValue(SettingsKey.PROJ_CV.value, v)
 
     # endregion
 
     # region Slots
-    def on_dialog_new_proj_clicked(self, btn: QPushButton):
-        if btn == self.dialog_new_proj.btn_ok:
-            self.settings.setValue(SettingsKey.PROJECT_PATH.value, self.dialog_new_proj.proj_path)
-            user = User(
-                id=id_uuid4(), name=self.dialog_new_proj.proj_user_name, email=self.dialog_new_proj.proj_user_email
-            )
-            self.proj = Project.new(
-                self.dialog_new_proj.proj_path,
-                self.dialog_new_proj.proj_name,
-                self.dialog_new_proj.proj_description,
-                users=OrderedDict({user.id: user}),
-            )
-        elif btn == self.dialog_new_proj.btn_cancel:
-            ...
+    def on_dialog_settings_changed(self, settings: QSettings):
+        for k in settings.allKeys():
+            self.settings.setValue(k, settings.value(k))
+
+    def on_settings_color_changed(self, color: str):
+        if self.proj.label_id is not None:
+            self.on_dock_label_item_color_changed(self.proj.label_id, color)
+            self.dockcnt_labels.set_color(color)
+
+    def set_loglevel(self, level: str):
+        self.logger.info(f"Setting loglevel to {level}")
+        self.logger.setLevel(level)
+        self.canvas.logger.setLevel(level)
+        self.api_alist.logger.setLevel(level)
+        self.api_predict.logger.setLevel(level)
+
+    # def check_login(self):
+    #     if not self.login():
+    #         QMessageBox.critical(
+    #             self,
+    #             "Error",
+    #             "Login Failed, check internet or username and password",
+    #             QMessageBox.StandardButton.Ok,
+    #         )
+    #         if not self.dialog_settings.isVisible():
+    #             self.dialog_settings.show()
+    #     else:
+    #         self.dialog_settings.close()
 
     # region Slots Actions
-    def on_action_open_dir_triggered(self):
-        directory = QFileDialog.getExistingDirectory(self, "Open Directory")
-        path = Path(directory)
-        if path.exists():
-            zprojs = list(path.glob("*.zproj"))
-            if len(zprojs) == 0:
-                self.dialog_new_proj.show()
-            else:
-                
-            self.project_path = directory
-            self.refresh_image_paths(clear=True)
-            self.refresh_annotations()
-            self.dockcnt_files.update_file_list(self.image_paths)
-            self.logger.debug(f"{self.proj.current_image_idx=}")
-
     def on_action_next_prev_triggered(self):
-        row = self.dockcnt_files.listw_files.currentRow()
+        row = self.dockcnt_files.currentRow()
         if self.sender() == self.actionNext:
             row += 1
         else:
             row -= 1
-        if row < 0 or row >= self.dockcnt_files.listw_files.count():
+        if row < 0 or row >= self.dockcnt_files.count():
             return
-        self.dockcnt_files.listw_files.setCurrentRow(row)
-        item = self.dockcnt_files.listw_files.item(row)
-        self.dockcnt_files.update_labels()
+        self.dockcnt_files.setCurrentRow(row)
+        item = self.dockcnt_files.getItem(row)
+        self.dockcnt_files.set_qlabels()
         self.on_dock_files_item_clicked(item)  # type: ignore
 
     def on_action_save_triggered(self):
-        self.proj.save_json(f"{self.proj.name}.zproj")
+        self.proj.save_json(self.settings.project_path)
 
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
@@ -500,9 +489,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_action_visible_triggered(self):
         if self.actionVisible.isChecked():
-            self.canvas.clear_all_items()
+            self.canvas.create_items_by_anno(self.proj.crt_anno)
         else:
-            self.canvas.create_items_by_anno(self.current_annotation)
+            self.canvas.clear_all_items()
 
     def on_action_zoom_in_triggered(self):
         self.canvas.view_box.scaleBy((0.9, 0.9))
@@ -511,26 +500,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.view_box.scaleBy((1.1, 1.1))
 
     def on_action_finish_triggered(self):
-        self.on_action_save_triggered()
-        if self.current_annotation is None:
+        if self.proj.crt_task is None or self.proj.crt_anno is None:
             return
-        self.current_annotation.save_json()
+        self.on_action_save_triggered()
+        filename = f"{self.settings.project_dir}/annos/{self.proj.crt_anno.id}.{self.anno_suffix}"
+        self.proj.crt_anno.save_json(filename)
+
+        # if triggered by click, set task finished and upload
+        if self.sender() == self.actionFinish:
+            self.proj.crt_task.finished = True
+            self.dockcnt_files.set_item_finished(self.proj.crt_task)
+            self.worker_upload = ZUploadFileWorker(
+                self.api_alist,
+                filename,
+                self.settings.username,
+                self.settings.password,
+            )
+            self.worker_upload.emitter.fail.connect(lambda msg: Toast(msg, parent=self).show())
+            self.worker_upload.emitter.success.connect(lambda msg: Toast(msg, parent=self).show())
+            self.threadpool.start(self.worker_upload)
 
     def on_action_cancel_triggered(self):
         self.canvas.clear_all_items()
         self.dockcnt_anno.listWidget.clear()
         self.dockcnt_anno.listWidget.setCurrentRow(-1)
         self.dockcnt_info.set_info_by_anno(None)
-        self.current_annotation = None
+        if self.proj.crt_anno:
+            self.proj.crt_anno.reset_results()
+        if self.proj.crt_task:
+            self.proj.crt_task.finished = False
+            self.dockcnt_files.set_item_unfinished(self.proj.crt_task)
 
     def on_action_SAM_triggered(self):
-        # TODO implement SAM and OpenCV
-        checked = self.actionSAM.isChecked()
-        self._is_sam_enabled = checked
+        self.sam_enabled = self.actionSAM.isChecked()
 
     def on_action_opencv_triggered(self):
-        checked = self.actionOpenCV.isChecked()
-        self._is_cv_enabled = checked
+        self.cv_enabled = self.actionOpenCV.isChecked()
 
     def on_action_move_triggered(self):
         self.actionEdit.setEnabled(True)
@@ -570,8 +575,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.POLYGON)
 
-    def on_btn_online_mode_check_changed(self, checked: bool):
-        self._is_online_mode = checked
+    def on_action_merge_triggered(self):
+        self.canvas.merge_items(self.canvas.selected_items)
+
+    def on_action_import_task_triggered(self):
+        path = QFileDialog.getOpenFileName(
+            self, "Select tasks", self.last_path, "Json Files(*.json)"
+        )[0]
+        if path:
+            self.last_path = str(Path(path).absolute())
+            self.settings.setValue(SettingsKey.TASKS.value, path)
+            tasks = self.load_tasks(path)
+            if tasks is None:
+                return
+            self.proj.tasks.clear()
+            for task in tasks:
+                self.proj.add_task(task)
+            self.proj.reset_task_key()
+            self.proj.save_json(self.settings.project_path)
+            if self.user_token:
+                self.on_login_success(self.user_token)
+
+    def on_action_rgb_triggered(self):
+        others = []
+        if self.sender() == self.actionR:
+            self.rgb_mode = RgbMode.R
+            self.actionR.setChecked(True)
+            others = [self.actionG, self.actionB, self.actionRGB, self.actionGray]
+        elif self.sender() == self.actionG:
+            self.rgb_mode = RgbMode.G
+            self.actionG.setChecked(True)
+            others = [self.actionR, self.actionB, self.actionRGB, self.actionGray]
+        elif self.sender() == self.actionB:
+            self.rgb_mode = RgbMode.B
+            self.actionB.setChecked(True)
+            others = [self.actionR, self.actionG, self.actionRGB, self.actionGray]
+        elif self.sender() == self.actionRGB:
+            self.rgb_mode = RgbMode.RGB
+            self.actionRGB.setChecked(True)
+            others = [self.actionR, self.actionG, self.actionB, self.actionGray]
+        elif self.sender() == self.actionGray:
+            self.rgb_mode = RgbMode.GRAY
+            self.actionGray.setChecked(True)
+            others = [self.actionR, self.actionG, self.actionB, self.actionRGB]
+        else:
+            self.logger.error(f"{self.sender()=} not implemented")
+        for action in others:
+            action.setChecked(False)
+        self.canvas.set_rgb(self.rgb_mode)
 
     def on_slider_threshold_changed(self, v: int):
         self.threshold = v
@@ -581,114 +632,164 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # region DockLabel
     def on_dock_label_btn_add_clicked(self):
         txt = self.dockcnt_labels.ledit_add_label.text()
-        if self.proj is None or txt == "":
+        if self.proj.crt_anno is None or txt == "":
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "add label failed due to no selected task or empty label name!",
+                QMessageBox.StandardButton.Ok,
+            )
             return
-        label = Label(id=id_uuid4(), name=txt)
-        self.proj.add_label(label)
+        label = Label(id=id_uuid4(), name=txt, color=self.settings.color)
+        self.proj.crt_anno.add_label(label)
         self.dockcnt_labels.add_label(label)
 
     def on_dock_label_btn_dec_clicked(self):
         row = self.dockcnt_labels.listw_labels.currentRow()
         item: ZListWidgetItem = self.dockcnt_labels.listw_labels.item(row)  # type: ignore
         self.dockcnt_labels.remove_label(row)
-        self.proj.labels.pop(item.id_)
+        if self.proj.crt_anno is not None:
+            self.proj.crt_anno.remove_label(item.id_)
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
-        self.label_id = item.id_
+        if self.proj.crt_anno:
+            self.proj.crt_anno.key_label = item.id_
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_label_btn_del_clicked(self, id_: str):
-        self.proj.labels.pop(id_)
+        if self.proj.crt_anno:
+            self.proj.crt_anno.remove_label(id_)
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_label_item_color_changed(self, id_: str, color: str):
-        self.proj.labels[id_].color = color
-        self.canvas.color = color
-        self.logger.debug(self.proj.labels)
+        if self.proj.crt_anno:
+            self.proj.crt_anno.labels[id_].color = color
+            if id_ == self.proj.crt_anno.key_label:
+                self.canvas.set_color(color)
+                self.proj.crt_anno.set_color(color)
+            self.logger.debug(f"Labels color changed: {self.proj.crt_anno.labels=}")
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     # endregion
 
     # region DockInfo
     ##### DockInfo #####
     def on_dock_info_ledit_note_changed(self, s: str):
-        if self.current_result is None:
+        if self.proj.crt_result is None:
+            self.logger.warning(f"Current Result is None, {self.proj.crt_anno=}")
             return
-        idx_result = self.current_annotation.crt_result_idx  # type: ignore
-        self.proj.annotations[self.anno_id].results[idx_result].note = s
-
-    def on_dock_info_cbox_user_changed(self, value: int):
-        name = self.dockcnt_info.cbox_users.itemText(value)
-        for k in self.proj.users:
-            user = self.proj.users[k]
-            if user.name == name:
-                self.user_id = user.id
-                break
+        self.proj.crt_result.note = s
 
     def on_dock_info_btn_del_clicked(self):
-        self.canvas.remove_selected_item()
+        self.canvas.remove_selected_items()
+        if self.proj.crt_anno:
+            self.proj.crt_anno.remove_result(self.proj.crt_anno.key_result)
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     # endregion
 
     # region DockAnnotation
     ##### DockAnnotation #####
     def on_dock_anno_listw_item_clicked(self, item: ZListWidgetItem):
-        self.result_id = item.id_
+        self.canvas.block_item_state_changed(True)
         self.canvas.select_item(item.id_)
-        self.dockcnt_info.set_info_by_anno(self.current_annotation)
+        self.canvas.block_item_state_changed(False)
+
+        if self.proj.crt_anno:
+            self.proj.crt_anno.key_result = item.id_
+            self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_anno_item_deleted(self, ids: List[str]):
-        results = [self.current_annotation.results[id_] for id_ in ids]  # type: ignore
-        # self.remove_results(ids)
-        self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
+        if self.proj.crt_anno:
+            results = [self.proj.crt_anno.results[id_] for id_ in ids]
+            self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
+        else:
+            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     # endregion
 
     # region DockFiles
     ##### DockFiles #####
-    def on_dock_files_item_clicked(self, item: ZListWidgetItem):
+    def on_dock_files_item_clicked(self, task_id: str):
         # save first
-        self.on_action_save_triggered()
         self.on_action_finish_triggered()
 
         # set current annotation id to newly clicked
-        self.anno_id = item.id_
-        anno = self.current_annotation
+        self.proj.key_task = task_id
+        if self.proj.crt_task is None:
+            self.logger.warning(f"Current task is None, {self.proj.tasks=}")
+            return
+
+        # if the current anno is None:
+        # 1. try to fetch from remote
+        # 2. if not existed in remote, create
+        if self.proj.crt_anno is None:
+            task = self.proj.tasks[task_id]
+            labels = OrderedDict()
+            for name in task.labels:
+                label = Label(id=id_uuid4(), name=name, color=self.settings.color)
+                labels[label.id] = label
+            try:
+                name = f"{task.anno_id}.{self.anno_suffix}"
+                anno_json = self.api_alist.get_anno_by_name(name=name)
+                if anno_json is None:
+                    raise Exception(f"Response of {name} is None")
+                anno = Annotation.model_validate_json(anno_json)
+                self.add_annotation(anno)
+                self.logger.info(f"Got anno from remote, added {name}")
+            except Exception as e:
+                self.add_annotation(
+                    Annotation.new(
+                        image_path=task.filename,
+                        width=0,
+                        height=0,
+                        create_user=self.user,
+                        id_=task.anno_id,
+                        labels=labels,
+                    )
+                )
+                self.logger.warning(f"{task.anno_id=} not found in remote, created, {e=}")
+
+        self.try_set_image()
 
         # update ui
-        self.set_image()
-        self.dockcnt_info.set_info_by_anno(anno)
-        self.dockcnt_anno.add_items_by_anno(anno)
-        self.dockcnt_anno.set_row_by_text(self.result_id)
+        # ^ hereafter, self.proj.crt_anno won't be None
+        self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
+        self.dockcnt_anno.set_row_by_text(self.proj.key_result)
+        self.dockcnt_anno.set_title()
+        self.dockcnt_labels.set_labels(list(self.proj.crt_anno.labels.values()))  # type: ignore
+        self.dockcnt_labels.set_color(self.settings.color)
 
         # clear items in canvas
-        self.canvas.clear_all_items()
-        if anno is not None:
-            self.canvas.create_items_by_anno(anno)
-
-    def on_dock_files_ledit_jump_changed(self, s: str):
-        try:
-            row = int(s) - 1
-            item = self.dockcnt_files.listw_files.item(row)
-            self.on_dock_files_item_clicked(item)  # type: ignore
-        except Exception as e:
-            self.logger.debug(f"{type(s)=}, {e=}")
+        self.canvas.update_by_anno(self.proj.crt_anno)
 
     # endregion
 
     # region Canvas
+    def run_sam_api_worker(self, worker: ZSamApiWorker):
+        worker.emitter.sigFinished.connect(self.on_sam_worker_finished)
+        self.threadpool.start(worker)
+
     def on_sam_worker_finished(self, worker_results: List[SamWorkerResult]):
         if len(worker_results) == 0:
             return
         results = [wr.result for wr in worker_results]
-        self.anno_id = worker_results[0].anno_id
+        self.proj.key_task = worker_results[0].anno_id
         # self.add_results(results)
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
 
     def on_canvas_point_created(self, point: QPointF):
-        if not self.check_model_ok():
-            return
-        if not self.check_label_ok():
-            return
-
-        if self.current_image is None:
+        if self.current_image is None or self.proj.crt_label is None or self.proj.key_task is None:
+            self.logger.warning(f"{self.proj.crt_label=}, {self.proj.key_task=}")
             return
 
         match self.auto_mode:
@@ -702,32 +803,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     QMessageBox.StandardButton.Ok,
                 )
                 return
-        self.sam_worker = ZSamWorker(
-            model=self.sam_model,  # type: ignore
-            anno_id=self.anno_id,
-            result_labels=[self.current_label],  # type: ignore
-            img=self.current_image,
+        # TODO: if image already uploaded, ignore uploading image with points
+        worker = ZSamApiWorker(
+            api=self.api_predict,
+            anno_id=self.proj.key_task,
+            image=self.current_image,
             points=[(point.x(), point.y())],
             labels=[1.0],
-            result_type=ResultType.POINT,
-            auto_mode=self.auto_mode,
             threshold=self.threshold,
+            mode=self.auto_mode,
+            result_labels=[self.proj.crt_label],
         )
-        self.worker_thread = QThread(self)
-        self.sam_worker.moveToThread(self.worker_thread)
-        self.worker_thread.started.connect(self.sam_worker.run)
-        self.sam_worker.sigFinished.connect(self.worker_thread.quit)
-        self.sam_worker.sigFinished.connect(self.sam_worker.deleteLater)
-        self.worker_thread.finished.connect(self.worker_thread.deleteLater)
-        self.sam_worker.sigFinished.connect(self.on_sam_worker_finished)
-        self.worker_thread.start()
+        self.run_sam_api_worker(worker)
 
-    def on_canvas_rectangle_created(self, item: Rectangle | None):
-        self.logger.debug(f"Rectangle Created: {item}")
-        if item is None:
+    def on_canvas_rectangle_created(self, item_state: Dict[str, Any] | None):
+        if item_state is None or self.proj.key_task is None or self.current_image is None:
+            self.logger.warning(f"Wrong {item_state=} or {self.proj.key_task=} or current_image")
             return
-        if not self.current_label:
-            self.canvas.remove_item(item)
+        self.logger.debug(f"Rectangle Created: {item_state=}")
+        if not self.proj.crt_label:
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -735,62 +829,98 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        match item:
-            case Rectangle():
-                d = item.getState()
-                result = Result.new(
-                    id_=item.id,
-                    type_id=ResultType.RECTANGLE,
-                    x=d["pos"].x(),
-                    y=d["pos"].y(),
-                    w=d["size"].x(),
-                    h=d["size"].y(),
-                    rotation=d["angle"],
-                    labels=[self.current_label],
-                    score=1.0,
-                )
-            case _:
-                raise NotImplementedError
-        self.logger.debug(f"{result=}")
-        # self.add_result(result)
-        self.add_result_undo_cmd([result], ResultUndoMode.ADD)
 
-        self.dockcnt_anno.add_item(result.id)
-        self.dockcnt_info.set_info_by_result(result)
+        result = Result.new(
+            id_=item_state["id"],
+            type_id=ResultType.RECTANGLE,
+            x=item_state["pos"].x(),
+            y=item_state["pos"].y(),
+            w=item_state["size"].x(),
+            h=item_state["size"].y(),
+            rotation=item_state["angle"],
+            labels=[self.proj.crt_label],
+            score=1.0,
+        )
+        self.logger.debug(f"{result=}")
+        match self.auto_mode:
+            # if neither SAM nor CV selected, means create rect manually
+            case AutoMode.MANUAL:
+                self.add_result_undo_cmd([result], ResultUndoMode.ADD)
+                return
+            # if either sam or CV selected, create by predict
+            case AutoMode.SAM | AutoMode.CV:
+                ...
+            case x if x == AutoMode.SAM & AutoMode.CV:
+                ...
+            case _:
+                QMessageBox.warning(
+                    self,
+                    "Warning",
+                    "AutoMode error",
+                    QMessageBox.StandardButton.Ok,
+                )
+                return
+
+        worker = ZSamApiWorker(
+            api=self.api_predict,
+            anno_id=self.proj.key_task,
+            image=self.current_image,
+            rects=[(result.x, result.y, result.w, result.h)],
+            threshold=self.threshold,
+            mode=self.auto_mode,
+            result_labels=[self.proj.crt_label],
+        )
+        self.run_sam_api_worker(worker)
 
     def on_canvas_item_clicked(self, id_: str):
-        if not self.is_current_anno_ok():
+        if self.proj.crt_anno is None:
             return
-        self.result_id = id_
+        self.proj.key_result = id_
         self.dockcnt_anno.set_row_by_text(id_)
-        self.dockcnt_info.set_info_by_result(self.current_result)
+        self.dockcnt_info.set_info_by_result(self.proj.crt_result)
 
-    def on_canvas_item_state_changed(self, item: Rectangle | Polygon):
-        if not self.is_current_anno_result_ok():
+    def on_canvas_item_state_changed(self, state: Dict[str, Any]):
+        if self.proj.crt_result is None:
             return
-        result: Result = self.current_result  # type: ignore
-        state = item.getState()
+        result: Result = copy.deepcopy(self.proj.crt_result)
         result.x = state["pos"].x()
         result.y = state["pos"].y()
         result.w = state["size"].x()
         result.h = state["size"].y()
         result.rotation = state["angle"]
-        self.current_result = result
+        # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
         self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.set_row_by_text(result.id)
         # self.logger.debug(self.current_result)
 
-    def on_canvas_items_removed(self, items: List[Rectangle | Polygon]):
-        if not self.is_current_anno_ok():
+    def on_canvas_item_state_change_finished(self, state: Dict[str, Any]):
+        if self.proj.crt_result is None or self.result_old is None:
             return
-        ids = [item.id for item in items]
+        result: Result = copy.deepcopy(self.proj.crt_result)
+        result.x = state["pos"].x()
+        result.y = state["pos"].y()
+        result.w = state["size"].x()
+        result.h = state["size"].y()
+        result.rotation = state["angle"]
+        if not result.equal_v(self.result_old):
+            self.logger.debug("Adding modify undo command")
+            self.add_result_undo_cmd([result], ResultUndoMode.MODIFY, [self.result_old])
+        self.result_old = None
 
-        results = [self.current_annotation.results[i] for i in ids]  # type: ignore
+    def on_canvas_item_state_change_started(self, state: Dict[str, Any]):
+        self.proj.key_result = state["id"]
+        if self.proj.crt_result is not None:
+            self.result_old = copy.deepcopy(self.proj.crt_result)
+
+    def on_canvas_items_removed(self, ids: List[str]):
+        if self.proj.crt_anno is None:
+            return
+        results = [self.proj.crt_anno.results[i] for i in ids]
         self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
         # self.remove_results(ids)
         self.dockcnt_anno.remove_items(ids)
-        self.dockcnt_info.set_info_by_anno(self.current_annotation)
+        self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
 
     def on_canvas_scene_mouse_moved(self, pos: QPointF):
         x, y = pos.x(), pos.y()
@@ -801,47 +931,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region INIT
     def init_ui(self):
-        self.dialog_settings = DialogSettings(self)
+        self.dialog_settings = DialogSettings(self.settings_path, self)
         self.dialog_about = DialogAbout(self)
         self.dialog_processing = DialogProcessing(self)
-        self.dialog_new_proj = DialogNewProject(self)
-        self.actionSAM.setChecked(self._is_sam_enabled)
-        self.actionOpenCV.setChecked(self._is_cv_enabled)
-
-        self.btn_online_mode = ZSwitchButton(self)
-        self.btn_online_mode.setStatusTip("Switch Online Mode")
-        self.btn_online_mode.setToolTip("Switch Online Mode")
-        self.toolBar.addWidget(self.btn_online_mode)
+        self.setupUi(self)
 
         self.slider_threshold = ZSlider(Qt.Orientation.Horizontal, self)
         self.slider_threshold.setValue(self.threshold)
         self.slider_threshold.setStatusTip("Set Threshold")
         self.slider_threshold.setToolTip("Set Threshold")
-        self.slider_threshold.setMaximumSize(100, 20)
+        self.slider_threshold.setMaximumSize(150, 20)
         self.toolBar.addWidget(self.slider_threshold)
 
-        self.refresh_image_paths(clear=True)
-        self.label_id = self.label_default.id
-        self.user_id = self.user_default.id
-
-        self.dockcnt_files.update_file_list(self.image_paths)
-
-        self.dockcnt_info.set_info_by_anno(self.current_annotation)
-
-        if self.current_annotation:
-            self.dockcnt_anno.add_items(list(self.current_annotation.results.keys()))
-
-        self.dockcnt_labels.set_labels(list(self.labels.values()), self.label_id)
-
-        self.set_image()
+        self.dialog_processing.show()
 
     def init_signals(self):
         # dialog
-        self.dialog_new_proj.buttonBox.clicked.connect(self.on_dialog_new_proj_clicked)
+        self.dialog_settings.sigSettingsChanged.connect(self.on_dialog_settings_changed)
+        self.dialog_settings.sigApplyClicked.connect(self.load_settings)
+        self.dialog_settings.destroyed.connect(self.dialog_processing.close)
+        self.dialog_settings.sigLoglevelChanged.connect(self.set_loglevel)
+        self.dialog_settings.sigColorChanged.connect(self.on_settings_color_changed)
         # actions
-        self.actionOpen_dir.triggered.connect(self.on_action_open_dir_triggered)
         self.actionSettings.triggered.connect(self.dialog_settings.show)
         self.actionAbout.triggered.connect(self.dialog_about.show)
+        self.actionExit.triggered.connect(self.close)
 
         self.actionNext.triggered.connect(self.on_action_next_prev_triggered)
         self.actionPrev.triggered.connect(self.on_action_next_prev_triggered)
@@ -855,6 +969,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionRectangle.triggered.connect(self.on_action_rectangle_triggered)
         self.actionPoint.triggered.connect(self.on_action_point_triggered)
         self.actionPolygon.triggered.connect(self.on_action_polygon_triggered)
+        self.actionMerge.triggered.connect(self.on_action_merge_triggered)
 
         self.actionFinish.triggered.connect(self.on_action_finish_triggered)
         self.actionCancel.triggered.connect(self.on_action_cancel_triggered)
@@ -864,7 +979,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionZoom_in.triggered.connect(self.on_action_zoom_in_triggered)
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
 
-        self.btn_online_mode.sigCheckStateChanged.connect(self.on_btn_online_mode_check_changed)
+        self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
+
+        self.actionR.triggered.connect(self.on_action_rgb_triggered)
+        self.actionG.triggered.connect(self.on_action_rgb_triggered)
+        self.actionB.triggered.connect(self.on_action_rgb_triggered)
+        self.actionGray.triggered.connect(self.on_action_rgb_triggered)
+        self.actionRGB.triggered.connect(self.on_action_rgb_triggered)
+
+        # self.btn_online_mode.sigCheckStateChanged.connect(self.on_btn_online_mode_check_changed)
         self.slider_threshold.valueChanged.connect(self.on_slider_threshold_changed)
 
         # canvas
@@ -872,29 +995,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigRectangleCreated.connect(self.on_canvas_rectangle_created)
         self.canvas.sigItemClicked.connect(self.on_canvas_item_clicked)
         self.canvas.sigItemStateChanged.connect(self.on_canvas_item_state_changed)
+        self.canvas.sigItemStateChangeFinished.connect(self.on_canvas_item_state_change_finished)
+        self.canvas.sigItemStateChangeStarted.connect(self.on_canvas_item_state_change_started)
         self.canvas.sigItemsRemoved.connect(self.on_canvas_items_removed)
         self.canvas.sigMouseMoved.connect(self.on_canvas_scene_mouse_moved)
+        self.canvas.sigMouseBackClicked.connect(self.on_action_undo_triggered)
+        self.canvas.sigMouseForwardClicked.connect(self.on_action_redo_triggered)
 
         # dock info
-        self.dockcnt_info.cbox_users.currentIndexChanged.connect(self.on_dock_info_cbox_user_changed)
         self.dockcnt_info.ledit_anno_note.textChanged.connect(self.on_dock_info_ledit_note_changed)
         self.dockcnt_info.btn_delete_anno.clicked.connect(self.on_dock_info_btn_del_clicked)
 
         # dock files
-        self.dockcnt_files.listw_files.itemClicked.connect(self.on_dock_files_item_clicked)
-        self.dockcnt_files.ledit_jump.textEdited.connect(self.on_dock_files_ledit_jump_changed)
+        self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
 
         # dock labels
         self.dockcnt_labels.listw_labels.itemClicked.connect(self.on_dock_label_listw_item_clicked)
         self.dockcnt_labels.btn_decrease.clicked.connect(self.on_dock_label_btn_dec_clicked)
         self.dockcnt_labels.btn_increase.clicked.connect(self.on_dock_label_btn_add_clicked)
-        self.dockcnt_labels.ledit_add_label.editingFinished.connect(self.on_dock_label_btn_add_clicked)
+        self.dockcnt_labels.ledit_add_label.editingFinished.connect(
+            self.on_dock_label_btn_add_clicked
+        )
         self.dockcnt_labels.sigBtnDeleteClicked.connect(self.on_dock_label_btn_del_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
 
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
+        self.dockcnt_anno.sigItemCountChanged.connect(lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)"))
 
     # endregion
 

@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dialog_new_proj.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.0
+## Created by: Qt User Interface Compiler version 6.6.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,7 @@ class Ui_DialogNewProject(object):
     def setupUi(self, DialogNewProject):
         if not DialogNewProject.objectName():
             DialogNewProject.setObjectName(u"DialogNewProject")
-        DialogNewProject.resize(426, 164)
+        DialogNewProject.resize(426, 194)
         self.verticalLayout = QVBoxLayout(DialogNewProject)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.gridLayout = QGridLayout()

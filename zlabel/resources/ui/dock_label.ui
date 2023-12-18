@@ -30,7 +30,7 @@
     <number>2</number>
    </property>
    <item>
-    <widget class="QListWidget" name="listw_labels">
+    <widget class="ZListWidget" name="listw_labels">
      <property name="selectionMode">
       <enum>QAbstractItemView::SingleSelection</enum>
      </property>
@@ -117,6 +117,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ZListWidget</class>
+   <extends>QListWidget</extends>
+   <header>zlabel.widgets.zwidgets</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>

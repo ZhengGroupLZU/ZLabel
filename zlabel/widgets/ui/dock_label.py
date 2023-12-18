@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_label.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.0
+## Created by: Qt User Interface Compiler version 6.6.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -16,8 +16,10 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
 from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QLineEdit,
-    QListWidget, QListWidgetItem, QPushButton, QSizePolicy,
-    QVBoxLayout, QWidget)
+    QListWidgetItem, QPushButton, QSizePolicy, QVBoxLayout,
+    QWidget)
+
+from zlabel.widgets.zwidgets import ZListWidget
 
 class Ui_ZDockLabelContent(object):
     def setupUi(self, ZDockLabelContent):
@@ -28,7 +30,7 @@ class Ui_ZDockLabelContent(object):
         self.verticalLayout.setSpacing(2)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(2, 2, 2, 2)
-        self.listw_labels = QListWidget(ZDockLabelContent)
+        self.listw_labels = ZListWidget(ZDockLabelContent)
         self.listw_labels.setObjectName(u"listw_labels")
         self.listw_labels.setSelectionMode(QAbstractItemView.SingleSelection)
         self.listw_labels.setSelectionBehavior(QAbstractItemView.SelectRows)

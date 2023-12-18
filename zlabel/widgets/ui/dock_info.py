@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_info.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.0
+## Created by: Qt User Interface Compiler version 6.6.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -15,8 +15,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QGridLayout, QLabel,
-    QLineEdit, QPushButton, QSizePolicy, QWidget)
+from PySide6.QtWidgets import (QApplication, QGridLayout, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QWidget)
 import icons_rc
 
 class Ui_ZDockInfoContent(object):
@@ -117,12 +117,6 @@ class Ui_ZDockInfoContent(object):
 
         self.gridLayout.addWidget(self.label_7, 2, 0, 1, 1)
 
-        self.cbox_users = QComboBox(ZDockInfoContent)
-        self.cbox_users.addItem("")
-        self.cbox_users.setObjectName(u"cbox_users")
-
-        self.gridLayout.addWidget(self.cbox_users, 4, 1, 1, 2)
-
         self.btn_delete_anno = QPushButton(ZDockInfoContent)
         self.btn_delete_anno.setObjectName(u"btn_delete_anno")
         sizePolicy1 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
@@ -141,6 +135,11 @@ class Ui_ZDockInfoContent(object):
         self.ledit_anno_note.setMinimumSize(QSize(0, 0))
 
         self.gridLayout.addWidget(self.ledit_anno_note, 3, 1, 1, 3)
+
+        self.label_username = QLabel(ZDockInfoContent)
+        self.label_username.setObjectName(u"label_username")
+
+        self.gridLayout.addWidget(self.label_username, 4, 1, 1, 2)
 
 
         self.gridLayout_2.addLayout(self.gridLayout, 0, 0, 1, 1)
@@ -167,9 +166,8 @@ class Ui_ZDockInfoContent(object):
         self.label_5.setText(QCoreApplication.translate("ZDockInfoContent", u"Note:", None))
         self.label_2.setText(QCoreApplication.translate("ZDockInfoContent", u"Height:", None))
         self.label_7.setText(QCoreApplication.translate("ZDockInfoContent", u"W:", None))
-        self.cbox_users.setItemText(0, QCoreApplication.translate("ZDockInfoContent", u"Default User", None))
-
         self.btn_delete_anno.setText("")
         self.ledit_anno_note.setPlaceholderText(QCoreApplication.translate("ZDockInfoContent", u"add extra image note here", None))
+        self.label_username.setText("")
     # retranslateUi
 

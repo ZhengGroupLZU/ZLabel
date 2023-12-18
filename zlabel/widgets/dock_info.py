@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
     QDockWidget,
 )
 
-from zlabel.utils.project import Annotation, Project, Result, User
+from zlabel.utils import Annotation, Result, User
 
 from .ui import Ui_ZDockInfoContent
 
@@ -23,12 +23,10 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
         super().__init__(parent)
         self.setupUi(self)
 
-    def set_user(self, user: User):
-        row = self.cbox_users.findText(user.name)
-        if row == -1:
-            self.cbox_users.addItem(user.name)
-            row = self.cbox_users.count() - 1
-        self.cbox_users.setCurrentIndex(row)
+    def set_user(self, user: User | None):
+        if user is None:
+            return
+        self.label_username.setText(user.name)
 
     def set_info_by_result(self, result: Result | None):
         if result is None:
@@ -57,5 +55,5 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
             self.label_img_height.setText(f"{anno.original_height:.2f}")
             if anno.created_by is not None:
                 self.set_user(anno.created_by)
-            result = anno.current_result()
+            result = anno.crt_result
             self.set_info_by_result(result)

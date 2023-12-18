@@ -5,8 +5,15 @@ class AutoMode(Flag):
     SAM = 1
     CV = 2
     SAM_AND_CV = 1 & 2
-    SAM_OR_CV = 1 | 2
     MANUAL = 3
+
+
+class RgbMode(Enum):
+    R = 1
+    G = 2
+    B = 3
+    RGB = 4
+    GRAY = 5
 
 
 class StatusMode(Enum):
@@ -41,5 +48,19 @@ class ContourMode(Enum):
 
 
 class SettingsKey(Enum):
-    PROJECT_PATH = "project/path"
-    PROJECT_FILE = "project/file"
+    HOST = "global/host"
+    URL_PREFIX = "global/urlprefix"
+    USER_NAME = "global/username"
+    USER_PWD = "global/userpwd"
+    ALPHA = "global/alpha"
+    MODEL_API = "global/modelapi"
+    ENCODER = "global/onnxencoder"
+    DECODER = "global/onnxdecoder"
+    LOGLEVEL = "global/loglevel"
+    COLOR = "global/color"
+
+    TASKS = "project/tasks"
+    PROJ_NAME = "project/name"
+    PROJ_DESCRIP = "project/description"
+    PROJ_SAM = "project/samEnabled"
+    PROJ_CV = "project/cvEnabled"

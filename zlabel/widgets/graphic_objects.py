@@ -1,27 +1,21 @@
 from typing import List, Tuple
 
-import pyqtgraph as pg
-from pyqtgraph.GraphicsScene.mouseEvents import (
+import pyqtgraph as pg  # type: ignore
+from pyqtgraph.graphicsItems.ROI import Handle  # type: ignore
+from pyqtgraph.GraphicsScene.mouseEvents import (  # type: ignore
+    HoverEvent,
     MouseClickEvent,
     MouseDragEvent,
-    HoverEvent,
 )
-from pyqtgraph.graphicsItems.ROI import Handle
 from qtpy.QtCore import QPointF, QRectF, Qt, Signal
 from qtpy.QtGui import QBrush, QColor, QKeyEvent, QPainter, QPen
 from qtpy.QtWidgets import QGraphicsItem, QGraphicsObject, QGraphicsPathItem
 from rich import print
 
-from zlabel.utils.project import id_uuid4
-
-from ..utils import ZLogger
-
-logger = ZLogger("graphic_objects")
+from zlabel.utils import id_uuid4, ZLogger
 
 
 class Rectangle(pg.RectROI):
-    sigHandleHovering = Signal(bool)
-
     def __init__(
         self,
         rect: QRectF,
@@ -31,6 +25,7 @@ class Rectangle(pg.RectROI):
         id_: str | None = None,
         **args,
     ):
+        self.id_ = id_ or id_uuid4()
         super().__init__(
             rect.topLeft().toTuple(),
             rect.size().toTuple(),
@@ -39,11 +34,11 @@ class Rectangle(pg.RectROI):
             **args,
         )
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
-        self.id = id_ or id_uuid4()
+        self.logger = ZLogger(__name__)
+        self.alpha_ = 0.1
         self.fill_color = QColor(color)
-        self.fill_color.setAlphaF(0.3)
+        self.fill_color.setAlphaF(self.alpha_)
         self._selected = False
-        self._handle_hovering = False
         self.brush = QBrush(self.fill_color)
 
         self.selected_pen: QPen = pg.mkPen(color="w", width=3)
@@ -63,7 +58,6 @@ class Rectangle(pg.RectROI):
         ]
         self.remove_handles()
 
-        # self.setToolTip("Rectangle")
         self.setCursor(Qt.CursorShape.PointingHandCursor)
 
     def paint(self, p: QPainter, opt, widget):
@@ -71,7 +65,7 @@ class Rectangle(pg.RectROI):
         self.currentPen = self.pen
         if self._selected:
             self.currentPen = self.selected_pen
-        # print(f"{self.id=}, {self._selected=}, {self.currentPen=}")
+        # self.logger.debug(f"{self.id=}, {self._selected=}, {self.currentPen=}")
         super().paint(p, opt, widget)
 
     def mouseClickEvent(self, ev):
@@ -85,10 +79,10 @@ class Rectangle(pg.RectROI):
     def mouseDragEvent(self, ev: MouseDragEvent):
         # ev.accept()
         super().mouseDragEvent(ev)
-        if ev.isStart():
-            self.setCursor(Qt.CursorShape.ClosedHandCursor)
-        elif ev.isFinish():
-            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # if ev.isFinish():
+        #     self.setCursor(Qt.CursorShape.PointingHandCursor)
+        # else:
+        #     self.setCursor(Qt.CursorShape.ClosedHandCursor)
 
     def remove_handles(self):
         while self.handles:
@@ -97,17 +91,11 @@ class Rectangle(pg.RectROI):
     def restore_handles(self):
         for h in self.default_scale_handles:
             handle = self.addScaleHandle(h[0], h[1])
-            if handle is not None:
-                handle.sigHovering.connect(self.on_handle_mouse_hover)
-
-    def on_handle_mouse_hover(self, hovering: bool = False):
-        self._handle_hovering = hovering
-
-    @property
-    def is_handle_hovering(self):
-        return self._handle_hovering
+            # if handle is not None:
+            #     handle.sigHovering.connect(self.on_handle_mouse_hover)
 
     def addHandle(self, info, index=None):
+        # overwrite default behavior, do not emit regionchanged/finished/started signal
         info["item"] = ZHandle(
             self.handleSize,
             typ=info["type"],
@@ -115,7 +103,33 @@ class Rectangle(pg.RectROI):
             hoverPen=self.handleHoverPen,  # type: ignore
             parent=self,
         )
-        super().addHandle(info, index)
+        h = info["item"]
+        if info["pos"] is None:
+            info["pos"] = h.pos()
+        h.setPos(info["pos"] * self.state["size"])
+
+        ## connect the handle to this ROI
+        # iid = len(self.handles)
+        h.connectROI(self)
+        if index is None:
+            self.handles.append(info)
+        else:
+            self.handles.insert(index, info)
+        h.setZValue(self.zValue() + 1)
+        # self.stateChanged()
+        return h
+
+    def removeHandle(self, handle):
+        """Remove a handle from this ROI. Argument may be either a Handle
+        instance or the integer index of the handle."""
+        index = self.indexOfHandle(handle)
+
+        handle = self.handles[index]["item"]
+        self.handles.pop(index)
+        handle.disconnectROI(self)
+        if len(handle.rois) == 0 and self.scene() is not None:
+            self.scene().removeItem(handle)
+        # self.stateChanged()
 
     def setSelected(self, s: bool):
         self._selected = s
@@ -125,9 +139,34 @@ class Rectangle(pg.RectROI):
             self.remove_handles()
         return super().setSelected(s)
 
+    def is_selected(self):
+        return self._selected
+
     def area(self):
         state = self.getState()
         return state["size"].x() * state["size"].y()
+
+    def set_fill_color(self, color: str):
+        self.fill_color = QColor(color)
+        self.fill_color.setAlphaF(self.alpha_)
+        self.brush = QBrush(self.fill_color)
+        self.pen = pg.mkPen(color, width=1)
+        self.update()
+
+    def getState(self):
+        state = super().getState()
+        state["id"] = self.id_
+        return state
+
+    def setState(self, state, update=True):
+        super().setState(state, update)
+        self.id_ = state["id"]
+
+    # def set_visible(self, v: bool = True):
+    #     state = self.getState()
+    #     state["pos"] = QPointF(0, 0)
+    #     state["size"] = QPointF(0, 0)
+    #     self.setState(state)
 
     # def backup_handles(self, inplace=True):
     #     handles = [
@@ -172,11 +211,11 @@ class Circle(pg.CircleROI):
 
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self._selected = False
-        self.id = id_ or id_uuid4()
+        self.id_ = id_ or id_uuid4()
 
         self.center = QPointF(pos[0] - radius, pos[1] - radius)
         self.fill_color = QColor(color)
-        self.fill_color.setAlphaF(0.3)
+        self.fill_color.setAlphaF(0.8)
         self.selected_pen: QPen = pg.mkPen(color="w", width=3)
         self.selected_pen.setStyle(Qt.PenStyle.DashLine)
         self.pen: QPen = pg.mkPen(color=color, width=1)

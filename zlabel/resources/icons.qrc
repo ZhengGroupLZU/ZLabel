@@ -1,5 +1,13 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/merge.svg</file>
+    <file>icons/channel_gray.svg</file>
+    <file>icons/channel.svg</file>
+    <file>icons/channel_b.svg</file>
+    <file>icons/channel_g.svg</file>
+    <file>icons/channel_r.svg</file>
+    <file>icons/zlabel.svg</file>
+    <file>icons/zlabel.ico</file>
     <file>icons/opencv.svg</file>
     <file>icons/ok.svg</file>
     <file>icons/eye-2.svg</file>

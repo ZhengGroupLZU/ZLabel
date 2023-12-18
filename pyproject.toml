@@ -1,68 +1,94 @@
-[tool.poetry]
-name = "zlabel"
-version = "0.1.0"
+[project]
+name = "ZLabel"
+version = "0.1.2"
 description = ""
-authors = ["rainyl <rainyliusy3@gmail.com>"]
+authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
+dependencies = [
+    "Pillow<11.0.0,>=10.1.0",
+    "PyYAML<7.0.0,>=6.0.1",
+    "numpy<2.0.0,>=1.26.2",
+    "qtpy<3.0.0,>=2.4.1",
+    "pyside6<7.0.0,>=6.6.1",
+    "rich<14.0.0,>=13.7.0",
+    "pydantic<3.0.0,>=2.5.2",
+    "requests<3.0.0,>=2.31.0",
+    "types-pillow<11.0.0.0,>=10.1.0.2",
+    "types-requests<3.0.0.0,>=2.31.0.10",
+    "pyqtgraph<1.0.0,>=0.13.3",
+    "pyoxidizer<1.0.0,>=0.24.0",
+    "pyinstaller<7.0.0,>=6.3.0",
+    "vispy>=0.14.1",
+]
+requires-python = ">=3.10,<3.11"
 readme = "README.md"
+license = { text = "MIT" }
 
-[tool.poetry.dependencies]
-python = ">=3.10, <3.12"
-imgviz = "^1.7.4"
-# mahotas = "^1.4.13"
-opencv-python-headless = "^4.8.1.78"
-Pillow = "^10.1.0"
-PyYAML = "^6.0.1"
-numpy = "^1.26.2"
-qtpy = "^2.4.1"
-pyside6 = "^6.6.0"
-# pyside2 = "^5.15.2.1"
-pycocotools = "^2.0.7"
-pyqtgraph = "^0.13.3"
-rich = "^13.7.0"
-pydantic = "^2.5.2"
-onnxruntime = "^1.16.3"
-pytest = "^7.4.3"
+[tool.pdm]
+package-type = "application"
 
-[tool.poetry.group.dev.dependencies]
-black = "^23.11.0"
-Nuitka = "^1.8.6"
-pytest = "^7.4.3"
-py7zr = "^0.20.8"
-poethepoet = "^0.24.4"
-ipykernel = "^6.26.0"
+[tool.pdm.build]
+includes = []
 
-[tool.poe.tasks]
-run = "python ./main.py"
-build = """python ./build.py"""
+[tool.pdm.dev-dependencies]
+dev = [
+    "black<24.0.0,>=23.11.0",
+    "Nuitka<2.0.0,>=1.8.6",
+    "pytest<8.0.0,>=7.4.3",
+    "py7zr<1.0.0,>=0.20.8",
+    "poethepoet<1.0.0,>=0.24.4",
+    "pyinstaller-versionfile<3.0.0,>=2.1.1",
+    "mypy<2.0.0,>=1.7.1",
+    "typed-argument-parser>=1.9.0",
+    "tqdm>=4.66.1",
+]
 
+[tool.pdm.scripts]
+start = "python ./zlabel.py"
+build = "python ./build.py"
+versionfile = "create-version-file version_info.yml --outfile version_info.txt"
 designer = "pyside6-designer.exe "
 rcc = "pyside6-rcc -o icons_rc.py zlabel/resources/icons.qrc"
+uic_rcc = "python ./uic_rcc.py"
 
-[tool.poe.tasks.uic]
-sequence = [
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/mainwindow.py zlabel/resources/ui/mainwindow.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_processing.py zlabel/resources/ui/dialog_processing.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_new_proj.py zlabel/resources/ui/dialog_new_proj.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_about.py zlabel/resources/ui/dialog_about.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_category_choice.py zlabel/resources/ui/dialog_category_choice.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_model_manager.py zlabel/resources/ui/dialog_model_manager.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_settings.py zlabel/resources/ui/dialog_settings.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_shortcuts.py zlabel/resources/ui/dialog_shortcuts.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_export.py zlabel/resources/ui/dialog_export.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_import.py zlabel/resources/ui/dialog_import.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_anno.py zlabel/resources/ui/dock_anno.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_file.py zlabel/resources/ui/dock_file.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_info.py zlabel/resources/ui/dock_info.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_label.py zlabel/resources/ui/dock_label.ui" },
-]
+# [tool.poetry]
+# name = "ZLabel"
+# version = "0.1.1"
+# description = ""
+# authors = ["rainyl <rainyliusy3@gmail.com>"]
+# readme = "README.md"
+
+# [tool.poetry.dependencies]
+# python = ">=3.10, <3.11"
+# Pillow = "^10.1.0"
+# PyYAML = "^6.0.1"
+# numpy = "^1.26.2"
+# qtpy = "^2.4.1"
+# pyside6 = "^6.6.1"
+# # pyside2 = "^5.15.2.1"
+# rich = "^13.7.0"
+# pydantic = "^2.5.2"
+# requests = "^2.31.0"
+# types-pillow = "^10.1.0.2"
+# types-requests = "^2.31.0.10"
+# pyqtgraph = "^0.13.3"
+# pyoxidizer = "^0.24.0"
+# pyinstaller = "^6.3.0"
+
+# [tool.poetry.group.dev.dependencies]
+# black = "^23.11.0"
+# Nuitka = "^1.8.6"
+# pytest = "^7.4.3"
+# py7zr = "^0.20.8"
+# poethepoet = "^0.24.4"
+# pyinstaller-versionfile = "^2.1.1"
+# mypy = "^1.7.1"
 
 [tool.pyright]
 defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
 
 [tool.ruff]
 ignore = ["E501", "F401"]
-line-length = 120
+line-length = 100
 
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[tool.mypy]
+exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]

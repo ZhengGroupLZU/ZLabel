@@ -1,14 +1,129 @@
 from typing import Optional
-from qtpy.QtWidgets import QListWidgetItem, QHBoxLayout, QWidget, QLabel, QPushButton, QLineEdit, QColorDialog, QSlider
-from qtpy.QtCore import Qt, Signal, QRect, QRectF, QPointF
-from qtpy.QtGui import QIcon, QColor, QPainter, QPen, QBrush, QMouseEvent
+from qtpy.QtWidgets import (
+    QListWidgetItem,
+    QHBoxLayout,
+    QWidget,
+    QLabel,
+    QPushButton,
+    QLineEdit,
+    QColorDialog,
+    QSlider,
+    QSizePolicy,
+    QListWidget,
+    QTableWidgetItem,
+    QTableWidget,
+)
+from qtpy.QtCore import Qt, Signal, QRect, QRectF, QPointF, QTimer, QSize, QPropertyAnimation
+from qtpy.QtGui import (
+    QIcon,
+    QColor,
+    QPainter,
+    QPen,
+    QBrush,
+    QMouseEvent,
+    QClipboard,
+    QPaintEvent,
+    QGuiApplication,
+)
 from rich import print
+
+from zlabel.utils import Task
+
+
+class ZListWidget(QListWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+
+    def move_current_row(self, prev: bool):
+        row = self.currentRow()
+        if prev:
+            new_row = max(0, row - 1)
+        else:
+            new_row = min(self.count(), row + 1)
+        self.setCurrentRow(new_row)
+        self.itemClicked.emit(self.currentItem())
+
+    def mousePressEvent(self, e: QMouseEvent) -> None:
+        if e.button() == Qt.MouseButton.BackButton:
+            self.move_current_row(prev=True)
+            e.accept()
+            return
+        elif e.button() == Qt.MouseButton.ForwardButton:
+            self.move_current_row(prev=False)
+            e.accept()
+            return
+        return super().mousePressEvent(e)
+
+
+class ZTableWidget(QTableWidget):
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.insertColumn(0)
+        self.insertColumn(1)
+        self.setHorizontalHeaderLabels(["id", "File Name"])
+        self.setColumnWidth(0, 50)
+        self.setColumnWidth(1, 100)
+
+    def move_current_row(self, prev: bool):
+        row = self.currentRow()
+        if prev:
+            new_row = max(0, row - 1)
+        else:
+            new_row = min(self.rowCount(), row + 1)
+        self.selectRow(new_row)
+        self.itemClicked.emit(self.currentItem())
+
+    def mousePressEvent(self, e: QMouseEvent) -> None:
+        if e.button() == Qt.MouseButton.BackButton:
+            self.move_current_row(prev=True)
+            e.accept()
+            return
+        elif e.button() == Qt.MouseButton.ForwardButton:
+            self.move_current_row(prev=False)
+            e.accept()
+            return
+        return super().mousePressEvent(e)
+
+
+class ZTableWidgetItem(QTableWidgetItem):
+    def __init__(self, id_: str, txt: str, finished: bool = False):
+        super().__init__()
+        self.alpha_ = 0.3
+
+        self.id_ = id_
+        self.setText(txt)
+        self.setToolTip(txt)
+        if finished:
+            self.set_finished()
+        else:
+            self.set_unfinished()
+
+    def set_finished(self):
+        color = QColor("#24bfa5")
+        color.setAlphaF(self.alpha_)
+        self.setBackground(color)
+
+    def set_unfinished(self):
+        color = QColor("#fd394c")
+        color.setAlphaF(self.alpha_)
+        self.setBackground(color)
 
 
 class ZListWidgetItem(QListWidgetItem):
     def __init__(self, id_: str, text: str, listview):
         super().__init__(text, listview)
         self.id_ = id_
+        self.alpha_ = 0.3
+
+    def set_finished(self):
+        color = QColor("#24bfa5")
+        color.setAlphaF(self.alpha_)
+        self.setBackground(color)
+
+    def set_unfinished(self):
+        color = QColor("#fd394c")
+        color.setAlphaF(self.alpha_)
+        self.setBackground(color)
 
 
 class ZLabelItemWidget(QWidget):
@@ -25,6 +140,7 @@ class ZLabelItemWidget(QWidget):
         super().__init__(parent)
         self.id_ = id_
         self.color = color
+        self.clipboard = QClipboard()
 
         self.label_color = QPushButton("")
         self.label_color.setMaximumWidth(20)
@@ -54,6 +170,15 @@ class ZLabelItemWidget(QWidget):
         self.color = color.name()
         self.set_label_color(self.color)
         self.sigColorChanged.emit(self.id_)
+
+    def mousePressEvent(self, event: QMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.RightButton:
+            text = self.label_text.text()
+            self.clipboard.setText(text)
+            Toast("Copied to clipboard!", parent=self).show()
+            event.accept()
+            return
+        return super().mousePressEvent(event)
 
 
 class ZSwitchButton(QPushButton):
@@ -102,6 +227,7 @@ class ZSwitchButton(QPushButton):
 
 class ZSlider(QWidget):
     valueChanged = Signal(int)
+
     def __init__(
         self,
         orientation: Qt.Orientation = Qt.Orientation.Horizontal,
@@ -125,3 +251,85 @@ class ZSlider(QWidget):
 
     def setValue(self, v: int):
         self.slider.setValue(v)
+
+
+class Toast(QWidget):
+    style_sheet = r"""#LabelMessage{color:white;font-family:Microsoft YaHei;font-size:12pt;}"""
+
+    def __init__(self, message="", timeout=1500, parent=None):
+        """
+        @param message: 提示信息
+        @param timeout: 窗口显示时长
+        @param parent: 父窗口控件
+        """
+        super().__init__(parent)
+        self.timer = QTimer()
+        # 由于不知道动画结束的事件，所以借助QTimer来关闭窗口，动画结束就关闭窗口，所以这里的事件要和动画时间一样
+        self.timer.singleShot(timeout, self.close)  # singleShot表示timer只会启动一次
+        self.setWindowFlags(
+            Qt.WindowType.FramelessWindowHint
+            | Qt.WindowType.Tool
+            | Qt.WindowType.WindowStaysOnTopHint
+        )
+        self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 设置窗口透明
+        self.setMinimumSize(QSize(220, 100))
+        self.setMaximumSize(QSize(300, 150))
+        self.layout_ = QHBoxLayout()
+        self.layout_.setContentsMargins(5, -1, 5, -1)
+        self.setLayout(self.layout_)
+        self.animation = None
+        self.init_ui(message)
+        self.create_animation(timeout)
+        self.setStyleSheet(Toast.style_sheet)
+        # 调整位置
+
+        self.center()
+
+    def center(self):
+        screen = QGuiApplication.primaryScreen().size()
+        size = self.geometry()
+        self.move(
+            int((screen.width() - size.width()) / 2),
+            int((screen.height() - size.height()) * 0.85),
+        )
+
+    def init_ui(self, message):
+        message_label = QLabel()
+        size_policy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        size_policy.setHorizontalStretch(0)
+        size_policy.setVerticalStretch(0)
+        size_policy.setHeightForWidth(message_label.sizePolicy().hasHeightForWidth())
+        message_label.setSizePolicy(size_policy)
+        message_label.setWordWrap(True)
+        message_label.setText(message)
+        message_label.setTextFormat(Qt.TextFormat.AutoText)
+        message_label.setScaledContents(True)
+        message_label.setObjectName("LabelMessage")
+        message_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.layout_.addWidget(message_label)
+
+    def create_animation(self, timeout):
+        # 1.定义一个动画
+        self.animation = QPropertyAnimation(self, b"windowOpacity")
+        self.animation.setTargetObject(self)
+        # 2.设置属性值
+        self.animation.setStartValue(0)
+        self.animation.setKeyValueAt(0.2, 0.9)  # 设置插值0.3 表示单本次动画时间的0.3处的时间点
+        self.animation.setKeyValueAt(0.8, 0.9)  # 设置插值0.8 表示单本次动画时间的0.3处的时间点
+        self.animation.setEndValue(0)
+        # 3.设置时长
+        self.animation.setDuration(timeout)
+        # 4.启动动画
+        self.animation.start()
+
+    def paintEvent(self, a0: QPaintEvent):
+        qp = QPainter()
+        qp.begin(self)  # 不能掉，不然没效果
+        qp.setRenderHints(QPainter.RenderHint.Antialiasing, True)  # 抗锯齿
+        qp.setBrush(QBrush(Qt.GlobalColor.black))
+        qp.setPen(Qt.GlobalColor.transparent)
+        rect = self.rect()
+        rect.setWidth(rect.width() - 1)
+        rect.setHeight(rect.height() - 1)
+        qp.drawRoundedRect(rect, 15, 15)
+        qp.end()

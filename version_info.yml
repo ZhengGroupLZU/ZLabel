@@ -1,0 +1,12 @@
+Version: 0.1.2.0
+CompanyName: ZhengGroup
+FileDescription: ZLabel
+InternalName: ZLabel
+LegalCopyright: Copyright © 2023. ZhengGroup All Rights Reserved.
+OriginalFilename: ZLabel.exe
+ProductName: ZLabel
+Translation:
+  - langID: 0
+    charsetID: 1200
+  - langID: 1033
+    charsetID: 1252

@@ -189,15 +189,6 @@
        </property>
       </widget>
      </item>
-     <item row="4" column="1" colspan="2">
-      <widget class="QComboBox" name="cbox_users">
-       <item>
-        <property name="text">
-         <string>Default User</string>
-        </property>
-       </item>
-      </widget>
-     </item>
      <item row="4" column="3">
       <widget class="QPushButton" name="btn_delete_anno">
        <property name="sizePolicy">
@@ -225,6 +216,13 @@
        </property>
        <property name="placeholderText">
         <string>add extra image note here</string>
+       </property>
+      </widget>
+     </item>
+     <item row="4" column="1" colspan="2">
+      <widget class="QLabel" name="label_username">
+       <property name="text">
+        <string/>
        </property>
       </widget>
      </item>

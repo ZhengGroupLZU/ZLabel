@@ -3,11 +3,12 @@ from enum import Enum
 from functools import cached_property
 import hashlib
 from pathlib import Path
-from typing import ClassVar, Dict, List, Optional, NamedTuple
+from typing import Any, ClassVar, Dict, List, Optional, NamedTuple
 from collections import OrderedDict
+from typing_extensions import Literal
 from uuid import uuid4
 import uuid
-from pydantic import BaseModel, PrivateAttr
+from pydantic import BaseModel, Field, PrivateAttr
 from rich import print
 
 
@@ -16,37 +17,12 @@ def id_uuid4(length=9) -> str:
 
 
 def id_md5(s: str) -> str:
-    return hashlib.md5(s.encode("utf-8")).hexdigest()[:9]
+    return hashlib.md5(s.encode("utf-8")).hexdigest()
 
 
 class ResultStep(NamedTuple):
     anno_id: str
     result: "Result"
-
-
-class Stack(object):
-    def __init__(self, maxsize=10):
-        self.stack = []
-        self.maxsize = maxsize
-        self._len = 0
-
-    def __len__(self):
-        return self._len
-
-    def push(self, item):
-        if self._len + 1 < self.maxsize:
-            self.stack.append(item)
-            self._len += 1
-        else:
-            del self.stack[0]
-            self.stack.append(item)
-
-    def pop(self):
-        self._len -= 1
-        return self.stack.pop()
-
-    def __repr__(self) -> str:
-        return str(self.stack)
 
 
 # 1
@@ -59,6 +35,14 @@ class User(BaseModel):
     def default():
         return User(id=id_uuid4(), name="Default User", email="default@zlabel.com")
 
+    @staticmethod
+    def new(name: str, email: str = "", id_: str = ""):
+        return User(
+            id=id_ or id_uuid4(),
+            name=name,
+            email=email,
+        )
+
 
 # 1
 class Label(BaseModel):
@@ -69,6 +53,14 @@ class Label(BaseModel):
     @staticmethod
     def default():
         return Label(id=id_uuid4(), name="UNKNOWN", color="#000000")
+
+    @staticmethod
+    def new(name: str, color: str = "#000000", id_: str = ""):
+        return Label(
+            id=id_ or id_uuid4(),
+            name=name,
+            color=color,
+        )
 
 
 # 1
@@ -119,6 +111,16 @@ class Result(BaseModel):
 
         return r
 
+    def equal_v(self, r: "Result"):
+        return (
+            self.x == r.x
+            and self.y == r.y
+            and self.w == r.w
+            and self.h == r.h
+            and self.rotation == r.rotation
+            and self.type_id == r.type_id
+        )
+
 
 class Annotation(BaseModel):
     id: str
@@ -126,71 +128,120 @@ class Annotation(BaseModel):
     updated_by: User | None = None
     created_at: datetime
     updated_at: datetime
-    label_path: str
+
     image_path: str
     ground_truth: Optional[bool] = False
+
     original_width: float
     original_height: float
     image_rotation: Optional[int] = 0
-    results: OrderedDict[str, Result] = OrderedDict()
-    result_key: str = ""
 
-    def save_json(self, path: str | None = None):
-        path = path or self.label_path
-        with open(path, "w", encoding="utf-8") as f:
+    results: OrderedDict[str, Result] = OrderedDict()
+    labels: OrderedDict[str, Label] = OrderedDict()
+
+    key_result: str | None = None
+    key_label: str | None = None
+
+    def save_json(self, path: str):
+        p = Path(path)
+        if not p.parent.exists():
+            p.parent.mkdir(parents=True)
+        with open(p, "w", encoding="utf-8") as f:
             f.write(self.model_dump_json(indent=4))
 
-    def __eq__(self, v: "Annotation") -> bool:
+    def __eq__(self, v: "Annotation") -> bool:  # type: ignore[override]
         return (
-            self.label_path == v.label_path
-            and self.image_path == v.image_path
+            self.image_path == v.image_path
             and self.original_width == v.original_width
             and self.original_height == v.original_height
             and self.image_rotation == v.image_rotation
         )
 
-    def current_result(self):
-        return self.results.get(self.result_key, None)
+    @property
+    def crt_result(self):
+        """Current Result"""
+        if self.key_result is None:
+            return None
+        return self.results.get(self.key_result, None)
 
     def add_result(self, result: Result):
         self.results[result.id] = result
-        self.result_key = result.id
+        self.key_result = result.id
 
-    def remove_result(self, id_: str):
-        if id_ not in self.results:
+    def remove_result(self, id_: str | None):
+        if id_ is None or id_ not in self.results:
             return False
         last_keys = list(self.results.keys())
         idx = last_keys.index(id_)
         idx_new = min(idx - 1, idx + 1)
-        new_key = last_keys[idx_new] if idx_new >= 0 else ""
+        new_key = last_keys[idx_new] if idx_new >= 0 else None
 
         self.results.pop(id_)
-        self.result_key = new_key
-        print(f"Removed {id_=}")
+        self.key_result = new_key
         return True
+
+    def reset_results(self):
+        self.results.clear()
+        self.key_result = None
+
+    @property
+    def crt_label(self) -> Label | None:
+        if self.key_label is None:
+            return None
+        return self.labels.get(self.key_label, None)
+
+    def add_label(self, label: Label):
+        self.labels[label.id] = label
+        self.key_label = label.id
+
+    def remove_label(self, id_: str):
+        if id_ not in self.labels:
+            return False
+        last_keys = list(self.labels.keys())
+        idx = last_keys.index(id_)
+        idx_new = min(idx - 1, idx + 1)
+        new_key = last_keys[idx_new] if idx_new >= 0 else None
+
+        self.labels.pop(id_)
+        self.key_label = new_key
+        return True
+
+    def set_color(self, color: str):
+        for k in self.results:
+            for label in self.results[k].labels:
+                label.color = color
 
     @staticmethod
     def new(
         image_path: str,
         width: float,
         height: float,
-        create_user: User,
-        id_: str | None = None,
-        anno_suffix: str = "zlabel",
+        create_user: User | None,
+        id_: str,
+        labels: OrderedDict[str, Label],
     ) -> "Annotation":
-        path = Path(image_path)
         anno = Annotation(
-            id=id_ or id_uuid4(),
+            id=id_,
             created_by=create_user,
             updated_by=create_user,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            label_path=f"{path.parent/path.name}.{anno_suffix}",
             image_path=image_path,
             original_width=width,
             original_height=height,
+            labels=labels,
         )
         return anno
+
+
+class Task(BaseModel):
+    id: int
+    anno_id: str
+    filename: str
+    labels: List[str]
+    finished: bool = False
+
+    anno: Annotation | None = Field(None, exclude=True)
 
 
 # 1
@@ -199,114 +250,113 @@ class Project(BaseModel):
     name: str
     description: Optional[str] = "New Project"
 
-    default_user: ClassVar[User] = User.default()
+    key_task: str | None = None
 
-    key_label: str = ""
-    key_anno: str = ""
-    key_user: str = ""
-
-    users: OrderedDict[str, User] = OrderedDict()
-    labels: OrderedDict[str, Label] = OrderedDict()
-    annotations: OrderedDict[str, Annotation] = OrderedDict()
-    project_path: str
+    draft: Annotation | None = None
+    tasks: OrderedDict[str, Task] = OrderedDict()
 
     # region functions
     @staticmethod
     def new(
-        project_path: str,
         name: str = "New Project",
         description: str = "New Project",
-        users: OrderedDict[str, User] = OrderedDict(),
-        labels: OrderedDict[str, Label] = OrderedDict(),
-        annotations: OrderedDict | None = None,
+        tasks: OrderedDict[str, Task] = OrderedDict(),
+        draft: Annotation | None = None,
         id: str | None = None,
     ):
         proj = Project(
             id=id or id_uuid4(),
             name=name,
-            project_path=project_path,
             description=description,
-            users=users,
-            labels=labels,
-            annotations=annotations or OrderedDict(),
+            tasks=tasks,
+            draft=draft,
         )
         return proj
 
-    def has_annotations(self):
-        return len(self.annotations) != 0
-
-    def set_current_result(self, r: Result):
-        if self.current_annotation:
-            self.annotations[self.key_anno].result_key = r.id
-            self.annotations[self.key_anno].results[r.id] = r
-
-    def save_json(self, path: str | None = None):
-        path = path or f"{self.project_path}/{self.name}.zproj"
+    def save_json(self, path: str):
         with open(path, "w", encoding="utf-8") as f:
-            f.write(self.model_dump_json(indent=4, exclude={"annotations"}))
+            f.write(self.model_dump_json(indent=4, exclude={}))
 
-    # endregion
+    def reset_task_key(self):
+        if len(self.tasks) > 0:
+            self.key_task = list(self.tasks.keys())[0]
+        else:
+            self.key_task = None
 
-    # region add new
+    def add_task(self, task: Task):
+        self.tasks[task.anno_id] = task
+        self.key_task = task.anno_id
+
     def add_annotation(self, anno: Annotation):
-        self.annotations[anno.id] = anno
-        self.key_anno = anno.id
-
-    def add_label(self, label: Label):
-        self.labels[label.id] = label
-        self.key_label = label.id
-
-    def add_user(self, user: User):
-        self.users[user.id] = user
-        self.key_user = user.id
-
-    def add_result(self, result: Result):
-        if not self.current_annotation:
-            return
-        self.annotations[self.key_anno].add_result(result)
-
-    def remove_result(self, key: str):
-        if not self.current_annotation:
-            return False
-        r = self.annotations[self.key_anno].remove_result(key)
-        return r
+        self.tasks[anno.id].anno = anno
+        self.key_task = anno.id
 
     # endregion
 
     # region properties
-    @property
-    def current_label(self) -> Label | None:
-        return self.labels.get(self.key_label, None)
 
     @property
-    def current_annotation(self) -> Annotation | None:
-        return self.annotations.get(self.key_anno, None)
-
-    @property
-    def image_paths(self):
-        return [anno.image_path for anno in self.annotations.values()]
-
-    @property
-    def current_image_path(self) -> str | None:
-        return self.current_annotation.image_path if self.current_annotation else None
-
-    @property
-    def current_user(self) -> User:
-        return self.users.get(self.key_user, self.default_user)
-
-    @property
-    def current_result(self) -> Result | None:
-        anno = self.current_annotation
-        if not anno:
+    def crt_task(self) -> Task | None:
+        if self.key_task is None:
             return None
-        return anno.current_result()
+        return self.tasks.get(self.key_task, None)
 
     @property
-    def current_image_idx(self) -> int:
-        return self.image_paths.index(self.current_image_path) if self.current_image_path else -1
+    def anno_id(self):
+        return self.key_task
+
+    @anno_id.setter
+    def anno_id(self, id_: str):
+        if id_ in self.tasks:
+            self.key_task = id_
 
     @property
-    def max_image_idx(self) -> int:
-        return len(self.image_paths) - 1
+    def crt_anno(self) -> Annotation | None:
+        if self.crt_task is None:
+            return None
+        return self.crt_task.anno
+
+    @property
+    def label_id(self):
+        if self.crt_anno is None:
+            return None
+        return self.crt_anno.key_label
+
+    @label_id.setter
+    def label_id(self, id_: str):
+        if self.crt_anno is None:
+            return
+        self.crt_anno.key_label = id_
+
+    @property
+    def labels(self):
+        if self.crt_anno:
+            return list(self.crt_anno.labels.values())
+        return []
+
+    @property
+    def crt_label(self) -> Label | None:
+        if self.crt_anno is None:
+            return None
+        return self.crt_anno.crt_label
+
+    @property
+    def key_result(self):
+        if self.crt_anno:
+            return self.crt_anno.key_result
+        return None
+
+    @key_result.setter
+    def key_result(self, id_: str):
+        if self.crt_anno and id_ in self.crt_anno.results:
+            self.crt_anno.key_result = id_
+        else:
+            raise KeyError(f"{id_=} not in results, ensure that you have created it!")
+
+    @property
+    def crt_result(self):
+        if self.crt_anno:
+            return self.crt_anno.crt_result
+        return None
 
     # endregion

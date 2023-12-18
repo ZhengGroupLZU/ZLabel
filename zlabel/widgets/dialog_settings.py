@@ -1,37 +1,30 @@
 # -*- coding: utf-8 -*-
-# @Author  : LG
-
 import os
 
 from qtpy.QtCore import QSettings, QSize, Qt, Signal
-from qtpy.QtWidgets import (
-    QColorDialog,
-    QDialog,
-    QFileDialog,
-    QHBoxLayout,
-    QLabel,
-    QListWidgetItem,
-    QPushButton,
-    QWidget,
-    QApplication,
-)
+from qtpy.QtWidgets import QDialog, QFileDialog, QColorDialog
+from qtpy.QtGui import QColor
+from zlabel.utils import SettingsKey
 
 from .ui import Ui_DialogSettings
-from ..utils import StatusMode, MapMode, DrawMode, ClickMode, ContourMode
 
 
 class DialogSettings(QDialog, Ui_DialogSettings):
-    settings_changed = Signal(QSettings)
+    sigSettingsChanged = Signal(QSettings)
+    sigApplyClicked = Signal()
+    sigCancelClicked = Signal()
+    sigLoglevelChanged = Signal(str)
+    sigColorChanged = Signal(str)
 
-    def __init__(self, parent):
+    def __init__(self, path: str = "zlabel.conf", parent=None):
         super(DialogSettings, self).__init__(parent)
         self.setupUi(self)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
+        self.path = path
         self.format = QSettings.Format.IniFormat
-        self.conf_path = os.path.join(QApplication.applicationDirPath(), "zlabel.conf")
-        self.settings = QSettings(self.conf_path, self.format)
-        if not os.path.exists(self.conf_path):
+        self.settings = QSettings(path, self.format)
+        if not os.path.exists(path):
             self.init_settings()
         else:
             self.load_settings()
@@ -39,130 +32,115 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.init_signals()
 
     def init_settings(self):
-        self.settings.setValue("global/status_mode", StatusMode.VIEW.value)
-        self.settings.setValue("global/map_mode", MapMode.LABEL.value)
-        self.settings.setValue("global/draw_mode", DrawMode.SAM_RECT.value)
-        self.settings.setValue("global/click_mode", ClickMode.POSITIVE.value)
-        self.settings.setValue("global/contour_mode", ContourMode.SAVE_MAX_ONLY.value)
-        self.settings.setValue("global/alpha", 0.5)
-        self.settings.setValue("global/vertex_size", 3)
+        self.settings.setValue(SettingsKey.HOST.value, "")
+        self.settings.setValue(SettingsKey.URL_PREFIX.value, "")
+        self.settings.setValue(SettingsKey.USER_NAME.value, "DefaultUser")
+        self.settings.setValue(SettingsKey.USER_PWD.value, "")
+        self.settings.setValue(SettingsKey.ENCODER.value, "")
+        self.settings.setValue(SettingsKey.DECODER.value, "")
+        self.settings.setValue(SettingsKey.MODEL_API.value, "")
+        self.settings.setValue(SettingsKey.LOGLEVEL.value, "INFO")
+        self.settings.setValue(SettingsKey.COLOR.value, "#000000")
+
+        self.settings.setValue(SettingsKey.PROJ_NAME.value, "defaultProject")
+        self.settings.setValue(SettingsKey.PROJ_DESCRIP.value, "defaultProject")
 
     def load_settings(self, path: str | None = None):
-        self.settings = QSettings(path or self.conf_path, self.format)
-        self.cbox_status_mode.setCurrentIndex(
-            self.settings.value("global/status_mode", StatusMode.VIEW.value, type=int)
+        path = path or self.path
+        self.settings = QSettings(path, self.format)
+        self.ledit_host.setText(str(self.settings.value(SettingsKey.HOST.value, "")))
+        self.ledit_urlprefix.setText(str(self.settings.value(SettingsKey.URL_PREFIX.value, "")))
+        self.ledit_username.setText(str(self.settings.value(SettingsKey.USER_NAME.value, "")))
+        self.ledit_password.setText(str(self.settings.value(SettingsKey.USER_PWD.value, "")))
+        self.ledit_encoder.setText(str(self.settings.value(SettingsKey.ENCODER.value, "")))
+        self.ledit_decoder.setText(str(self.settings.value(SettingsKey.DECODER.value, "")))
+        self.ledit_model_api.setText(str(self.settings.value(SettingsKey.MODEL_API.value, "")))
+
+        self.ledit_projname.setText(str(self.settings.value(SettingsKey.PROJ_NAME.value, "")))
+        self.ledit_prjdescrip.setText(str(self.settings.value(SettingsKey.PROJ_DESCRIP.value, "")))
+
+        self.cmbox_loglevel.setCurrentText(
+            self.settings.value(SettingsKey.LOGLEVEL.value, type=str)  # type: ignore
         )
-        self.cbox_click_mode.setCurrentIndex(
-            self.settings.value("global/click_mode", ClickMode.POSITIVE.value, type=int)
-        )
-        self.cbox_map_mode.setCurrentIndex(
-            self.settings.value("global/map_mode", MapMode.LABEL.value, type=int)
-        )
-        self.cbox_draw_mode.setCurrentIndex(
-            self.settings.value("global/draw_mode", DrawMode.SAM_RECT.value, type=int)
-        )
-        self.cbox_contour_mode.setCurrentIndex(
-            self.settings.value(
-                "global/contour_mode", ContourMode.SAVE_MAX_ONLY.value, type=int
-            )
-        )
-        self.dspbox_alpha.setValue(self.settings.value("global/alpha", 0.5, type=float))
-        self.spbox_vertex_size.setValue(
-            self.settings.value("global/vertex_size", 3, type=int)
-        )
-        self.settings_changed.emit(self.settings)
-
-    def get_item_and_widget(self, category, color: str):
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(200, 40))
-
-        widget = QWidget()
-        layout = QHBoxLayout()
-        category_label = QLabel()
-        category_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        category_label.setText(category)
-        category_label.setObjectName("category")
-        # 颜色
-        color_button = QPushButton()
-        color_button.setStyleSheet("QWidget {background-color: %s}" % color)
-        color_button.setFixedWidth(50)
-        color_button.clicked.connect(self.edit_category_item_color)
-        color_button.setObjectName("color")
-        # 删除
-        delete_button = QPushButton()
-        delete_button.setText("delete")
-        delete_button.setFixedWidth(80)
-        delete_button.clicked.connect(self.remove_category_item)
-
-        if category == "__background__":
-            color_button.setEnabled(False)
-            delete_button.setEnabled(False)
-
-        layout.addWidget(category_label)
-        layout.addWidget(color_button)
-        layout.addWidget(delete_button)
-        widget.setLayout(layout)
-        return item, widget
-
-    def edit_category_item_color(self):
-        button = self.sender()
-        color = QColorDialog.getColor()
-        if color.isValid():
-            button.setStyleSheet("QWidget {background-color: %s}" % (color.name()))
-
-    def remove_category_item(self):
-        button = self.sender()
-        row = self.category_list_widget.indexAt(button.parent().pos()).row()
-        self.category_list_widget.takeItem(row)
-
-    def add_new_category(self):
-        category = self.category_input.text()
-        color = self.color_button.palette().button().color().name()
-        if category:
-            item, item_widget = self.get_item_and_widget(category, color)
-            self.category_list_widget.addItem(item)
-            self.category_list_widget.setItemWidget(item, item_widget)
-        self.category_input.clear()
-
-    def choice_color(self):
-        color = QColorDialog.getColor()
-        if color.isValid():
-            self.color_button.setStyleSheet(
-                "QWidget {background-color: %s}" % color.name()
-            )
+        self.set_btn_select_color(str(self.settings.value(SettingsKey.COLOR.value)))
 
     def apply(self):
-        self.settings_changed.emit(self.settings)
-        self.close()
+        self.sigSettingsChanged.emit(self.settings)
+        self.sigApplyClicked.emit()
 
-    def on_settings_changed(self, k: str, v: int | float):
+    def on_settings_changed(self, k: str, v: str | int | float):
         self.settings.setValue(k, v)
-        self.settings_changed.emit(self.settings)
+        if self.sender() == self.cmbox_loglevel:
+            # os.environ["ZLABEL_LOGLEVEL"] = str(v)
+            self.sigLoglevelChanged.emit(str(v))
+        self.sigSettingsChanged.emit(self.settings)
+
+    def on_btn_encoder_clicked(self):
+        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
+        if os.path.exists(path):
+            self.ledit_encoder.setText(path)
+            self.on_settings_changed(SettingsKey.ENCODER.value, path)
+
+    def on_btn_decoder_clicked(self):
+        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
+        if os.path.exists(path):
+            self.ledit_decoder.setText(path)
+            self.on_settings_changed(SettingsKey.DECODER.value, path)
+
+    def set_btn_select_color(self, color: str):
+        print(color)
+        self.btn_select_color.setStyleSheet(
+            f"QPushButton {{margin: 3px; background-color : {color};}}"
+        )
+
+    def on_btn_select_color_clicked(self):
+        _color = str(self.settings.value(SettingsKey.COLOR.value))
+        color = QColorDialog.getColor(QColor(_color), self)
+        self.on_settings_changed(SettingsKey.COLOR.value, color.name())
+
+        self.set_btn_select_color(color.name())
+        self.sigColorChanged.emit(color.name())
 
     def init_signals(self):
-        self.cbox_status_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/status_mode", idx)
+        self.ledit_host.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.HOST.value, v)
         )
-        self.cbox_map_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/map_mode", idx)
+        self.ledit_urlprefix.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.URL_PREFIX.value, v)
         )
-        self.cbox_draw_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/draw_mode", idx)
+        self.ledit_username.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.USER_NAME.value, v)
         )
-        self.cbox_click_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/click_mode", idx)
+        self.ledit_password.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.USER_PWD.value, v)
         )
-        self.cbox_contour_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/contour_mode", idx)
+        self.ledit_encoder.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.ENCODER.value, v)
         )
-        self.dspbox_alpha.valueChanged.connect(
-            lambda value: self.on_settings_changed("global/alpha", value)
+        self.ledit_decoder.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.DECODER.value, v)
         )
-        self.spbox_vertex_size.valueChanged.connect(
-            lambda value: self.on_settings_changed("global/vertex_size", value)
+        self.ledit_model_api.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.MODEL_API.value, v)
         )
 
-        self.add_button.clicked.connect(self.add_new_category)
+        self.ledit_projname.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.PROJ_NAME.value, v)
+        )
+        self.ledit_prjdescrip.textEdited.connect(
+            lambda v: self.on_settings_changed(SettingsKey.PROJ_DESCRIP.value, v)
+        )
+
+        self.btn_encoder.clicked.connect(self.on_btn_encoder_clicked)
+        self.btn_decoder.clicked.connect(self.on_btn_decoder_clicked)
+        self.btn_select_color.clicked.connect(self.on_btn_select_color_clicked)
+
         self.btn_apply.clicked.connect(self.apply)
         self.btn_cancel.clicked.connect(self.close)
-        self.color_button.clicked.connect(self.choice_color)
+        self.btn_cancel.clicked.connect(self.sigCancelClicked.emit)
+
+        self.cmbox_loglevel.currentIndexChanged.connect(
+            lambda idx: self.on_settings_changed(
+                SettingsKey.LOGLEVEL.value, self.cmbox_loglevel.currentText()
+            )
+        )

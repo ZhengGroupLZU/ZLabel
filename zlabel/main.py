@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
-# @Author  : LG
 # import os
 
-from qtpy import QtWidgets
-from . import MainWindow
 import sys
+
+from qtpy import QtWidgets, QtCore
+
+from zlabel.widgets.mainwindow import MainWindow
 
 
 def main():
-    app = QtWidgets.QApplication([""])
+    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
+    # QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(QtCore.Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor)
+    app = QtWidgets.QApplication()
     mainwindow = MainWindow()
     mainwindow.show()
     sys.exit(app.exec())

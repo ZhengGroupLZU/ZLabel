@@ -1,12 +1,14 @@
 # -*- coding: utf-8 -*-
 
 from typing import List, Tuple
-from qtpy.QtCore import Qt, QSize, Signal, Slot
+
+from qtpy.QtCore import QSize, Qt, Signal, Slot
 from qtpy.QtWidgets import QWidget
 
-from zlabel.widgets.zwidgets import ZLabelItemWidget, ZListWidgetItem
+from zlabel.utils import Label
+from zlabel.widgets import ZLabelItemWidget, ZListWidgetItem
+
 from .ui import Ui_ZDockLabelContent
-from ..utils.project import Label
 
 
 class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
@@ -27,6 +29,12 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
                 return row, item
         return None, None
 
+    def set_color(self, color: str):
+        for row in range(self.listw_labels.count()):
+            item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
+            widget: ZLabelItemWidget = self.listw_labels.itemWidget(item)  # type: ignore
+            widget.set_label_color(color)
+
     def on_btn_delete_clicked(self, id_: str):
         """
         TODO: check if the label is used
@@ -39,7 +47,9 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             widget: ZLabelItemWidget = self.listw_labels.itemWidget(item)  # type: ignore
             self.sigItemColorChanged.emit(id_, widget.color)
 
-    def add_label(self, label: Label):
+    def add_label(self, label: Label | None):
+        if label is None:
+            return
         item = ZListWidgetItem(label.id, "", self.listw_labels)
         item_widget = ZLabelItemWidget(label.id, label.name, label.color)
         item_widget.sigBtnDeleteClicked.connect(self.on_btn_delete_clicked)
@@ -54,7 +64,9 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             return
         self.listw_labels.takeItem(row)
 
-    def set_labels(self, labels: List[Label], selected_id: str | None = None):
+    def set_labels(self, labels: List[Label] | None, selected_id: str | None = None):
+        if labels is None:
+            return
         self.listw_labels.clear()
         if len(labels) == 0:
             return
@@ -65,3 +77,4 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             if label.id == selected_id:
                 row = i
         self.listw_labels.setCurrentRow(row)
+        self.listw_labels.itemClicked.emit(self.listw_labels.currentItem())

@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_file.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.0
+## Created by: Qt User Interface Compiler version 6.6.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -15,23 +15,30 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QHBoxLayout, QLabel, QLineEdit,
-    QListWidget, QListWidgetItem, QSizePolicy, QVBoxLayout,
-    QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHeaderView,
+    QLabel, QLineEdit, QSizePolicy, QTableWidgetItem,
+    QVBoxLayout, QWidget)
+
+from zlabel.widgets.zwidgets import ZTableWidget
 
 class Ui_ZDockFileContent(object):
     def setupUi(self, ZDockFileContent):
         if not ZDockFileContent.objectName():
             ZDockFileContent.setObjectName(u"ZDockFileContent")
-        ZDockFileContent.resize(100, 300)
+        ZDockFileContent.resize(100, 304)
+        ZDockFileContent.setMinimumSize(QSize(60, 0))
+        ZDockFileContent.setMaximumSize(QSize(300, 16777215))
         self.verticalLayout = QVBoxLayout(ZDockFileContent)
         self.verticalLayout.setSpacing(2)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(2, 2, 2, 2)
-        self.listw_files = QListWidget(ZDockFileContent)
-        self.listw_files.setObjectName(u"listw_files")
+        self.table_files = ZTableWidget(ZDockFileContent)
+        self.table_files.setObjectName(u"table_files")
+        self.table_files.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.table_files.setSelectionBehavior(QAbstractItemView.SelectRows)
+        self.table_files.setSortingEnabled(False)
 
-        self.verticalLayout.addWidget(self.listw_files)
+        self.verticalLayout.addWidget(self.table_files)
 
         self.widget_num = QWidget(ZDockFileContent)
         self.widget_num.setObjectName(u"widget_num")

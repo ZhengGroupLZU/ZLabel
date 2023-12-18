@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>879</width>
-    <height>649</height>
+    <width>1034</width>
+    <height>727</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -26,8 +26,8 @@
    <string>ZLabel</string>
   </property>
   <property name="windowIcon">
-   <iconset>
-    <normaloff>:/icon/icons/isat_bg_50x25.png</normaloff>:/icon/icons/isat_bg_50x25.png</iconset>
+   <iconset resource="../icons.qrc">
+    <normaloff>:/icon/icons/zlabel.svg</normaloff>:/icon/icons/zlabel.svg</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -56,7 +56,7 @@
     <rect>
      <x>0</x>
      <y>0</y>
-     <width>879</width>
+     <width>1034</width>
      <height>24</height>
     </rect>
    </property>
@@ -85,8 +85,8 @@
     <property name="title">
      <string>File</string>
     </property>
-    <addaction name="actionOpen_dir"/>
-    <addaction name="actionSave_dir"/>
+    <addaction name="action_import_task"/>
+    <addaction name="actionExport"/>
     <addaction name="separator"/>
     <addaction name="actionPrev"/>
     <addaction name="actionNext"/>
@@ -108,6 +108,11 @@
     <addaction name="actionZoom_out"/>
     <addaction name="actionFit_wiondow"/>
     <addaction name="separator"/>
+    <addaction name="actionR"/>
+    <addaction name="actionG"/>
+    <addaction name="actionB"/>
+    <addaction name="actionRGB"/>
+    <addaction name="actionGray"/>
    </widget>
    <widget class="QMenu" name="menuAbout">
     <property name="font">
@@ -120,6 +125,21 @@
      <string>Help</string>
     </property>
     <widget class="QMenu" name="menuLaguage">
+     <property name="enabled">
+      <bool>false</bool>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="MinimumExpanding" vsizetype="MinimumExpanding">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="minimumSize">
+      <size>
+       <width>800</width>
+       <height>600</height>
+      </size>
+     </property>
      <property name="title">
       <string>Laguage</string>
      </property>
@@ -147,10 +167,6 @@
     <property name="title">
      <string>Tools</string>
     </property>
-    <addaction name="actionExport"/>
-    <addaction name="actionImport"/>
-    <addaction name="separator"/>
-    <addaction name="actionModel_manage"/>
    </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="font">
@@ -176,6 +192,7 @@
     <addaction name="separator"/>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
+    <addaction name="actionMerge"/>
    </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
@@ -226,6 +243,7 @@
    <addaction name="actionRectangle"/>
    <addaction name="actionPoint"/>
    <addaction name="actionPolygon"/>
+   <addaction name="actionMerge"/>
    <addaction name="separator"/>
    <addaction name="actionFinish"/>
    <addaction name="actionCancel"/>
@@ -239,10 +257,16 @@
    <addaction name="actionSave_dir"/>
    <addaction name="actionOpen_dir"/>
    <addaction name="separator"/>
+   <addaction name="actionGray"/>
+   <addaction name="actionR"/>
+   <addaction name="actionG"/>
+   <addaction name="actionB"/>
+   <addaction name="actionRGB"/>
+   <addaction name="separator"/>
   </widget>
   <widget class="QDockWidget" name="dock_infos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Preferred" vsizetype="Minimum">
+    <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
@@ -262,6 +286,12 @@
    <widget class="ZDockInfoContent" name="dockcnt_info"/>
   </widget>
   <widget class="QDockWidget" name="dock_annos">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
    <property name="minimumSize">
     <size>
      <width>85</width>
@@ -276,22 +306,13 @@
    </attribute>
    <widget class="ZDockAnnotationContent" name="dockcnt_anno"/>
   </widget>
-  <widget class="QDockWidget" name="dock_files">
+  <widget class="QDockWidget" name="dock_labels">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Preferred" vsizetype="Maximum">
+    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <property name="windowTitle">
-    <string>Files</string>
-   </property>
-   <attribute name="dockWidgetArea">
-    <number>2</number>
-   </attribute>
-   <widget class="ZDockFileContent" name="dockcnt_files"/>
-  </widget>
-  <widget class="QDockWidget" name="dock_labels">
    <property name="floating">
     <bool>false</bool>
    </property>
@@ -311,7 +332,50 @@
     <layout class="QVBoxLayout" name="verticalLayout"/>
    </widget>
   </widget>
+  <widget class="QDockWidget" name="dock_files">
+   <property name="sizePolicy">
+    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
+     <horstretch>0</horstretch>
+     <verstretch>0</verstretch>
+    </sizepolicy>
+   </property>
+   <property name="minimumSize">
+    <size>
+     <width>81</width>
+     <height>41</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>300</width>
+     <height>524287</height>
+    </size>
+   </property>
+   <property name="windowTitle">
+    <string>Files</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="ZDockFileContent" name="dockcnt_files">
+    <property name="minimumSize">
+     <size>
+      <width>60</width>
+      <height>0</height>
+     </size>
+    </property>
+    <property name="maximumSize">
+     <size>
+      <width>300</width>
+      <height>16777215</height>
+     </size>
+    </property>
+   </widget>
+  </widget>
   <action name="actionOpen_dir">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/pic.svg</normaloff>:/icon/icons/pic.svg</iconset>
@@ -351,6 +415,9 @@
    </property>
   </action>
   <action name="actionFit_wiondow">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/fullwidth.svg</normaloff>:/icon/icons/fullwidth.svg</iconset>
@@ -396,6 +463,9 @@
    </property>
   </action>
   <action name="actionSave_dir">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/folder-open.svg</normaloff>:/icon/icons/folder-open.svg</iconset>
@@ -419,7 +489,7 @@
     <string>Save</string>
    </property>
    <property name="toolTip">
-    <string>Save Project</string>
+    <string>Save Project (Ctrl+S)</string>
    </property>
    <property name="statusTip">
     <string>Save Project</string>
@@ -503,10 +573,10 @@
     <string>SAM</string>
    </property>
    <property name="toolTip">
-    <string>SAM</string>
+    <string>SAM (Q)</string>
    </property>
    <property name="statusTip">
-    <string>Quick annotate using Segment anything.</string>
+    <string>SAM (Q)</string>
    </property>
    <property name="shortcut">
     <string>Q</string>
@@ -666,10 +736,10 @@
     <string>Clear</string>
    </property>
    <property name="toolTip">
-    <string>Clear All</string>
+    <string>Clear All (Ctrl+Del)</string>
    </property>
    <property name="statusTip">
-    <string>Clear All</string>
+    <string>Clear All (Ctrl+Del)</string>
    </property>
    <property name="shortcut">
     <string>Ctrl+Del</string>
@@ -684,10 +754,13 @@
     <string>Finish</string>
    </property>
    <property name="toolTip">
-    <string>Annotate finished</string>
+    <string>Submit (Ctrl + Enter)</string>
    </property>
    <property name="statusTip">
     <string>Annotate finished.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Return</string>
    </property>
   </action>
   <action name="actionPolygon">
@@ -713,6 +786,9 @@
   </action>
   <action name="actionVisible">
    <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
     <bool>true</bool>
    </property>
    <property name="icon">
@@ -747,19 +823,13 @@
     <string>Convert ISAT jsons to COCO json.</string>
    </property>
   </action>
-  <action name="actionImport">
+  <action name="action_import_task">
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/afferent-three.svg</normaloff>:/icon/icons/afferent-three.svg</iconset>
    </property>
    <property name="text">
     <string>Import</string>
-   </property>
-   <property name="toolTip">
-    <string>Convert COCO to ISAT</string>
-   </property>
-   <property name="statusTip">
-    <string>Convert COCO json to ISAT jsons.</string>
    </property>
   </action>
   <action name="actionTo_LabelMe">
@@ -926,6 +996,12 @@
    <property name="text">
     <string>Edit</string>
    </property>
+   <property name="toolTip">
+    <string>Edit (E)</string>
+   </property>
+   <property name="statusTip">
+    <string>Edit (E)</string>
+   </property>
    <property name="shortcut">
     <string>E</string>
    </property>
@@ -941,8 +1017,14 @@
    <property name="text">
     <string>OpenCV</string>
    </property>
+   <property name="toolTip">
+    <string>OpenCV (W)</string>
+   </property>
    <property name="statusTip">
-    <string>Enable OpenCV</string>
+    <string>Enable OpenCV (W)</string>
+   </property>
+   <property name="shortcut">
+    <string>W</string>
    </property>
   </action>
   <action name="actionUndo">
@@ -964,6 +1046,87 @@
   <action name="actionNew_Project">
    <property name="text">
     <string>New Project</string>
+   </property>
+  </action>
+  <action name="actionR">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/channel_r.svg</normaloff>:/icon/icons/channel_r.svg</iconset>
+   </property>
+   <property name="text">
+    <string>R</string>
+   </property>
+  </action>
+  <action name="actionG">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/channel_g.svg</normaloff>:/icon/icons/channel_g.svg</iconset>
+   </property>
+   <property name="text">
+    <string>G</string>
+   </property>
+  </action>
+  <action name="actionB">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/channel_b.svg</normaloff>:/icon/icons/channel_b.svg</iconset>
+   </property>
+   <property name="text">
+    <string>B</string>
+   </property>
+  </action>
+  <action name="actionRGB">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/channel.svg</normaloff>:/icon/icons/channel.svg</iconset>
+   </property>
+   <property name="text">
+    <string>RGB</string>
+   </property>
+  </action>
+  <action name="actionGray">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/channel_gray.svg</normaloff>:/icon/icons/channel_gray.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Gray</string>
+   </property>
+  </action>
+  <action name="actionMerge">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/merge.svg</normaloff>:/icon/icons/merge.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Merge</string>
+   </property>
+   <property name="toolTip">
+    <string>Merge (G)</string>
+   </property>
+   <property name="shortcut">
+    <string>G</string>
    </property>
   </action>
  </widget>

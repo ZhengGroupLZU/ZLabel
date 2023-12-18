@@ -7,8 +7,20 @@
     <x>0</x>
     <y>0</y>
     <width>100</width>
-    <height>300</height>
+    <height>304</height>
    </rect>
+  </property>
+  <property name="minimumSize">
+   <size>
+    <width>60</width>
+    <height>0</height>
+   </size>
+  </property>
+  <property name="maximumSize">
+   <size>
+    <width>300</width>
+    <height>16777215</height>
+   </size>
   </property>
   <property name="windowTitle">
    <string>Form</string>
@@ -30,7 +42,17 @@
     <number>2</number>
    </property>
    <item>
-    <widget class="QListWidget" name="listw_files"/>
+    <widget class="ZTableWidget" name="table_files">
+     <property name="editTriggers">
+      <set>QAbstractItemView::NoEditTriggers</set>
+     </property>
+     <property name="selectionBehavior">
+      <enum>QAbstractItemView::SelectRows</enum>
+     </property>
+     <property name="sortingEnabled">
+      <bool>false</bool>
+     </property>
+    </widget>
    </item>
    <item>
     <widget class="QWidget" name="widget_num" native="true">
@@ -83,6 +105,13 @@
    </item>
   </layout>
  </widget>
+ <customwidgets>
+  <customwidget>
+   <class>ZTableWidget</class>
+   <extends>QTableWidget</extends>
+   <header>zlabel.widgets.zwidgets</header>
+  </customwidget>
+ </customwidgets>
  <resources/>
  <connections/>
 </ui>
