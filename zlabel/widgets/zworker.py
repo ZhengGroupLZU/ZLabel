@@ -199,6 +199,7 @@ class ZGetImageWorker(QRunnable):
             self.api.login(self.username, self.password)
         url = self.api.get_img_url(self.filename)
         image = self.api.get_image_by_api(url, self.api.user_token)
+        time.sleep(0.5)
         if image is not None:
             self.emitter.success.emit(self.filename, image)
         else:

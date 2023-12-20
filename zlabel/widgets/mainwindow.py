@@ -103,6 +103,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region functions
     def load_settings(self):
+        self.dialog_processing.show()
         path = Path(self.settings_path)
         if path.exists() and path.is_file():
             self.settings = ZSettings(self.settings_path, self.settings_format)
@@ -474,7 +475,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.setCurrentRow(row)
         item = self.dockcnt_files.getItem(row)
         self.dockcnt_files.set_qlabels()
-        self.on_dock_files_item_clicked(item)  # type: ignore
+        self.on_dock_files_item_clicked(item.id_)
 
     def on_action_save_triggered(self):
         self.proj.save_json(self.settings.project_path)
@@ -943,8 +944,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.slider_threshold.setMaximumSize(150, 20)
         self.toolBar.addWidget(self.slider_threshold)
 
-        self.dialog_processing.show()
-
     def init_signals(self):
         # dialog
         self.dialog_settings.sigSettingsChanged.connect(self.on_dialog_settings_changed)
@@ -999,8 +998,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigItemStateChangeStarted.connect(self.on_canvas_item_state_change_started)
         self.canvas.sigItemsRemoved.connect(self.on_canvas_items_removed)
         self.canvas.sigMouseMoved.connect(self.on_canvas_scene_mouse_moved)
-        self.canvas.sigMouseBackClicked.connect(self.on_action_undo_triggered)
-        self.canvas.sigMouseForwardClicked.connect(self.on_action_redo_triggered)
+        self.canvas.sigMouseBackClicked.connect(self.actionPrev.trigger)
+        self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
         self.dockcnt_info.ledit_anno_note.textChanged.connect(self.on_dock_info_ledit_note_changed)

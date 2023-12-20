@@ -59,14 +59,19 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         if tasks is None:
             return
         self.table_files.clear()
+        self.table_files.setHorizontalHeaderLabels(["id", "name"])
         self.table_files.setRowCount(len(tasks))
         row = 0
         for task in tasks:
             self.table_files.setItem(
-                row, 0, ZTableWidgetItem(task.anno_id, task.anno_id, finished=task.finished)
+                row,
+                0,
+                ZTableWidgetItem(task.anno_id, task.anno_id, finished=task.finished),
             )
             self.table_files.setItem(
-                row, 1, ZTableWidgetItem(task.anno_id, task.filename, finished=task.finished)
+                row,
+                1,
+                ZTableWidgetItem(task.anno_id, task.filename, finished=task.finished),
             )
             row += 1
 
@@ -87,7 +92,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         if task is None:
             return
         for row in range(self.table_files.rowCount()):
-            item: ZListWidgetItem = self.table_files.item(row, 1)  # type: ignore
+            item: ZTableWidgetItem = self.table_files.item(row, 1)  # type: ignore
             if item.id_ == task.anno_id:
                 item.set_unfinished()
                 self.table_files.item(row, 0).set_unfinished()  # type: ignore
@@ -108,5 +113,5 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
     def setCurrentRow(self, row: int):
         self.table_files.setCurrentCell(row, 0)
 
-    def getItem(self, row: int):
-        return self.table_files.item(row, 1)
+    def getItem(self, row: int) -> ZTableWidgetItem:
+        return self.table_files.item(row, 1)  # type: ignore

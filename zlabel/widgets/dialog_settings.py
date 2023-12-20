@@ -88,7 +88,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.on_settings_changed(SettingsKey.DECODER.value, path)
 
     def set_btn_select_color(self, color: str):
-        print(color)
         self.btn_select_color.setStyleSheet(
             f"QPushButton {{margin: 3px; background-color : {color};}}"
         )
