@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import json
 import os
 import time
 from typing import Dict, List, Optional, Sequence, Tuple
@@ -7,7 +8,8 @@ from PIL import Image
 from qtpy.QtCore import QObject, QThread, Signal, QRunnable
 from rich import print
 
-from zlabel.utils import AlistApiHelper, SamApiHelper, AutoMode, Label, Result, ResultType
+from zlabel.utils import SamApiHelper, AutoMode, Label, Result, ResultType
+from zlabel.utils.project import Task
 
 
 @dataclass
@@ -16,17 +18,17 @@ class SamWorkerResult(object):
     result: Result
 
 
-class ApiWorkerEmitter(QObject):
+class PredictWorkerEmitter(QObject):
     sigFinished = Signal(object)
     sigFailed = Signal()
 
 
-class ZSamApiWorker(QRunnable):
+class ZSamPredictWorker(QRunnable):
     def __init__(
         self,
         api: SamApiHelper,
         anno_id: str,
-        image: Image.Image,
+        image: str,
         result_labels: List[Label],
         points: List[Tuple[float, float]] | None = None,
         labels: List[float] | None = None,
@@ -50,7 +52,7 @@ class ZSamApiWorker(QRunnable):
         self.mode = mode
         self.result_labels = result_labels
 
-        self.emitter = ApiWorkerEmitter()
+        self.emitter = PredictWorkerEmitter()
 
         self.shifts = [0, 0, 0, 0]
 
@@ -77,7 +79,7 @@ class ZSamApiWorker(QRunnable):
             ]
         resp = self.api.predict(
             anno_id=self.anno_id,
-            image=self.image,
+            image_name=self.image,
             points=points,
             labels=self.labels,
             rects=rects,
@@ -90,7 +92,7 @@ class ZSamApiWorker(QRunnable):
             return
         _rects: List[Dict[str, float]] = resp["rects"]
         rects = [[r["x"], r["y"], r["w"], r["h"]] for r in _rects]  # type: ignore
-        results = self.rects_to_results(rects)  # type: ignore
+        results = self.rects_to_results(rects, points=[(p["x"], p["y"]) for p in points])  # type: ignore
         self.emitter.sigFinished.emit(results)
 
     def rects_to_results(
@@ -98,6 +100,7 @@ class ZSamApiWorker(QRunnable):
         rects: List[Sequence[int]],
         x0: int = 0,
         y0: int = 0,
+        points: List[Tuple[float, float]] | None = None
     ) -> List[SamWorkerResult]:
         results: List[SamWorkerResult] = []
         for x, y, w, h in rects:
@@ -111,6 +114,7 @@ class ZSamApiWorker(QRunnable):
                 origin=self.mode.name,  # type: ignore
                 score=1.0,
                 rotation=0,
+                points=points,
             )
             results.append(SamWorkerResult(anno_id=self.anno_id, result=r))
         return results
@@ -149,7 +153,7 @@ class UploadFileEmitter(QObject):
 class ZUploadFileWorker(QRunnable):
     def __init__(
         self,
-        api: AlistApiHelper,
+        api: SamApiHelper,
         filename: str,
         username: str | None = None,
         password: str | None = None,
@@ -166,11 +170,11 @@ class ZUploadFileWorker(QRunnable):
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
         if os.path.exists(self.filename):
-            r = self.api.upload_file(self.filename)
-            if "success" not in r:
-                self.emitter.fail.emit(f"Upload failed with {r=}")
-            else:
+            r = self.api.save_zlabel(self.filename)
+            if r:
                 self.emitter.success.emit("Upload success!")
+            else:
+                self.emitter.fail.emit(f"Upload failed with {r=}")
 
 
 class GetFileEmitter(QObject):
@@ -181,7 +185,7 @@ class GetFileEmitter(QObject):
 class ZGetImageWorker(QRunnable):
     def __init__(
         self,
-        api: AlistApiHelper,
+        api: SamApiHelper,
         filename: str,
         username: str | None = None,
         password: str | None = None,
@@ -197,13 +201,49 @@ class ZGetImageWorker(QRunnable):
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
-        url = self.api.get_img_url(self.filename)
-        image = self.api.get_image_by_api(url, self.api.user_token)
+        image = self.api.get_image(self.filename)
         time.sleep(0.5)
         if image is not None:
             self.emitter.success.emit(self.filename, image)
         else:
             self.emitter.fail.emit(f"Get image {self.filename} failed")
+
+
+class GetTasksEmitter(QObject):
+    success = Signal(object)
+    fail = Signal(object)
+
+
+class ZGetTasksWorker(QRunnable):
+    def __init__(
+        self,
+        api: SamApiHelper,
+        num: int,
+        finished: int = 1,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
+        super().__init__()
+
+        self.api = api
+        self.username = username
+        self.password = password
+        self.num = num
+        self.finished = finished
+        self.emitter = GetTasksEmitter()
+
+    def run(self) -> None:
+        if not self.api.user_token and self.username and self.password:
+            self.api.login(self.username, self.password)
+        tasks = self.api.get_tasks(self.num, self.finished)
+        if tasks is not None:
+            try:
+                task_list = [Task.model_validate(t) for t in tasks]
+                self.emitter.success.emit(task_list)
+            except Exception as e:
+                self.emitter.fail.emit(f"Get tasks failed with {e=}")
+        else:
+            self.emitter.fail.emit("Get tasks failed")
 
 
 if __name__ == "__main__":

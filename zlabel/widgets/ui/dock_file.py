@@ -15,17 +15,19 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QSizePolicy, QTableWidgetItem,
-    QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
+    QHBoxLayout, QHeaderView, QLabel, QLineEdit,
+    QPushButton, QSizePolicy, QTableWidgetItem, QVBoxLayout,
+    QWidget)
 
 from zlabel.widgets.zwidgets import ZTableWidget
+import icons_rc
 
 class Ui_ZDockFileContent(object):
     def setupUi(self, ZDockFileContent):
         if not ZDockFileContent.objectName():
             ZDockFileContent.setObjectName(u"ZDockFileContent")
-        ZDockFileContent.resize(100, 304)
+        ZDockFileContent.resize(300, 387)
         ZDockFileContent.setMinimumSize(QSize(60, 0))
         ZDockFileContent.setMaximumSize(QSize(300, 16777215))
         self.verticalLayout = QVBoxLayout(ZDockFileContent)
@@ -65,11 +67,52 @@ class Ui_ZDockFileContent(object):
 
         self.horizontalLayout.addWidget(self.label_all)
 
+        self.cbox_fetch_num = QComboBox(self.widget_num)
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.addItem("")
+        self.cbox_fetch_num.setObjectName(u"cbox_fetch_num")
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.cbox_fetch_num.sizePolicy().hasHeightForWidth())
+        self.cbox_fetch_num.setSizePolicy(sizePolicy)
+        self.cbox_fetch_num.setMinimumSize(QSize(50, 0))
+        self.cbox_fetch_num.setMaxVisibleItems(20)
+
+        self.horizontalLayout.addWidget(self.cbox_fetch_num)
+
+        self.ckbox_finished = QCheckBox(self.widget_num)
+        self.ckbox_finished.setObjectName(u"ckbox_finished")
+        self.ckbox_finished.setTristate(True)
+
+        self.horizontalLayout.addWidget(self.ckbox_finished)
+
+        self.btn_fetch = QPushButton(self.widget_num)
+        self.btn_fetch.setObjectName(u"btn_fetch")
+        icon = QIcon()
+        icon.addFile(u":/icon/icons/import.svg", QSize(), QIcon.Normal, QIcon.Off)
+        self.btn_fetch.setIcon(icon)
+
+        self.horizontalLayout.addWidget(self.btn_fetch)
+
 
         self.verticalLayout.addWidget(self.widget_num)
 
 
         self.retranslateUi(ZDockFileContent)
+
+        self.cbox_fetch_num.setCurrentIndex(4)
+
 
         QMetaObject.connectSlotsByName(ZDockFileContent)
     # setupUi
@@ -83,5 +126,20 @@ class Ui_ZDockFileContent(object):
         self.label_current.setText("")
         self.label.setText(QCoreApplication.translate("ZDockFileContent", u"/", None))
         self.label_all.setText("")
+        self.cbox_fetch_num.setItemText(0, QCoreApplication.translate("ZDockFileContent", u"10", None))
+        self.cbox_fetch_num.setItemText(1, QCoreApplication.translate("ZDockFileContent", u"30", None))
+        self.cbox_fetch_num.setItemText(2, QCoreApplication.translate("ZDockFileContent", u"50", None))
+        self.cbox_fetch_num.setItemText(3, QCoreApplication.translate("ZDockFileContent", u"80", None))
+        self.cbox_fetch_num.setItemText(4, QCoreApplication.translate("ZDockFileContent", u"100", None))
+        self.cbox_fetch_num.setItemText(5, QCoreApplication.translate("ZDockFileContent", u"130", None))
+        self.cbox_fetch_num.setItemText(6, QCoreApplication.translate("ZDockFileContent", u"150", None))
+        self.cbox_fetch_num.setItemText(7, QCoreApplication.translate("ZDockFileContent", u"200", None))
+        self.cbox_fetch_num.setItemText(8, QCoreApplication.translate("ZDockFileContent", u"300", None))
+        self.cbox_fetch_num.setItemText(9, QCoreApplication.translate("ZDockFileContent", u"500", None))
+        self.cbox_fetch_num.setItemText(10, QCoreApplication.translate("ZDockFileContent", u"1000", None))
+        self.cbox_fetch_num.setItemText(11, QCoreApplication.translate("ZDockFileContent", u"all", None))
+
+        self.ckbox_finished.setText(QCoreApplication.translate("ZDockFileContent", u"Finished", None))
+        self.btn_fetch.setText("")
     # retranslateUi
 

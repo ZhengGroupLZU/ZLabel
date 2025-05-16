@@ -3,7 +3,7 @@ from enum import Enum
 from functools import cached_property
 import hashlib
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, NamedTuple
+from typing import Any, ClassVar, Dict, List, Optional, NamedTuple, Tuple
 from collections import OrderedDict
 from typing_extensions import Literal
 from uuid import uuid4
@@ -82,6 +82,7 @@ class Result(BaseModel):
     h: float = 0.0
     rotation: float = 0
     labels: List[Label]
+    points: List[Tuple[float, float]] = []
 
     @staticmethod
     def new(
@@ -95,6 +96,7 @@ class Result(BaseModel):
         score: float = 0,
         rotation: float = 0,
         id_=None,
+        points: List[Tuple[float, float]] | None = None,
     ):
         r = Result(
             id=id_ or id_uuid4(),
@@ -107,6 +109,7 @@ class Result(BaseModel):
             origin=origin,
             score=score,
             rotation=rotation,
+            points=points or [],
         )
 
         return r

@@ -98,6 +98,13 @@
          <layout class="QGridLayout" name="gridLayout_2">
           <item row="0" column="0">
            <layout class="QGridLayout" name="gridLayout_4">
+            <item row="0" column="0">
+             <widget class="QLabel" name="label">
+              <property name="text">
+               <string>Host:</string>
+              </property>
+             </widget>
+            </item>
             <item row="1" column="0">
              <widget class="QLabel" name="label_2">
               <property name="text">
@@ -106,12 +113,33 @@
              </widget>
             </item>
             <item row="3" column="1">
-             <widget class="QLineEdit" name="ledit_password"/>
-            </item>
-            <item row="1" column="1">
-             <widget class="QLineEdit" name="ledit_urlprefix"/>
+             <widget class="QLineEdit" name="ledit_username"/>
             </item>
             <item row="3" column="0">
+             <widget class="QLabel" name="label_4">
+              <property name="text">
+               <string>User Name:</string>
+              </property>
+             </widget>
+            </item>
+            <item row="1" column="1">
+             <widget class="QLineEdit" name="ledit_urlprefix">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="0" column="1">
+             <widget class="QLineEdit" name="ledit_host">
+              <property name="enabled">
+               <bool>false</bool>
+              </property>
+             </widget>
+            </item>
+            <item row="4" column="1">
+             <widget class="QLineEdit" name="ledit_password"/>
+            </item>
+            <item row="4" column="0">
              <widget class="QLabel" name="label_5">
               <property name="text">
                <string>Password:</string>
@@ -119,24 +147,14 @@
              </widget>
             </item>
             <item row="2" column="0">
-             <widget class="QLabel" name="label_4">
+             <widget class="QLabel" name="label_8">
               <property name="text">
-               <string>User Name:</string>
+               <string>API:</string>
               </property>
              </widget>
             </item>
             <item row="2" column="1">
-             <widget class="QLineEdit" name="ledit_username"/>
-            </item>
-            <item row="0" column="1">
-             <widget class="QLineEdit" name="ledit_host"/>
-            </item>
-            <item row="0" column="0">
-             <widget class="QLabel" name="label">
-              <property name="text">
-               <string>Host:</string>
-              </property>
-             </widget>
+             <widget class="QLineEdit" name="ledit_model_api"/>
             </item>
            </layout>
           </item>
@@ -188,18 +206,8 @@
             </property>
            </widget>
           </item>
-          <item row="0" column="1" colspan="2">
-           <widget class="QLineEdit" name="ledit_model_api"/>
-          </item>
           <item row="2" column="1">
            <widget class="QLineEdit" name="ledit_decoder"/>
-          </item>
-          <item row="0" column="0">
-           <widget class="QLabel" name="label_8">
-            <property name="text">
-             <string>API:</string>
-            </property>
-           </widget>
           </item>
           <item row="3" column="0">
            <widget class="QLabel" name="label_11">

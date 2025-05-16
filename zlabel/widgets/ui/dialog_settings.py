@@ -83,45 +83,57 @@ class Ui_DialogSettings(object):
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
+        self.label = QLabel(self.groupBox)
+        self.label.setObjectName(u"label")
+
+        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
+
         self.label_2 = QLabel(self.groupBox)
         self.label_2.setObjectName(u"label_2")
 
         self.gridLayout_4.addWidget(self.label_2, 1, 0, 1, 1)
 
-        self.ledit_password = QLineEdit(self.groupBox)
-        self.ledit_password.setObjectName(u"ledit_password")
+        self.ledit_username = QLineEdit(self.groupBox)
+        self.ledit_username.setObjectName(u"ledit_username")
 
-        self.gridLayout_4.addWidget(self.ledit_password, 3, 1, 1, 1)
-
-        self.ledit_urlprefix = QLineEdit(self.groupBox)
-        self.ledit_urlprefix.setObjectName(u"ledit_urlprefix")
-
-        self.gridLayout_4.addWidget(self.ledit_urlprefix, 1, 1, 1, 1)
-
-        self.label_5 = QLabel(self.groupBox)
-        self.label_5.setObjectName(u"label_5")
-
-        self.gridLayout_4.addWidget(self.label_5, 3, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.ledit_username, 3, 1, 1, 1)
 
         self.label_4 = QLabel(self.groupBox)
         self.label_4.setObjectName(u"label_4")
 
-        self.gridLayout_4.addWidget(self.label_4, 2, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.label_4, 3, 0, 1, 1)
 
-        self.ledit_username = QLineEdit(self.groupBox)
-        self.ledit_username.setObjectName(u"ledit_username")
+        self.ledit_urlprefix = QLineEdit(self.groupBox)
+        self.ledit_urlprefix.setObjectName(u"ledit_urlprefix")
+        self.ledit_urlprefix.setEnabled(False)
 
-        self.gridLayout_4.addWidget(self.ledit_username, 2, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.ledit_urlprefix, 1, 1, 1, 1)
 
         self.ledit_host = QLineEdit(self.groupBox)
         self.ledit_host.setObjectName(u"ledit_host")
+        self.ledit_host.setEnabled(False)
 
         self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
 
-        self.label = QLabel(self.groupBox)
-        self.label.setObjectName(u"label")
+        self.ledit_password = QLineEdit(self.groupBox)
+        self.ledit_password.setObjectName(u"ledit_password")
 
-        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.ledit_password, 4, 1, 1, 1)
+
+        self.label_5 = QLabel(self.groupBox)
+        self.label_5.setObjectName(u"label_5")
+
+        self.gridLayout_4.addWidget(self.label_5, 4, 0, 1, 1)
+
+        self.label_8 = QLabel(self.groupBox)
+        self.label_8.setObjectName(u"label_8")
+
+        self.gridLayout_4.addWidget(self.label_8, 2, 0, 1, 1)
+
+        self.ledit_model_api = QLineEdit(self.groupBox)
+        self.ledit_model_api.setObjectName(u"ledit_model_api")
+
+        self.gridLayout_4.addWidget(self.ledit_model_api, 2, 1, 1, 1)
 
 
         self.gridLayout_2.addLayout(self.gridLayout_4, 0, 0, 1, 1)
@@ -162,20 +174,10 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_7.addWidget(self.btn_decoder, 2, 2, 1, 1)
 
-        self.ledit_model_api = QLineEdit(self.groupBox_3)
-        self.ledit_model_api.setObjectName(u"ledit_model_api")
-
-        self.gridLayout_7.addWidget(self.ledit_model_api, 0, 1, 1, 2)
-
         self.ledit_decoder = QLineEdit(self.groupBox_3)
         self.ledit_decoder.setObjectName(u"ledit_decoder")
 
         self.gridLayout_7.addWidget(self.ledit_decoder, 2, 1, 1, 1)
-
-        self.label_8 = QLabel(self.groupBox_3)
-        self.label_8.setObjectName(u"label_8")
-
-        self.gridLayout_7.addWidget(self.label_8, 0, 0, 1, 1)
 
         self.label_11 = QLabel(self.groupBox_3)
         self.label_11.setObjectName(u"label_11")
@@ -268,16 +270,16 @@ class Ui_DialogSettings(object):
         self.label_12.setText(QCoreApplication.translate("DialogSettings", u"Color:", None))
         self.btn_select_color.setText("")
         self.groupBox.setTitle(QCoreApplication.translate("DialogSettings", u"API", None))
-        self.label_2.setText(QCoreApplication.translate("DialogSettings", u"URL Prefix:", None))
-        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
-        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
         self.label.setText(QCoreApplication.translate("DialogSettings", u"Host:", None))
+        self.label_2.setText(QCoreApplication.translate("DialogSettings", u"URL Prefix:", None))
+        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
+        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
+        self.label_8.setText(QCoreApplication.translate("DialogSettings", u"API:", None))
         self.groupBox_3.setTitle(QCoreApplication.translate("DialogSettings", u"Model", None))
         self.label_7.setText(QCoreApplication.translate("DialogSettings", u"Decoder:", None))
         self.btn_encoder.setText(QCoreApplication.translate("DialogSettings", u"Select", None))
         self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Encoder:", None))
         self.btn_decoder.setText(QCoreApplication.translate("DialogSettings", u"Select", None))
-        self.label_8.setText(QCoreApplication.translate("DialogSettings", u"API:", None))
         self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
         self.cmbox_loglevel.setItemText(0, QCoreApplication.translate("DialogSettings", u"DEBUG", None))
         self.cmbox_loglevel.setItemText(1, QCoreApplication.translate("DialogSettings", u"INFO", None))

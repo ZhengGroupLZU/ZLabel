@@ -39,6 +39,9 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         """
         TODO: check if the label is used
         """
+        row, item = self.find_item_by_id(id_)
+        if row is not None:
+            self.listw_labels.takeItem(row)
         self.sigBtnDeleteClicked.emit(id_)
 
     def on_item_color_changed(self, id_: str):
@@ -56,6 +59,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         item_widget.sigColorChanged.connect(self.on_item_color_changed)
         self.listw_labels.addItem(item)
         self.listw_labels.setItemWidget(item, item_widget)
+        self.listw_labels.setCurrentItem(item)
         self.ledit_add_label.clear()
 
     def remove_label(self, row: int | None = None):
@@ -65,6 +69,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         self.listw_labels.takeItem(row)
 
     def set_labels(self, labels: List[Label] | None, selected_id: str | None = None):
+        print(labels, selected_id)
         if labels is None:
             return
         self.listw_labels.clear()

@@ -1,5 +1,6 @@
 import functools
 import re
+import sys
 from typing import List, Optional, TypeAlias, TypeVar, NewType
 
 from qtpy.QtWidgets import (
@@ -21,6 +22,7 @@ from .ui import Ui_ZDockFileContent
 
 class ZDockFileContent(QWidget, Ui_ZDockFileContent):
     sigItemClicked = Signal(str)
+    sigFetchTasks = Signal(int, int)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -30,6 +32,23 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         self.table_files.itemClicked.connect(lambda it: self.set_qlabels())
         self.table_files.itemClicked.connect(lambda it: self.sigItemClicked.emit(it.id_))
         self.ledit_jump.editingFinished.connect(self.on_ledit_jump_changed)
+        self.btn_fetch.clicked.connect(self.on_btn_fetch_clicked)
+
+    def on_btn_fetch_clicked(self):
+        fetch_finished = 0
+        try:
+            if self.cbox_fetch_num.currentIndex() == self.cbox_fetch_num.count() - 1:
+                num = 0x3f3f3f
+            else:
+                num = int(self.cbox_fetch_num.currentText())
+            if self.ckbox_finished.checkState() == Qt.CheckState.Checked:
+                fetch_finished = 1
+            elif self.ckbox_finished.checkState() == Qt.CheckState.PartiallyChecked:
+                fetch_finished = -1
+        except Exception as e:
+            num = 100
+            self.logger.warning(f"fetch num error: {e}, using default: {num}")
+        self.sigFetchTasks.emit(num, fetch_finished)
 
     def on_ledit_jump_changed(self):
         try:
@@ -115,3 +134,17 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
 
     def getItem(self, row: int) -> ZTableWidgetItem:
         return self.table_files.item(row, 1)  # type: ignore
+
+    def get_current_task_name(self) -> str:
+        row = self.currentRow()
+        if row < 0 or row >= self.table_files.rowCount():
+            return ""
+        item: ZTableWidgetItem = self.table_files.item(row, 1)  # type: ignore
+        return item.text()
+
+    def get_current_task_id(self) -> str:
+        row = self.currentRow()
+        if row < 0 or row >= self.table_files.rowCount():
+            return ""
+        item: ZTableWidgetItem = self.table_files.item(row, 0)  # type: ignore
+        return item.text()

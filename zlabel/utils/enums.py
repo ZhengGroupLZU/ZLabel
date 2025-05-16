@@ -58,6 +58,8 @@ class SettingsKey(Enum):
     DECODER = "global/onnxdecoder"
     LOGLEVEL = "global/loglevel"
     COLOR = "global/color"
+    FETCH_FINISHED = "global/fetchfinished"
+    FETCH_NUM = "global/fetchnum"
 
     TASKS = "project/tasks"
     PROJ_NAME = "project/name"

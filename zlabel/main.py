@@ -3,15 +3,17 @@
 
 import sys
 
-from qtpy import QtWidgets, QtCore
+from qtpy.QtWidgets import QApplication
+from qtpy.QtGui import QFont
 
 from zlabel.widgets.mainwindow import MainWindow
 
 
 def main():
-    # QtWidgets.QApplication.setAttribute(QtCore.Qt.AA_EnableHighDpiScaling)
-    # QtWidgets.QApplication.setHighDpiScaleFactorRoundingPolicy(QtCore.Qt.HighDpiScaleFactorRoundingPolicy.RoundPreferFloor)
-    app = QtWidgets.QApplication()
+    app = QApplication()
+    font = app.font()
+    font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)
+    app.setFont(font)
     mainwindow = MainWindow()
     mainwindow.show()
     sys.exit(app.exec())

@@ -12,6 +12,7 @@ from qtpy.QtWidgets import (
     QListWidget,
     QTableWidgetItem,
     QTableWidget,
+    QMainWindow,
 )
 from qtpy.QtCore import Qt, Signal, QRect, QRectF, QPointF, QTimer, QSize, QPropertyAnimation
 from qtpy.QtGui import (
@@ -175,7 +176,7 @@ class ZLabelItemWidget(QWidget):
         if event.button() == Qt.MouseButton.RightButton:
             text = self.label_text.text()
             self.clipboard.setText(text)
-            Toast("Copied to clipboard!", parent=self).show()
+            Toast("Copied to clipboard!", parent=self.parent().parent()).show()
             event.accept()
             return
         return super().mousePressEvent(event)
@@ -254,44 +255,40 @@ class ZSlider(QWidget):
 
 
 class Toast(QWidget):
-    style_sheet = r"""#LabelMessage{color:white;font-family:Microsoft YaHei;font-size:12pt;}"""
+    style_sheet = r"#LabelMessage{color:white;font-size:12pt;}"
 
-    def __init__(self, message="", timeout=1500, parent=None):
+    def __init__(self, message="", timeout=2000, parent=None):
         """
         @param message: 提示信息
         @param timeout: 窗口显示时长
         @param parent: 父窗口控件
         """
         super().__init__(parent)
+        self.parent_: QMainWindow | None = parent
         self.timer = QTimer()
         # 由于不知道动画结束的事件，所以借助QTimer来关闭窗口，动画结束就关闭窗口，所以这里的事件要和动画时间一样
         self.timer.singleShot(timeout, self.close)  # singleShot表示timer只会启动一次
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.Tool
+            | Qt.WindowType.ToolTip
             | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 设置窗口透明
-        self.setMinimumSize(QSize(220, 100))
-        self.setMaximumSize(QSize(300, 150))
-        self.layout_ = QHBoxLayout()
-        self.layout_.setContentsMargins(5, -1, 5, -1)
-        self.setLayout(self.layout_)
+        # self.setMaximumSize(QSize(300, 200))
+        self.layout_ = QHBoxLayout(self)
+        self.layout_.setContentsMargins(3, 3, 3, 3)
         self.animation = None
         self.init_ui(message)
         self.create_animation(timeout)
         self.setStyleSheet(Toast.style_sheet)
-        # 调整位置
 
         self.center()
 
     def center(self):
-        screen = QGuiApplication.primaryScreen().size()
-        size = self.geometry()
-        self.move(
-            int((screen.width() - size.width()) / 2),
-            int((screen.height() - size.height()) * 0.85),
-        )
+        screen = QGuiApplication.primaryScreen()
+        p0 = screen.geometry()
+        p = self.frameGeometry()
+        self.move(p0.center().x() - p.width() // 2, int((p0.height() - p.height())*0.85))
 
     def init_ui(self, message):
         message_label = QLabel()

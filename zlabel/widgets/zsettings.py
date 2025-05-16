@@ -51,13 +51,24 @@ class ZSettings(QSettings):
     def color(self):
         return str(self.value(SettingsKey.COLOR.value, "#000000", type=str))
 
+    @property
+    def fetch_num(self):
+        return int(self.value(SettingsKey.FETCH_NUM.value, 100, type=int))  # type: ignore
+
+    @fetch_num.setter
+    def fetch_num(self, value: int):
+        self.setValue(SettingsKey.FETCH_NUM.value, value)
+
+    @property
+    def fetch_finished(self):
+        return int(self.value(SettingsKey.FETCH_FINISHED.value, 0, type=int))  # type: ignore
+
+    @fetch_finished.setter
+    def fetch_finished(self, value: int):
+        self.setValue(SettingsKey.FETCH_FINISHED.value, value)
+
     def validate(self) -> bool:
         passed = True
-        if (
-            not self.host.startswith("http")
-            or self.url_prefix == ""
-            or self.username == ""
-            or not self.model_api.startswith("http")
-        ):
+        if not self.model_api.startswith("http") or self.username == "":
             passed = False
         return passed

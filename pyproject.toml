@@ -1,8 +1,11 @@
 [project]
 name = "ZLabel"
-version = "0.1.4"
+version = "0.1.6"
 description = ""
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
+requires-python = ">=3.10,<3.11"
+readme = "README.md"
+license = { text = "MIT" }
 dependencies = [
     "Pillow<11.0.0,>=10.1.0",
     "PyYAML<7.0.0,>=6.0.1",
@@ -20,13 +23,26 @@ dependencies = [
     "vispy>=0.14.1",
     "qtawesome>=1.3.0",
 ]
-requires-python = ">=3.10,<3.11"
-readme = "README.md"
-license = { text = "MIT" }
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+    "pyinstaller-versionfile<3.0.0,>=2.1.1",
+    "nuitka>=2.7.2",
+]
+
+[tool.pyright]
+defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
+
+[tool.ruff]
+ignore = ["E501", "F401"]
+line-length = 100
+
+[tool.mypy]
+exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]
 
 [tool.pdm]
-package-type = "application"
-
+distribution = false
 [tool.pdm.build]
 includes = []
 
@@ -50,46 +66,3 @@ versionfile = "create-version-file version_info.yml --outfile version_info.txt"
 designer = "pyside6-designer.exe "
 rcc = "pyside6-rcc -o icons_rc.py zlabel/resources/icons.qrc"
 uic_rcc = "python ./uic_rcc.py"
-
-# [tool.poetry]
-# name = "ZLabel"
-# version = "0.1.1"
-# description = ""
-# authors = ["rainyl <rainyliusy3@gmail.com>"]
-# readme = "README.md"
-
-# [tool.poetry.dependencies]
-# python = ">=3.10, <3.11"
-# Pillow = "^10.1.0"
-# PyYAML = "^6.0.1"
-# numpy = "^1.26.2"
-# qtpy = "^2.4.1"
-# pyside6 = "^6.6.1"
-# # pyside2 = "^5.15.2.1"
-# rich = "^13.7.0"
-# pydantic = "^2.5.2"
-# requests = "^2.31.0"
-# types-pillow = "^10.1.0.2"
-# types-requests = "^2.31.0.10"
-# pyqtgraph = "^0.13.3"
-# pyoxidizer = "^0.24.0"
-# pyinstaller = "^6.3.0"
-
-# [tool.poetry.group.dev.dependencies]
-# black = "^23.11.0"
-# Nuitka = "^1.8.6"
-# pytest = "^7.4.3"
-# py7zr = "^0.20.8"
-# poethepoet = "^0.24.4"
-# pyinstaller-versionfile = "^2.1.1"
-# mypy = "^1.7.1"
-
-[tool.pyright]
-defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
-
-[tool.ruff]
-ignore = ["E501", "F401"]
-line-length = 100
-
-[tool.mypy]
-exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]

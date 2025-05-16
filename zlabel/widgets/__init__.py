@@ -3,8 +3,9 @@ from zlabel.widgets.zworker import (
     SamWorkerResult,
     ZGetImageWorker,
     ZPreuploadImageWorker,
-    ZSamApiWorker,
+    ZSamPredictWorker,
     ZUploadFileWorker,
+    ZGetTasksWorker,
 )
 from zlabel.widgets.zwidgets import (
     Toast,

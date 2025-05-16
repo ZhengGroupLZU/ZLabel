@@ -128,16 +128,24 @@ class AlistApiHelper(object):
 
 
 class SamApiHelper(object):
-    def __init__(self, model_api: str = "") -> None:
+    def __init__(
+        self,
+        username: str,
+        password: str,
+        sam_api: str = "http://127.0.0.1:8001",
+    ) -> None:
         self.logger = ZLogger("SamApiHelper")
-        self.model_api: str = model_api
-        self.predict_api = f"{self.model_api}/predict"
-        self.setimage_api = f"{self.model_api}/setimage"
+        self.username = username
+        self.password = password
+        self.user_token = ""
+        self.sam_api: str = sam_api
+        self.predict_api = f"{self.sam_api}/predict"
+        self.setimage_api = f"{self.sam_api}/setimage"
         self.headers = {
             "User-Agent": "ZLabel/1.0.0",
         }
 
-    def predict(
+    def predict_v0(
         self,
         anno_id: str,
         image: Image.Image,
@@ -162,12 +170,42 @@ class SamApiHelper(object):
         image.save(img, format="png")
         files = {"image": (anno_id, img.getvalue())}
 
-        resp = requests.post(self.predict_api, data=data, files=files)
+        url = f"{self.sam_api}/predict"
+        resp = requests.post(url, data=data, files=files)
         try:
             return resp.json()
         except Exception:
             print(f"Predict Failed, {resp.text=}")
             return {"anno_id": anno_id, "status": False, "msg": resp.text}
+
+    def predict(
+        self,
+        anno_id: str,
+        image_name: str,
+        points: List[Dict[str, float]] | None = None,
+        labels: List[float] | None = None,
+        rects: List[Dict[str, float]] | None = None,
+        threshold: int = 100,
+        mode: int = 1,
+    ) -> Dict[str, Any]:
+        anno = {
+            "id": anno_id,
+            "points": points,
+            "labels": labels,
+            "rects": rects,
+        }
+        data = {
+            "data": json.dumps(anno),
+            "threshold": threshold,
+            "mode": mode,
+            "image_name": image_name,
+        }
+        url = f"{self.sam_api}/predict"
+        resp = requests.post(url, data=data)
+        if resp.status_code == 200:
+            return resp.json()
+        self.logger.warning(f"Predict Failed, {resp.text=}")
+        return {"anno_id": anno_id, "status": False, "msg": resp.text}
 
     def preupload_image(self, anno_id: str, image: Image.Image):
         img = BytesIO()
@@ -179,3 +217,68 @@ class SamApiHelper(object):
             self.logger.info(f"Uploaded image, {resp.text=}")
         except Exception as e:
             print(f"Uploaded image Failed, {e=}")
+
+    def login(self, username: str = "", password: str = "") -> str | None:
+        if username:
+            self.username = username
+        if password:
+            self.password = password
+        url = f"{self.sam_api}/login"
+        resp = requests.post(
+            url, data={"username": self.username, "password": self.password}, headers=self.headers
+        )
+        if resp.status_code == 200:
+            self.user_token = resp.json()["token"]
+            self.headers["Authorization"] = self.user_token
+            return self.user_token
+        else:
+            self.logger.error(f"Login failed, {resp.text=}")
+            return None
+
+    def get_image(self, name: str):
+        url = f"{self.sam_api}/get_image/{name}"
+        resp = requests.get(url, headers=self.headers)
+        if resp.status_code == 200:
+            return Image.open(BytesIO(resp.content))
+        else:
+            self.logger.error(f"Get image failed, {resp.text=}")
+            return None
+
+    def get_zlabel(self, name: str):
+        url = f"{self.sam_api}/get_zlabel/{name}"
+        resp = requests.get(url, headers=self.headers)
+        if resp.status_code == 200:
+            return resp.text
+        else:
+            self.logger.error(f"Get anno failed, {resp.text=}")
+            return None
+
+    def get_tasks(self, num: int = 50, finished: int = 1):
+        """
+            finished: -1: all, 0: unfinished, 1: finished
+        """
+        url = f"{self.sam_api}/get_tasks?num={num}&finished={finished}"
+        resp = requests.get(url, headers=self.headers)
+        if resp.status_code == 200:
+            return resp.json()
+        else:
+            self.logger.error(f"Get tasks failed, {resp.text=}")
+
+    def save_zlabel(self, filename: str):
+        url = f"{self.sam_api}/save_zlabel"
+        fs = open(filename, "r", encoding="utf-8")
+        data = fs.read().encode("utf-8")
+        fs.close()
+        form = {
+            "username": self.username,
+            "zlabel": data,
+            "filename": filename,
+        }
+        resp = requests.put(url, data=form, headers=self.headers)
+        if resp.status_code == 200:
+            self.logger.info(resp.text)
+            d = resp.json()
+            if d[0]["status"]:
+                return True
+        else:
+            self.logger.error(f"Save anno failed, {resp.text=}")

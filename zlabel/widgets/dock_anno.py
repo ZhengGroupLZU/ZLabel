@@ -15,7 +15,7 @@ from qtpy.QtWidgets import (
 )
 from qtpy.QtCore import Slot, Qt, QSize, QPoint, QRectF, Signal
 
-from qtpy.QtGui import QKeyEvent
+from qtpy.QtGui import QKeyEvent, QMouseEvent, QClipboard, QGuiApplication
 
 from zlabel.utils import Annotation, Project, Result
 from zlabel.widgets import ZListWidgetItem
@@ -38,6 +38,10 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
         if event.key() == Qt.Key.Key_Delete:
             items: List[ZListWidgetItem] = self.listWidget.selectedItems()  # type: ignore
             self.sigItemDeleted.emit([it.id_ for it in items])
+        if event.key() == Qt.Key.Key_C and event.modifiers() == Qt.KeyboardModifier.ControlModifier:
+            items: List[ZListWidgetItem] = self.listWidget.selectedItems()  # type: ignore
+            QGuiApplication.clipboard().setText("\n".join([it.id_ for it in items]))
+            print(QGuiApplication.clipboard().text())
         return super().keyPressEvent(event)
 
     def set_row_by_text(self, s: str | None):

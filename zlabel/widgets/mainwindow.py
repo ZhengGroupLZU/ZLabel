@@ -23,7 +23,6 @@ from qtpy.QtGui import QSurfaceFormat, QUndoStack
 from qtpy.QtWidgets import QFileDialog, QMainWindow, QMessageBox
 
 from zlabel.utils import (
-    AlistApiHelper,
     SamApiHelper,
     AutoMode,
     DrawMode,
@@ -53,8 +52,9 @@ from zlabel.widgets import (
     ZTableWidgetItem,
     SamWorkerResult,
     ZGetImageWorker,
+    ZGetTasksWorker,
     ZPreuploadImageWorker,
-    ZSamApiWorker,
+    ZSamPredictWorker,
     ZUploadFileWorker,
     DialogAbout,
     DialogSettings,
@@ -79,7 +79,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.settings_format = QSettings.Format.IniFormat
 
         self.settings: ZSettings = ZSettings(self.settings_path, self.settings_format)
-        self.api_alist: AlistApiHelper
+        # self.api_alist: AlistApiHelper
         self.api_predict: SamApiHelper
 
         self.user = User.default()
@@ -117,15 +117,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         # file exists and check passed
         self.user.name = self.settings.username
-        self.api_alist = AlistApiHelper(self.settings.host, self.settings.url_prefix)
-        self.api_predict = SamApiHelper(self.settings.model_api)
+        # self.api_alist = AlistApiHelper(self.settings.host, self.settings.url_prefix)
+        self.api_predict = SamApiHelper(
+            self.settings.username, self.settings.password, self.settings.model_api
+        )
         self.login()
         self.set_loglevel(self.settings.log_level)
 
     def login(self):
         # TODO: use async or worker?
         self.login_thread = ZLoginThread(
-            self.api_alist,
+            self.api_predict,
             self.settings.username,
             self.settings.password,
         )
@@ -185,6 +187,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.dialog_processing.close()
 
+    def refresh_tasks(self, tasks: List[Task]):
+        self.proj.tasks.clear()
+        for task in tasks:
+            self.proj.add_task(task)
+        self.proj.reset_task_key()
+        self.proj.save_json(self.settings.project_path)
+        if self.user_token:
+            self.on_login_success(self.user_token)
+
     def load_tasks(self, path: str):
         if not os.path.exists(path):
             QMessageBox.critical(
@@ -205,6 +216,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         return tasks
 
+    def load_tasks_remote(self):
+        worker = ZGetTasksWorker(
+            self.api_predict,
+            self.settings.fetch_num,
+            self.settings.fetch_finished,
+            self.settings.username,
+            self.settings.password,
+        )
+        worker.emitter.success.connect(self.on_get_tasks_success)
+        worker.emitter.fail.connect(self.on_get_tasks_failed)
+        self.threadpool.start(worker)
+
+    def on_get_tasks_success(self, tasks: List[Task]):
+        self.refresh_tasks(tasks)
+
+        self.dockcnt_files.set_file_list(tasks)
+        self.dockcnt_files.set_row_by_txt(self.proj.key_task)
+        QMessageBox.information(
+            self,
+            "Info",
+            f"Import {len(tasks)} Tasks Success!",
+            QMessageBox.StandardButton.Ok,
+        )
+
+    def on_get_tasks_failed(self, msg: str):
+        QMessageBox.critical(
+            self,
+            "Error",
+            f"Get Tasks Failed, {msg=}",
+            QMessageBox.StandardButton.Ok,
+        )
+
     def create_project(self):
         self.proj = Project.new(
             name=self.settings.project_name,
@@ -219,7 +262,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             img_name = self.proj.crt_task.filename
             if img_name not in self._image_cache:
                 worker = ZGetImageWorker(
-                    self.api_alist,
+                    self.api_predict,
                     img_name,
                     self.settings.username,
                     self.settings.password,
@@ -240,7 +283,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         # upload and set image to speed up prediction
         # TODO: add uploaded cache and ignore if an image is already uploaded
-        self.run_preupload_img_worker(image)
+        # self.run_preupload_img_worker(image)
 
         self.proj.crt_anno.original_height = image.height
         self.proj.crt_anno.original_width = image.width
@@ -307,12 +350,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.modify_result(r)
 
     def add_annotation(self, anno: Annotation):
-        label_key = ""
-        length = 1e3
-        for label in anno.labels.values():
-            if len(label.name) < length:
-                label_key = label.id
-        anno.key_label = label_key
+        if anno.key_label is None:
+            anno.key_label = list(anno.labels.keys())[0]
         self.proj.key_task = anno.id
         self.proj.add_annotation(anno)
 
@@ -386,6 +425,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.threadpool.start(self.preupload_worker)
 
+    def show_toast(self, msg: str):
+        toast = Toast(msg, timeout=1000, parent=self)
+        toast.show()
+
     # endregion
 
     # region properties
@@ -447,7 +490,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.info(f"Setting loglevel to {level}")
         self.logger.setLevel(level)
         self.canvas.logger.setLevel(level)
-        self.api_alist.logger.setLevel(level)
+        # self.api_alist.logger.setLevel(level)
         self.api_predict.logger.setLevel(level)
 
     # def check_login(self):
@@ -512,13 +555,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proj.crt_task.finished = True
             self.dockcnt_files.set_item_finished(self.proj.crt_task)
             self.worker_upload = ZUploadFileWorker(
-                self.api_alist,
+                self.api_predict,
                 filename,
                 self.settings.username,
                 self.settings.password,
             )
-            self.worker_upload.emitter.fail.connect(lambda msg: Toast(msg, parent=self).show())
-            self.worker_upload.emitter.success.connect(lambda msg: Toast(msg, parent=self).show())
+            self.worker_upload.emitter.fail.connect(self.show_toast)
+            self.worker_upload.emitter.success.connect(self.show_toast)
             self.threadpool.start(self.worker_upload)
 
     def on_action_cancel_triggered(self):
@@ -534,15 +577,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_action_SAM_triggered(self):
         self.sam_enabled = self.actionSAM.isChecked()
+        msg = []
+        if self.sam_enabled:
+            msg.append("SAM")
+        if self.cv_enabled:
+            msg.append("OpenCV")
+        if msg:
+            self.show_toast("+".join(msg))
 
     def on_action_opencv_triggered(self):
         self.cv_enabled = self.actionOpenCV.isChecked()
+        msg = []
+        if self.sam_enabled:
+            msg.append("SAM")
+        if self.cv_enabled:
+            msg.append("OpenCV")
+        if msg:
+            self.show_toast("+".join(msg))
 
     def on_action_move_triggered(self):
         self.actionEdit.setEnabled(True)
         self.actionMove.setEnabled(False)
         self.actionRectangle.setEnabled(True)
         self.actionPoint.setEnabled(True)
+        self.show_toast("Move Mode")
 
         self.canvas.setStatusMode(StatusMode.VIEW)
 
@@ -551,6 +609,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionMove.setEnabled(True)
         self.actionRectangle.setEnabled(True)
         self.actionPoint.setEnabled(True)
+        self.show_toast(msg="Edit Mode")
 
         self.canvas.setStatusMode(StatusMode.EDIT)
 
@@ -559,6 +618,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionEdit.setEnabled(True)
         self.actionRectangle.setEnabled(False)
         self.actionPoint.setEnabled(True)
+        self.show_toast("Draw Rectangle")
 
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.RECTANGLE)
@@ -568,6 +628,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionEdit.setEnabled(True)
         self.actionRectangle.setEnabled(True)
         self.actionPoint.setEnabled(False)
+        self.show_toast("Draw Point")
 
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.POINT)
@@ -575,6 +636,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_polygon_triggered(self):
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.POLYGON)
+        self.show_toast("Draw Polygon")
 
     def on_action_merge_triggered(self):
         self.canvas.merge_items(self.canvas.selected_items)
@@ -589,13 +651,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             tasks = self.load_tasks(path)
             if tasks is None:
                 return
-            self.proj.tasks.clear()
-            for task in tasks:
-                self.proj.add_task(task)
-            self.proj.reset_task_key()
-            self.proj.save_json(self.settings.project_path)
-            if self.user_token:
-                self.on_login_success(self.user_token)
+            self.refresh_tasks(tasks)
 
     def on_action_rgb_triggered(self):
         others = []
@@ -657,6 +713,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
         if self.proj.crt_anno:
             self.proj.crt_anno.key_label = item.id_
+            label = self.proj.crt_anno.labels[item.id_]
+            for r in self.proj.crt_anno.results.values():
+                r.labels = [label]
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -740,7 +799,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 labels[label.id] = label
             try:
                 name = f"{task.anno_id}.{self.anno_suffix}"
-                anno_json = self.api_alist.get_anno_by_name(name=name)
+                anno_json = self.api_predict.get_zlabel(name=name)
                 if anno_json is None:
                     raise Exception(f"Response of {name} is None")
                 anno = Annotation.model_validate_json(anno_json)
@@ -767,16 +826,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
-        self.dockcnt_labels.set_labels(list(self.proj.crt_anno.labels.values()))  # type: ignore
+        self.dockcnt_labels.set_labels(list(self.proj.crt_anno.labels.values()), self.proj.crt_anno.key_label)  # type: ignore
         self.dockcnt_labels.set_color(self.settings.color)
 
         # clear items in canvas
         self.canvas.update_by_anno(self.proj.crt_anno)
 
+    def on_dock_files_fetch_tasks(self, num: int, finished: int):
+        self.settings.fetch_num = num
+        self.settings.fetch_finished = finished
+        self.load_tasks_remote()
+
     # endregion
 
     # region Canvas
-    def run_sam_api_worker(self, worker: ZSamApiWorker):
+    def run_sam_api_worker(self, worker: ZSamPredictWorker):
         worker.emitter.sigFinished.connect(self.on_sam_worker_finished)
         self.threadpool.start(worker)
 
@@ -805,10 +869,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 )
                 return
         # TODO: if image already uploaded, ignore uploading image with points
-        worker = ZSamApiWorker(
+        image_name = self.dockcnt_files.get_current_task_name()
+        if not image_name:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Please select a task first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        worker = ZSamPredictWorker(
             api=self.api_predict,
             anno_id=self.proj.key_task,
-            image=self.current_image,
+            image=image_name,
             points=[(point.x(), point.y())],
             labels=[1.0],
             threshold=self.threshold,
@@ -862,10 +935,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 )
                 return
 
-        worker = ZSamApiWorker(
+        image_name = self.dockcnt_files.get_current_task_name()
+        if not image_name:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Please select a task first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
+        worker = ZSamPredictWorker(
             api=self.api_predict,
             anno_id=self.proj.key_task,
-            image=self.current_image,
+            image=image_name,
             rects=[(result.x, result.y, result.w, result.h)],
             threshold=self.threshold,
             mode=self.auto_mode,
@@ -1007,21 +1090,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # dock files
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
+        self.dockcnt_files.sigFetchTasks.connect(self.on_dock_files_fetch_tasks)
 
         # dock labels
         self.dockcnt_labels.listw_labels.itemClicked.connect(self.on_dock_label_listw_item_clicked)
         self.dockcnt_labels.btn_decrease.clicked.connect(self.on_dock_label_btn_dec_clicked)
         self.dockcnt_labels.btn_increase.clicked.connect(self.on_dock_label_btn_add_clicked)
-        self.dockcnt_labels.ledit_add_label.editingFinished.connect(
-            self.on_dock_label_btn_add_clicked
-        )
+        # self.dockcnt_labels.ledit_add_label.editingFinished.connect(
+        #     self.on_dock_label_btn_add_clicked
+        # )
         self.dockcnt_labels.sigBtnDeleteClicked.connect(self.on_dock_label_btn_del_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
 
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
-        self.dockcnt_anno.sigItemCountChanged.connect(lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)"))
+        self.dockcnt_anno.sigItemCountChanged.connect(
+            lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)")
+        )
 
     # endregion
 
