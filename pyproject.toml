@@ -1,68 +1,26 @@
-[tool.poetry]
+[project]
 name = "zlabel"
 version = "0.1.0"
-description = ""
-authors = ["rainyl <rainyliusy3@gmail.com>"]
+description = "Add your description here"
 readme = "README.md"
-
-[tool.poetry.dependencies]
-python = ">=3.10, <3.12"
-imgviz = "^1.7.4"
-# mahotas = "^1.4.13"
-opencv-python-headless = "^4.8.1.78"
-Pillow = "^10.1.0"
-PyYAML = "^6.0.1"
-numpy = "^1.26.2"
-qtpy = "^2.4.1"
-pyside6 = "^6.6.0"
-# pyside2 = "^5.15.2.1"
-pycocotools = "^2.0.7"
-pyqtgraph = "^0.13.3"
-rich = "^13.7.0"
-pydantic = "^2.5.2"
-onnxruntime = "^1.16.3"
-pytest = "^7.4.3"
-
-[tool.poetry.group.dev.dependencies]
-black = "^23.11.0"
-Nuitka = "^1.8.6"
-pytest = "^7.4.3"
-py7zr = "^0.20.8"
-poethepoet = "^0.24.4"
-ipykernel = "^6.26.0"
-
-[tool.poe.tasks]
-run = "python ./main.py"
-build = """python ./build.py"""
-
-designer = "pyside6-designer.exe "
-rcc = "pyside6-rcc -o icons_rc.py zlabel/resources/icons.qrc"
-
-[tool.poe.tasks.uic]
-sequence = [
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/mainwindow.py zlabel/resources/ui/mainwindow.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_processing.py zlabel/resources/ui/dialog_processing.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_new_proj.py zlabel/resources/ui/dialog_new_proj.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_about.py zlabel/resources/ui/dialog_about.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_category_choice.py zlabel/resources/ui/dialog_category_choice.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_model_manager.py zlabel/resources/ui/dialog_model_manager.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_settings.py zlabel/resources/ui/dialog_settings.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_shortcuts.py zlabel/resources/ui/dialog_shortcuts.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_export.py zlabel/resources/ui/dialog_export.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_import.py zlabel/resources/ui/dialog_import.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_anno.py zlabel/resources/ui/dock_anno.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_file.py zlabel/resources/ui/dock_file.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_info.py zlabel/resources/ui/dock_info.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_label.py zlabel/resources/ui/dock_label.ui" },
+requires-python = ">=3.10"
+dependencies = [
+    "imgviz>=1.7.6",
+    "numpy>=2.2.6",
+    "onnxruntime>=1.23.2",
+    "opencv-python-headless>=4.11.0.86",
+    "pillow>=12.0.0",
+    "pycocotools>=2.0.10",
+    "pydantic>=2.12.3",
+    "pyqtgraph>=0.13.7",
+    "pyside6>=6.10.0",
+    "pyyaml>=6.0.3",
+    "qtpy>=2.4.3",
+    "rich>=14.2.0",
 ]
 
-[tool.pyright]
-defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
-
-[tool.ruff]
-ignore = ["E501", "F401"]
-line-length = 120
-
-[build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+[dependency-groups]
+dev = [
+    "py7zr>=1.0.0",
+    "pytest>=8.4.2",
+]

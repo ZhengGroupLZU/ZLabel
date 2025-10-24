@@ -67,7 +67,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super(MainWindow, self).__init__()
         self.logger = ZLogger("MainWindow")
-        self.settings = QSettings("zlabel.ini", format=QSettings.Format.IniFormat)
+        self.settings = QSettings("zlabel.ini", QSettings.Format.IniFormat)
         # DEBUG
         self.settings.setValue(SettingsKey.PROJECT_PATH.value, r"C:\DEV\python\zlabel_sam\imgs")
         self.user_default = User.default()
@@ -319,7 +319,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         ppaths = [str(pp) for pp in paths if pp.suffix in self.img_suffix]
         self.set_image_paths(ppaths, clear)
         keys = list(self.annotations.keys())
-        self.anno_id = keys[0] if keys else ""
+        # self.anno_id = keys[0] if keys else ""
 
     def load_model(self):
         if os.path.exists(self.sam_onnx_encoder_path) and os.path.exists(self.sam_onnx_decoder_path):
@@ -467,7 +467,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if len(zprojs) == 0:
                 self.dialog_new_proj.show()
             else:
-                
+                ...
             self.project_path = directory
             self.refresh_image_paths(clear=True)
             self.refresh_annotations()

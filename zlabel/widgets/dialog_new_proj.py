@@ -15,8 +15,8 @@ class DialogNewProject(QDialog, Ui_DialogNewProject):
         self.btn_select_path.clicked.connect(self.on_btn_select_path_clicked)
         self.btn_reset_proj_name.clicked.connect(lambda: self.ledit_proj_name.setText("NewProject"))
         self.btn_reset_proj_descrip.clicked.connect(lambda: self.ledit_descrip.setText("NewProject"))
-        self.btn_reset_user_name.clicked.connect(self.ledit_user_name.setText(("DefaultUser")))
-        self.btn_reset_user_email.clicked.connect(self.ledit_user_email.setText("DefaultUser@zlabel.group"))
+        self.btn_reset_user_name.clicked.connect(lambda: self.ledit_user_name.setText("DefaultUser"))
+        self.btn_reset_user_email.clicked.connect(lambda: self.ledit_user_email.setText("DefaultUser@zlabel.group"))
 
         self.ledit_path.textChanged.connect(self.on_ledit_path_text_changed)
 
