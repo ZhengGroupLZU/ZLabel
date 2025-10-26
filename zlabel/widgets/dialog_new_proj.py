@@ -12,6 +12,8 @@ class DialogNewProject(QDialog, Ui_DialogNewProject):
         self.setupUi(self)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
+        self._default_proj_path: str | None = None
+
         self.btn_select_path.clicked.connect(self.on_btn_select_path_clicked)
         self.btn_reset_proj_name.clicked.connect(lambda: self.ledit_proj_name.setText("NewProject"))
         self.btn_reset_proj_descrip.clicked.connect(lambda: self.ledit_descrip.setText("NewProject"))
@@ -51,6 +53,7 @@ class DialogNewProject(QDialog, Ui_DialogNewProject):
         path = Path(self.ledit_path.text())
         assert path.exists()
         return self.ledit_path.text()
+
     @property
     def proj_description(self):
         return self.ledit_descrip.text() or "NewProject"
@@ -58,7 +61,16 @@ class DialogNewProject(QDialog, Ui_DialogNewProject):
     @property
     def proj_user_name(self):
         return self.ledit_user_name.text() or "DefaultUser"
-    
+
     @property
     def proj_user_email(self):
         return self.ledit_user_email.text() or "DefaultUser@zlabel.group"
+
+    @property
+    def default_proj_path(self):
+        return self._default_proj_path
+
+    @default_proj_path.setter
+    def default_proj_path(self, path: str | None):
+        self._default_proj_path = path
+        self.ledit_path.setText(path)

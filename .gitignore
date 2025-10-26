@@ -10,9 +10,9 @@ bak/
 test/*.png
 data/
 bios/
-.vscode/
 *.ts
 *.qm
+.venv*
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

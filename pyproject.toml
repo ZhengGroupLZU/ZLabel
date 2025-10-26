@@ -3,7 +3,7 @@ name = "zlabel"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.11"
 dependencies = [
     "imgviz>=1.7.6",
     "numpy>=2.2.6",
@@ -21,6 +21,40 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "poethepoet>=0.37.0",
     "py7zr>=1.0.0",
     "pytest>=8.4.2",
 ]
+
+
+[tool.poe.tasks]
+run = "python ./main.py"
+build = """python ./build.py"""
+
+designer = "pyside6-designer.exe "
+rcc = "pyside6-rcc -o icons_rc.py zlabel/resources/icons.qrc"
+
+[tool.poe.tasks.uic]
+sequence = [
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/mainwindow.py zlabel/resources/ui/mainwindow.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_processing.py zlabel/resources/ui/dialog_processing.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_new_proj.py zlabel/resources/ui/dialog_new_proj.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_about.py zlabel/resources/ui/dialog_about.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_category_choice.py zlabel/resources/ui/dialog_category_choice.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_model_manager.py zlabel/resources/ui/dialog_model_manager.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_settings.py zlabel/resources/ui/dialog_settings.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_shortcuts.py zlabel/resources/ui/dialog_shortcuts.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_export.py zlabel/resources/ui/dialog_export.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_import.py zlabel/resources/ui/dialog_import.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_anno.py zlabel/resources/ui/dock_anno.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_file.py zlabel/resources/ui/dock_file.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_info.py zlabel/resources/ui/dock_info.ui" },
+    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_label.py zlabel/resources/ui/dock_label.ui" },
+]
+
+[tool.pyright]
+defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
+
+[tool.ruff]
+ignore = ["E501", "F401"]
+line-length = 120

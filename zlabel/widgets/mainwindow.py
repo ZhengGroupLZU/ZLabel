@@ -111,7 +111,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     @anno_id.setter
     def anno_id(self, id_: str):
-        assert id_ in self.proj.annotations, f"key {id_} must in existed annotations"
+        if id_:
+            assert id_ in self.proj.annotations, f"key {id_} must in existed annotations"
         self.proj.key_anno = id_
 
     @property
@@ -311,15 +312,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         anno_suffix=self.anno_suffix,
                     )
                 )
-            except Exception:
+            except Exception as e:
+                self.logger.error(f"Load image {p} Failed, Check it!\n{e=}")
                 continue
 
     def refresh_image_paths(self, clear=False):
         paths = Path(self.project_path).glob("*")
-        ppaths = [str(pp) for pp in paths if pp.suffix in self.img_suffix]
+        ppaths = [str(pp) for pp in paths if pp.suffix.lower() in self.img_suffix]
         self.set_image_paths(ppaths, clear)
         keys = list(self.annotations.keys())
-        # self.anno_id = keys[0] if keys else ""
+        self.anno_id = keys[0] if keys else ""
 
     def load_model(self):
         if os.path.exists(self.sam_onnx_encoder_path) and os.path.exists(self.sam_onnx_decoder_path):
@@ -447,7 +449,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if btn == self.dialog_new_proj.btn_ok:
             self.settings.setValue(SettingsKey.PROJECT_PATH.value, self.dialog_new_proj.proj_path)
             user = User(
-                id=id_uuid4(), name=self.dialog_new_proj.proj_user_name, email=self.dialog_new_proj.proj_user_email
+                id=id_uuid4(),
+                name=self.dialog_new_proj.proj_user_name,
+                email=self.dialog_new_proj.proj_user_email,
             )
             self.proj = Project.new(
                 self.dialog_new_proj.proj_path,
@@ -455,6 +459,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.dialog_new_proj.proj_description,
                 users=OrderedDict({user.id: user}),
             )
+            self.proj.save_json()
         elif btn == self.dialog_new_proj.btn_cancel:
             ...
 
@@ -465,6 +470,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if path.exists():
             zprojs = list(path.glob("*.zproj"))
             if len(zprojs) == 0:
+                self.dialog_new_proj.default_proj_path = directory
                 self.dialog_new_proj.show()
             else:
                 ...

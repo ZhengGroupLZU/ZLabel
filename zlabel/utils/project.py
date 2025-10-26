@@ -185,7 +185,7 @@ class Annotation(BaseModel):
             updated_by=create_user,
             created_at=datetime.now(),
             updated_at=datetime.now(),
-            label_path=f"{path.parent/path.name}.{anno_suffix}",
+            label_path=f"{path.parent / path.name}.{anno_suffix}",
             image_path=image_path,
             original_width=width,
             original_height=height,
@@ -197,13 +197,13 @@ class Annotation(BaseModel):
 class Project(BaseModel):
     id: str
     name: str
-    description: Optional[str] = "New Project"
+    description: str | None = "New Project"
 
     default_user: ClassVar[User] = User.default()
 
-    key_label: str = ""
-    key_anno: str = ""
-    key_user: str = ""
+    key_label: str = ""  # current label id
+    key_anno: str = ""  # current annotation id
+    key_user: str = ""  # current user id
 
     users: OrderedDict[str, User] = OrderedDict()
     labels: OrderedDict[str, Label] = OrderedDict()
@@ -216,9 +216,9 @@ class Project(BaseModel):
         project_path: str,
         name: str = "New Project",
         description: str = "New Project",
-        users: OrderedDict[str, User] = OrderedDict(),
-        labels: OrderedDict[str, Label] = OrderedDict(),
-        annotations: OrderedDict | None = None,
+        users: OrderedDict[str, User] | None = None,
+        labels: OrderedDict[str, Label] | None = None,
+        annotations: OrderedDict[str, Annotation] | None = None,
         id: str | None = None,
     ):
         proj = Project(
@@ -226,8 +226,8 @@ class Project(BaseModel):
             name=name,
             project_path=project_path,
             description=description,
-            users=users,
-            labels=labels,
+            users=users or OrderedDict(),
+            labels=labels or OrderedDict(),
             annotations=annotations or OrderedDict(),
         )
         return proj
@@ -243,7 +243,7 @@ class Project(BaseModel):
     def save_json(self, path: str | None = None):
         path = path or f"{self.project_path}/{self.name}.zproj"
         with open(path, "w", encoding="utf-8") as f:
-            f.write(self.model_dump_json(indent=4, exclude={"annotations"}))
+            _ = f.write(self.model_dump_json(indent=4, exclude={"annotations"}))
 
     # endregion
 
