@@ -62,7 +62,6 @@ ignore = [
     "B905",
     "E712",
 ]
-line-length = 120
 
 [tool.mypy]
 exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]

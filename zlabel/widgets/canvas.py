@@ -34,6 +34,7 @@ from zlabel.utils.enums import RgbMode
 
 from .graphic_objects import Circle, Polygon, Rectangle, ZHandle
 
+pg.setConfigOptions(useOpenGL=True)
 
 class Canvas(pg.PlotWidget):
     sigPointCreated = Signal(QPointF)
@@ -346,10 +347,29 @@ class Canvas(pg.PlotWidget):
             color=color or self.color,
             movable=movable,
             id_=id_,
-            antialias=False,
+            antialias=False,  # 显式禁用抗锯齿以提高性能
         )  # type: ignore
         # self.logger.debug(f"Created polygon {id_=}")
         return polygon
+
+    def batch_create_polygons(self, polygon_data: List[dict]):
+        """批量创建Polygon对象，提高性能"""
+        self.view_box.disableAutoRange()
+        
+        polygons = []
+        for data in polygon_data:
+            polygon = self.new_polygon(
+                positions=data.get('positions', []),
+                closed=data.get('closed', True),
+                color=data.get('color', self.color),
+                movable=data.get('movable', True),
+                id_=data.get('id', None)
+            )
+            polygons.append(polygon)
+            self.create_item(polygon)
+        
+        self.view_box.enableAutoRange()
+        return polygons
 
     def start_drawing(self):
         match self._draw_mode:
@@ -410,27 +430,44 @@ class Canvas(pg.PlotWidget):
             self.create_items_by_anno(anno)
             return
 
+        # 批量更新优化：暂时禁用自动范围和信号
+        self.view_box.disableAutoRange()
         self.block_item_state_changed(True)
 
         new_keys = list(anno.results.keys())
         old_keys = list(self.showing_items.keys())
         n_removed, n_created, n_updated = 0, 0, 0
+        
+        # 批量处理移除操作
+        items_to_remove = []
         for k in old_keys:
             if k not in new_keys:
-                self.remove_item(self.showing_items[k])
+                items_to_remove.append(self.showing_items[k])
                 n_removed += 1
+        
+        # 一次性移除所有项目
+        for item in items_to_remove:
+            self.remove_item(item)
+        
+        # 批量处理创建和更新操作
         for key in new_keys:
             if key not in old_keys:
                 self.create_item_by_result(anno.results[key])
                 n_created += 1
             else:
                 item = self.showing_items[key]
-                item.setState(self.result_to_state(anno.results[key]))
-                item.update()
+                # 使用setState而不是直接调用update
+                item.setState(self.result_to_state(anno.results[key]), update=False)
                 item.setVisible(True)
                 n_updated += 1
 
+        # 重新启用信号和自动范围
         self.block_item_state_changed(False)
+        self.view_box.enableAutoRange()
+        
+        # 最后统一更新视图
+        self.update()
+        
         self.logger.debug(
             f"Update items finished\n"
             f"updated: {n_updated}\n"
@@ -654,7 +691,7 @@ class Canvas(pg.PlotWidget):
             return
         if item != self.selecting_item:
             self.sigItemStateChanged.emit(item.getState())
-            # self.logger.debug("Item state changed")
+            self.logger.debug("Item state changed")
 
     def get_item_state_export(self, item: Rectangle | Polygon):
         state = item.getState()
@@ -677,7 +714,7 @@ class Canvas(pg.PlotWidget):
         elif ev.button() == Qt.MouseButton.ForwardButton:
             self.sigMouseForwardClicked.emit()
         elif ev.button() == Qt.MouseButton.LeftButton:
-            # self.logger.debug(f"ZGraphicsScene Press: {ev=}, {self._status_mode=}")
+            self.logger.debug(f"ZGraphicsScene Press: {ev=}, {self._status_mode=}")
             self.mouse_down_pos = self.map_scene_to_view(ev.pos())
             if self._status_mode == StatusMode.CREATE:
                 self.clear_selections_if_no_ctrl(ev)
@@ -719,6 +756,7 @@ class Canvas(pg.PlotWidget):
                     state = self.get_item_state()
                     if state:
                         state["id"] = self.current_item.id_
+                        # 在拖拽过程中不触发update，提高性能
                         self.current_item.setState(state, update=False)
                 ev.accept()
                 return
@@ -727,6 +765,7 @@ class Canvas(pg.PlotWidget):
                     state = self.get_new_rectangle_state()
                     if state:
                         state["id"] = self.selecting_item.id_
+                        # 在拖拽过程中不触发update，提高性能
                         self.selecting_item.setState(state, update=False)
                     ev.accept()
                     return
@@ -762,11 +801,18 @@ class Canvas(pg.PlotWidget):
                     rect,
                     Qt.ItemSelectionMode.IntersectsItemShape,
                 )
+                # 批量处理选择状态，最后统一更新
+                selected_items = []
                 for item in items:
                     if isinstance(item, (Rectangle, Polygon)):
                         item.setSelected(True)
-                        item.update()
+                        selected_items.append(item)
                     # self.logger.debug(f"Release: {item=}, {item.isSelected()=}")
+                
+                # 批量更新选中的项目
+                for item in selected_items:
+                    item.update()
+                    
                 # self.logger.debug(f"{items=}, {rect=}")
                 self.remove_item(self.selecting_item)
                 self.selecting_item = None
@@ -791,6 +837,7 @@ class ZViewBox(pg.ViewBox):
         self.setMouseMode(self.PanMode)
 
     def mouseClickEvent(self, ev):
+        print(f"Click: {ev=}")
         if ev.button() == Qt.MouseButton.RightButton:
             self.autoRange()
         super().mouseClickEvent(ev)
