@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_info.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.1
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -33,7 +33,7 @@ class Ui_ZDockInfoContent(object):
         self.gridLayout.setContentsMargins(2, 2, 2, 3)
         self.label_4 = QLabel(ZDockInfoContent)
         self.label_4.setObjectName(u"label_4")
-        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
@@ -119,13 +119,13 @@ class Ui_ZDockInfoContent(object):
 
         self.btn_delete_anno = QPushButton(ZDockInfoContent)
         self.btn_delete_anno.setObjectName(u"btn_delete_anno")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Minimum)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.btn_delete_anno.sizePolicy().hasHeightForWidth())
         self.btn_delete_anno.setSizePolicy(sizePolicy1)
         icon = QIcon()
-        icon.addFile(u":/icon/icons/delete-3.svg", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u":/icon/icons/delete-3.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.btn_delete_anno.setIcon(icon)
 
         self.gridLayout.addWidget(self.btn_delete_anno, 4, 3, 1, 1)

@@ -178,6 +178,15 @@
     <property name="title">
      <string>Edit</string>
     </property>
+    <widget class="QMenu" name="menuAnno_Type">
+     <property name="title">
+      <string>Anno Type</string>
+     </property>
+     <addaction name="actionAnnoTypeRectangle"/>
+     <addaction name="actionAnnoTypePolygon"/>
+     <addaction name="actionAnnoTypeRLEMask"/>
+    </widget>
+    <addaction name="menuAnno_Type"/>
     <addaction name="actionSAM"/>
     <addaction name="actionOpenCV"/>
     <addaction name="actionMove"/>
@@ -202,7 +211,7 @@
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
+    <enum>Qt::LayoutDirection::LeftToRight</enum>
    </property>
   </widget>
   <widget class="QToolBar" name="toolBar">
@@ -222,7 +231,7 @@
     </size>
    </property>
    <property name="toolButtonStyle">
-    <enum>Qt::ToolButtonIconOnly</enum>
+    <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
    </property>
    <property name="floatable">
     <bool>false</bool>
@@ -256,12 +265,6 @@
    <addaction name="separator"/>
    <addaction name="actionSave_dir"/>
    <addaction name="actionOpen_dir"/>
-   <addaction name="separator"/>
-   <addaction name="actionGray"/>
-   <addaction name="actionR"/>
-   <addaction name="actionG"/>
-   <addaction name="actionB"/>
-   <addaction name="actionRGB"/>
    <addaction name="separator"/>
   </widget>
   <widget class="QDockWidget" name="dock_infos">
@@ -317,10 +320,10 @@
     <bool>false</bool>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetClosable|QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
    </property>
    <property name="allowedAreas">
-    <set>Qt::AllDockWidgetAreas</set>
+    <set>Qt::DockWidgetArea::AllDockWidgetAreas</set>
    </property>
    <property name="windowTitle">
     <string>Labels</string>
@@ -416,7 +419,7 @@
   </action>
   <action name="actionFit_wiondow">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
@@ -519,10 +522,10 @@
     <string>A</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::TextHeuristicRole</enum>
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
    </property>
    <property name="priority">
-    <enum>QAction::NormalPriority</enum>
+    <enum>QAction::Priority::NormalPriority</enum>
    </property>
   </action>
   <action name="actionNext">
@@ -1127,6 +1130,21 @@
    </property>
    <property name="shortcut">
     <string>G</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypeRectangle">
+   <property name="text">
+    <string>Rectangle</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypePolygon">
+   <property name="text">
+    <string>Polygon</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypeRLEMask">
+   <property name="text">
+    <string>RLE Mask</string>
    </property>
   </action>
  </widget>

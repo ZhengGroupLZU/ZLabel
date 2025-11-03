@@ -76,52 +76,108 @@ class Result(BaseModel):
     origin: str = "manual"
     score: float = 0
     note: str = ""
-    x: float = 0.0
-    y: float = 0.0
-    w: float = 0.0
-    h: float = 0.0
-    rotation: float = 0
     labels: List[Label]
-    points: List[Tuple[float, float]] = []
 
     @staticmethod
     def new(
         type_id: ResultType,
         labels: List[Label],
-        x: float = 0,
-        y: float = 0,
-        w: float = 0,
-        h: float = 0,
         origin: str = "manual",
         score: float = 0,
-        rotation: float = 0,
         id_=None,
-        points: List[Tuple[float, float]] | None = None,
     ):
         r = Result(
             id=id_ or id_uuid4(),
             type_id=type_id,
             labels=labels,
+            origin=origin,
+            score=score,
+        )
+
+        return r
+
+
+class RectangleResult(Result):
+    x: float = 0.0
+    y: float = 0.0
+    w: float = 0.0
+    h: float = 0.0
+    rotation: float = 0
+
+    @staticmethod
+    def new(
+        type_id: ResultType = ResultType.RECTANGLE,
+        labels: List[Label] = [],
+        origin: str = "manual",
+        score: float = 0,
+        id_=None,
+        x: float = 0.0,
+        y: float = 0.0,
+        w: float = 0.0,
+        h: float = 0.0,
+        rotation: float = 0,
+    ):
+        r = RectangleResult(
+            id=id_ or id_uuid4(),
+            type_id=type_id,
+            labels=labels,
+            origin=origin,
+            score=score,
             x=x,
             y=y,
             w=w,
             h=h,
-            origin=origin,
-            score=score,
             rotation=rotation,
-            points=points or [],
         )
 
         return r
 
     def equal_v(self, r: "Result"):
         return (
-            self.x == r.x
+            isinstance(r, RectangleResult)
+            and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.x == r.x
             and self.y == r.y
             and self.w == r.w
             and self.h == r.h
             and self.rotation == r.rotation
+        )
+
+
+class PolygonResult(Result):
+    points: List[Tuple[float, float]] = []
+
+    @staticmethod
+    def new(
+        type_id: ResultType = ResultType.POLYGON,
+        labels: List[Label] = [],
+        origin: str = "manual",
+        score: float = 0,
+        id_=None,
+        points: List[Tuple[float, float]] = [],
+    ):
+        r = PolygonResult(
+            id=id_ or id_uuid4(),
+            type_id=type_id,
+            labels=labels,
+            origin=origin,
+            score=score,
+            points=points,
+        )
+
+        return r
+
+    def equal_v(self, r: "Result"):
+        return (
+            isinstance(r, PolygonResult)
             and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.points == r.points
         )
 
 
@@ -139,7 +195,7 @@ class Annotation(BaseModel):
     original_height: float
     image_rotation: Optional[int] = 0
 
-    results: OrderedDict[str, Result] = OrderedDict()
+    results: OrderedDict[str, RectangleResult | PolygonResult] = OrderedDict()
     labels: OrderedDict[str, Label] = OrderedDict()
 
     key_result: str | None = None
@@ -167,7 +223,7 @@ class Annotation(BaseModel):
             return None
         return self.results.get(self.key_result, None)
 
-    def add_result(self, result: Result):
+    def add_result(self, result: RectangleResult | PolygonResult):
         self.results[result.id] = result
         self.key_result = result.id
 

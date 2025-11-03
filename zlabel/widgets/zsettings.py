@@ -16,10 +16,6 @@ class ZSettings(QSettings):
         return str(self.value(SettingsKey.URL_PREFIX.value, type=str))
 
     @property
-    def model_api(self):
-        return str(self.value(SettingsKey.MODEL_API.value, type=str))
-
-    @property
     def username(self) -> str:
         return self.value(SettingsKey.USER_NAME.value, type=str)  # type: ignore
 
@@ -67,8 +63,18 @@ class ZSettings(QSettings):
     def fetch_finished(self, value: int):
         self.setValue(SettingsKey.FETCH_FINISHED.value, value)
 
+    @property
+    def annotation_type(self):
+        """0: rectangle, 1: polygon"""
+        return int(self.value(SettingsKey.ANNOTATE_TYPE.value, 0, type=int))  # type: ignore
+
+    @annotation_type.setter
+    def annotation_type(self, value: int):
+        """0: rectangle, 1: polygon"""
+        self.setValue(SettingsKey.ANNOTATE_TYPE.value, value)
+
     def validate(self) -> bool:
         passed = True
-        if not self.model_api.startswith("http") or self.username == "":
+        if not self.host.startswith("http") or self.username == "":
             passed = False
         return passed

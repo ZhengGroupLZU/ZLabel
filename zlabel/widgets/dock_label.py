@@ -69,7 +69,6 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         self.listw_labels.takeItem(row)
 
     def set_labels(self, labels: List[Label] | None, selected_id: str | None = None):
-        print(labels, selected_id)
         if labels is None:
             return
         self.listw_labels.clear()

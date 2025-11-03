@@ -20,7 +20,16 @@ from qtpy.QtGui import (
 )
 from qtpy.QtWidgets import QGraphicsItem
 
-from zlabel.utils import Annotation, Result, ResultType, id_uuid4, DrawMode, StatusMode, ZLogger
+from zlabel.utils import (
+    Annotation,
+    ResultType,
+    id_uuid4,
+    DrawMode,
+    StatusMode,
+    ZLogger,
+    RectangleResult,
+    PolygonResult,
+)
 from zlabel.utils.enums import RgbMode
 
 from .graphic_objects import Circle, Polygon, Rectangle, ZHandle
@@ -29,6 +38,7 @@ from .graphic_objects import Circle, Polygon, Rectangle, ZHandle
 class Canvas(pg.PlotWidget):
     sigPointCreated = Signal(QPointF)
     sigRectangleCreated = Signal(object)
+    sigPolygonCreated = Signal(object)
 
     sigItemClicked = Signal(str)
     sigItemStateChanged = Signal(object)
@@ -62,9 +72,9 @@ class Canvas(pg.PlotWidget):
 
         self.image_item = ZImageItem()
         self.current_image = None
-        self.current_item: Rectangle | Circle | None = None
-        self.selecting_rect: Rectangle | None = None
-        self.rects: OrderedDict[str, Rectangle] = OrderedDict()
+        self.current_item: Rectangle | Circle | Polygon | None = None
+        self.selecting_item: Rectangle | Polygon | None = None
+        self.showing_items: OrderedDict[str, Rectangle | Polygon] = OrderedDict()
 
         self.hline = pg.InfiniteLine(
             angle=0,
@@ -107,9 +117,14 @@ class Canvas(pg.PlotWidget):
         return self.current_image.shape[0]
 
     @property
-    def selected_items(self):
-        items_selected = list(filter(lambda it: getattr(it, "_selected", False), self.items()))
-        return items_selected
+    def selected_items(self) -> List[Rectangle | Circle | Polygon]:
+        items_selected = list(
+            filter(
+                lambda it: it.isSelected() and isinstance(it, (Rectangle, Circle, Polygon)),
+                self.items(),
+            )
+        )
+        return items_selected  # type: ignore
 
     @property
     def point_radius(self):
@@ -174,7 +189,7 @@ class Canvas(pg.PlotWidget):
 
     def set_color(self, color: str):
         self.color = color
-        for item in self.rects.values():
+        for item in self.showing_items.values():
             item.set_fill_color(color)
 
     def set_rgb(self, rgb: RgbMode):
@@ -218,28 +233,42 @@ class Canvas(pg.PlotWidget):
         """
         self.text_item.setHtml(html)
 
-    def set_item_state_by_result(self, result: Result | None, update=True):
+    def set_item_state_by_result(self, result: RectangleResult | PolygonResult | None, update=True):
         if result is None:
             return
-        if result.id in self.rects:
-            item = self.rects[result.id]
+        if result.id in self.showing_items:
+            item = self.showing_items[result.id]
             state = item.getState()
-            state["pos"] = QPointF(result.x, result.y)
-            state["size"] = QPointF(result.w, result.h)
-            state["angle"] = result.rotation
+            if isinstance(result, RectangleResult):
+                state["pos"] = QPointF(result.x, result.y)
+                state["size"] = QPointF(result.w, result.h)
+                state["angle"] = result.rotation
+            elif isinstance(result, PolygonResult):
+                state["points"] = result.points
             item.setState(state, update=update)
             # item.update()
 
-    def result_to_state(self, result: Result | None):
+    def result_to_state(self, result: RectangleResult | PolygonResult | None):
         if result is None:
             return {}
-        state = {
-            "id": result.id,
-            "pos": QPointF(result.x, result.y),
-            "size": QPointF(result.w, result.h),
-            "angle": result.rotation,
-        }
-        return state
+        if isinstance(result, RectangleResult):
+            return {
+                "id": result.id,
+                "pos": QPointF(result.x, result.y),
+                "size": QPointF(result.w, result.h),
+                "angle": result.rotation,
+            }
+        elif isinstance(result, PolygonResult):
+            return {
+                "id": result.id,
+                "pos": QPointF(0.0, 0.0),
+                "size": QPointF(1.0, 1.0),
+                "angle": 0,
+                "points": result.points,
+                "closed": True,
+            }
+        else:
+            return {}
 
     def get_new_rectangle_state(self):
         # logger.debug(f"{self.mouse_down_pos=}, {self.mouse_up_pos=}")
@@ -265,16 +294,18 @@ class Canvas(pg.PlotWidget):
                 return self.get_new_rectangle_state()
             case DrawMode.POINT:
                 return {}
+            case DrawMode.POLYGON:
+                return {}
             case _:
                 return {}
 
     def block_item_state_changed(self, v: bool = True):
         if v:
-            for item in self.rects.values():
+            for item in self.showing_items.values():
                 item.sigRegionChangeStarted.disconnect(self.on_item_state_change_started)
                 item.sigRegionChangeFinished.disconnect(self.on_item_state_change_finished)
         else:
-            for item in self.rects.values():
+            for item in self.showing_items.values():
                 item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
                 item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
 
@@ -297,8 +328,28 @@ class Canvas(pg.PlotWidget):
             movable=movable,
             id_=id_,
         )  # type: ignore
-        self.logger.debug(f"Created rect {id_=}")
+        # self.logger.debug(f"Created rect {id_=}")
         return rectangle
+
+    def new_polygon(
+        self,
+        positions: List[tuple[float, float]],
+        closed: bool = True,
+        color: str | None = None,
+        movable=True,
+        id_=None,
+    ):
+        # create a new one
+        polygon = Polygon(
+            positions=positions,
+            closed=closed,
+            color=color or self.color,
+            movable=movable,
+            id_=id_,
+            antialias=False,
+        )  # type: ignore
+        # self.logger.debug(f"Created polygon {id_=}")
+        return polygon
 
     def start_drawing(self):
         match self._draw_mode:
@@ -315,7 +366,12 @@ class Canvas(pg.PlotWidget):
                     color=self.color,
                 )
             case DrawMode.POLYGON:
-                raise NotImplementedError
+                self.current_item = Polygon(
+                    positions=[self.mouse_down_pos.toTuple()],  # type: ignore
+                    closed=False,
+                    color=self.color,
+                    movable=False,
+                )
             case _:
                 self.current_item = None
         if self.current_item is not None:
@@ -334,7 +390,7 @@ class Canvas(pg.PlotWidget):
             case Circle():
                 self.sigPointCreated.emit(state["pos"])
             case Polygon():
-                raise NotImplementedError
+                self.sigPolygonCreated.emit(state)
             case _:
                 ...
         self.current_item = None
@@ -349,49 +405,42 @@ class Canvas(pg.PlotWidget):
     def update_by_anno(self, anno: Annotation | None):
         if anno is None:
             return
-        if len(self.rects) == 0:
+        if len(self.showing_items) == 0:
             self.logger.debug("empty self.rects, create by anno")
             self.create_items_by_anno(anno)
             return
+
         self.block_item_state_changed(True)
-        res_keys = list(anno.results.keys())
-        old_keys = list(self.rects.keys())
-        done_keys = []
-        n_old = len(old_keys)
-        n_new = len(res_keys)
-        # if the number of new results > existed self.rects
-        # change the state of existing rects and add new
-        idx = 0
-        for newk in res_keys:
-            # update old items
-            if idx < n_old:
-                oldk = old_keys[idx]
-                state = self.result_to_state(anno.results[newk])
-                getk = oldk
-                if newk in self.rects:
-                    getk = newk
-                done_keys.append(getk)
-                item = self.rects.pop(getk)
-                item.setState(state)
-                item.setVisible(True)
-                self.rects[newk] = item
-                idx += 1
-            # create new items
-            else:
-                self.logger.debug(f"Creating {anno.results[newk]}")
-                self.create_item_by_result(anno.results[newk])
+
+        new_keys = list(anno.results.keys())
+        old_keys = list(self.showing_items.keys())
+        n_removed, n_created, n_updated = 0, 0, 0
         for k in old_keys:
-            if k not in done_keys:
-                item = self.rects[k]
-                item.setVisible(False)
-                # self.hide_item(item)
+            if k not in new_keys:
+                self.remove_item(self.showing_items[k])
+                n_removed += 1
+        for key in new_keys:
+            if key not in old_keys:
+                self.create_item_by_result(anno.results[key])
+                n_created += 1
+            else:
+                item = self.showing_items[key]
+                item.setState(self.result_to_state(anno.results[key]))
+                item.update()
+                item.setVisible(True)
+                n_updated += 1
+
         self.block_item_state_changed(False)
         self.logger.debug(
-            f"Update items finished\nupdated: {idx}\ncreated: {n_new - idx}\nhided: {n_old - idx}\nexisted: {len(self.rects)}"
+            f"Update items finished\n"
+            f"updated: {n_updated}\n"
+            f"created: {n_created}\n"
+            f"removed: {n_removed}\n"
+            f"number of items: {len(self.showing_items)}"
         )
 
     def metge_items_by_id(self, ids: List[str]):
-        items = [self.rects[id_] for id_ in ids]
+        items = [self.showing_items[id_] for id_ in ids]
         self.merge_items(items)
 
     def merge_items(self, items: List[Any] | None = None):
@@ -409,7 +458,7 @@ class Canvas(pg.PlotWidget):
             if i > 0:  # keep the first as merged item
                 item.setSelected(False)
                 self.hide_item(item)
-            self.logger.debug(f"Merge: {x=}, {y=}, w={x1-x}, h={y1-y}")
+            self.logger.debug(f"Merge: {x=}, {y=}, w={x1 - x}, h={y1 - y}")
         self.sigItemsRemoved.emit([item.id_ for item in items[1:]])
         state = items[0].getState()
         self.sigItemStateChangeStarted.emit(state)
@@ -421,61 +470,69 @@ class Canvas(pg.PlotWidget):
     # endregion
 
     # region create
-    def create_item(self, item: Rectangle | Circle):
+    def create_item(self, item: Rectangle | Circle | Polygon):
         item.setZValue(self._z_value)
         item.sigClicked.connect(self.on_item_clicked)
         item.sigRegionChanged.connect(self.on_item_state_changed)
         item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
         item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
-        if isinstance(item, Rectangle):
-            self.rects[item.id_] = item
+        if isinstance(item, (Rectangle, Polygon)):
+            self.showing_items[item.id_] = item
         self.addItem(item)
         self._z_value += 1
-        self.logger.debug(f"Added {item.id_}")
+        self.logger.debug(f"Added {item=}")
 
     def find_invisible_rect(self):
-        keys = list(self.rects.keys())
+        keys = list(self.showing_items.keys())
         for k in keys:
-            item = self.rects[k]
+            item = self.showing_items[k]
             if not item.isVisible():
-                return self.rects.pop(k)
+                return self.showing_items.pop(k)
         return None
 
-    def create_item_by_result(self, result: Result):
-        match result.type_id:
-            case ResultType.RECTANGLE:
-                # if result.id existed in self.rects, get the item and set state
-                # else if invisible item existed,
-                # get a new invisible item and set state
-                # else create a new rect
-                item = self.rects.get(result.id, None) or self.find_invisible_rect()
-                if item is not None:
-                    state = item.getState()
-                    state["pos"] = QPointF(result.x, result.y)
-                    state["size"] = QPointF(result.w, result.h)
-                    state["id"] = result.id
-                    item.setState(state)
-                    # item.set_fill_color(result.labels[0].color)
-                    item.set_fill_color(self.color)
-                    self.rects[state["id"]] = item
-                    self.logger.debug(f"Find existed rect not visible {result.id=}")
-                    item.setVisible(True)
-                    return
+    def create_item_by_result(self, result: RectangleResult | PolygonResult):
+        if isinstance(result, RectangleResult):
+            # if result.id existed in self.rects, get the item and set state
+            # else if invisible item existed,
+            # get a new invisible item and set state
+            # else create a new rect
+            item = self.showing_items.get(result.id, None) or self.find_invisible_rect()
+            if item is not None:
+                state = item.getState()
+                state["pos"] = QPointF(result.x, result.y)
+                state["size"] = QPointF(result.w, result.h)
+                state["id"] = result.id
+                item.setState(state)
+                # item.set_fill_color(result.labels[0].color)
+                item.set_fill_color(self.color)
+                self.showing_items[state["id"]] = item
+                self.logger.debug(f"Find existed rect not visible {result.id=}")
+                item.setVisible(True)
+                return
 
-                rectangle = self.new_rectangle(
-                    result.x,
-                    result.y,
-                    result.w,
-                    result.h,
-                    self.color,
-                    id_=result.id,
-                    movable=True,
-                )
-                self.create_item(rectangle)
-            case _:
-                raise NotImplementedError
+            rectangle = self.new_rectangle(
+                result.x,
+                result.y,
+                result.w,
+                result.h,
+                self.color,
+                id_=result.id,
+                movable=True,
+            )
+            self.create_item(rectangle)
+        elif isinstance(result, PolygonResult):
+            polygon = self.new_polygon(
+                positions=result.points,
+                closed=True,
+                color=self.color,
+                id_=result.id,
+                movable=True,
+            )
+            self.create_item(polygon)
+        else:
+            raise NotImplementedError
 
-    def create_items_by_results(self, results: List[Result] | None = None):
+    def create_items_by_results(self, results: List[RectangleResult | PolygonResult] | None = None):
         if results is None:
             return
         for r in results:
@@ -492,13 +549,9 @@ class Canvas(pg.PlotWidget):
 
     # endregion
     # region remove
-    def hide_item(self, item: Rectangle | None):
+    def hide_item(self, item: Rectangle | Circle | Polygon | None):
         if item is None:
             return
-        # state = item.getState()
-        # state["pos"] = QPointF(0, 0)
-        # state["size"] = QPointF(0, 0)
-        # item.setState(state)
         item.setVisible(False)
 
     def remove_selected_items(self):
@@ -509,8 +562,8 @@ class Canvas(pg.PlotWidget):
     def remove_item(self, item: QGraphicsItem | None):
         if item is None:
             return
-        if isinstance(item, Rectangle) and item.id_ in self.rects:
-            self.rects.pop(item.id_)
+        if isinstance(item, Rectangle) and item.id_ in self.showing_items:
+            self.showing_items.pop(item.id_)
             self.logger.debug(f"remove item: {item.id_}")
         return self.removeItem(item)
 
@@ -521,21 +574,21 @@ class Canvas(pg.PlotWidget):
         self.remove_items_by_ids(ids)
 
     def remove_items_by_ids(self, ids: List[str]):
-        keys = list(self.rects.keys())
+        keys = list(self.showing_items.keys())
         for id_ in keys:
             if id_ in ids:
-                self.remove_item(self.rects[id_])
+                self.remove_item(self.showing_items[id_])
 
     def clear_all_items(self):
-        for item in self.rects.values():
+        for item in self.showing_items.values():
             self.removeItem(item)
-        self.rects.clear()
+        self.showing_items.clear()
 
     def clear_selections(self, exclude=[]):
-        for item in self.rects.values():
-            if item.is_selected():
+        for item in self.showing_items.values():
+            # self.logger.debug(f"clear selection: {item.id_=}, {item.isSelected()=}")
+            if item.isSelected():
                 item.setSelected(False)
-                item.update()
 
     def clear_selections_if_no_ctrl(self, ev: QMouseEvent, exclude=[]):
         if ev.modifiers() != Qt.KeyboardModifier.ControlModifier:
@@ -577,26 +630,33 @@ class Canvas(pg.PlotWidget):
     # endregion
 
     # region slots
-    def on_item_clicked(self, item: Rectangle, ev: QMouseEvent):
+    def on_item_clicked(self, item: Rectangle | Polygon, ev: QMouseEvent):
         # self.current_item = item
-        if isinstance(item, Rectangle):
+        if isinstance(item, (Rectangle, Polygon)):
             self.sigItemClicked.emit(item.id_)
 
-    def on_item_state_change_started(self, item: Rectangle):
-        if item != self.selecting_rect:
+    def on_item_state_change_started(self, item: Rectangle | Polygon):
+        if isinstance(item, Polygon):
+            return
+        if item != self.selecting_item:
             self.sigItemStateChangeStarted.emit(item.getState())
             self.logger.debug("Item state change started")
 
-    def on_item_state_change_finished(self, item: Rectangle):
-        if item != self.selecting_rect:
+    def on_item_state_change_finished(self, item: Rectangle | Polygon):
+        if isinstance(item, Polygon):
+            return
+        if item != self.selecting_item:
             self.sigItemStateChangeFinished.emit(item.getState())
             self.logger.debug("Item state change Finished")
 
-    def on_item_state_changed(self, item: Rectangle):
-        if item != self.selecting_rect:
+    def on_item_state_changed(self, item: Rectangle | Polygon):
+        if isinstance(item, Polygon):
+            return
+        if item != self.selecting_item:
             self.sigItemStateChanged.emit(item.getState())
+            # self.logger.debug("Item state changed")
 
-    def get_item_state_export(self, item: Rectangle):
+    def get_item_state_export(self, item: Rectangle | Polygon):
         state = item.getState()
         return {
             "id": item.id_,
@@ -631,15 +691,17 @@ class Canvas(pg.PlotWidget):
                 if item is not None:
                     if isinstance(item, ZHandle):
                         self._is_resizing = True
-                    self.selecting_rect = None
+                    self.selecting_item = None
                 else:
-                    self.selecting_rect = self.new_rectangle(0, 0, 0, 0)
-                    self.addItem(self.selecting_rect)
+                    # TODO: add edit polygon
+                    self.selecting_item = self.new_rectangle(0, 0, 0, 0)
+                    self.addItem(self.selecting_item)
                 if not self._is_resizing:
                     self.clear_selections_if_no_ctrl(ev)
                 # here, we can't accept or return event
                 # or it can't move processed by parent
             elif self._status_mode == StatusMode.VIEW:
+                # self.logger.debug(f"View: {ev=}")
                 self.clear_selections_if_no_ctrl(ev)
         return super().mousePressEvent(ev)
 
@@ -661,11 +723,11 @@ class Canvas(pg.PlotWidget):
                 ev.accept()
                 return
             elif self._status_mode == StatusMode.EDIT:
-                if self.selecting_rect:
+                if self.selecting_item:
                     state = self.get_new_rectangle_state()
                     if state:
-                        state["id"] = self.selecting_rect.id_
-                        self.selecting_rect.setState(state, update=False)
+                        state["id"] = self.selecting_item.id_
+                        self.selecting_item.setState(state, update=False)
                     ev.accept()
                     return
         return super().mouseMoveEvent(ev)
@@ -681,11 +743,11 @@ class Canvas(pg.PlotWidget):
                 self.mouse_down_pos = None
                 self.mouse_up_pos = None
 
-                if self.selecting_rect is None or self.selecting_rect.area() < 4:
-                    self.remove_item(self.selecting_rect)
+                if self.selecting_item is None or self.selecting_item.area() < 4:
+                    self.remove_item(self.selecting_item)
                     return super().mouseReleaseEvent(ev)
 
-                state = self.selecting_rect.getState()
+                state = self.selecting_item.getState()
                 lt = self.mapFromScene(self.view_box.mapViewToScene(state["pos"]))
                 rb = self.mapFromScene(
                     self.view_box.mapViewToScene(
@@ -701,12 +763,13 @@ class Canvas(pg.PlotWidget):
                     Qt.ItemSelectionMode.IntersectsItemShape,
                 )
                 for item in items:
-                    if isinstance(item, Rectangle):
+                    if isinstance(item, (Rectangle, Polygon)):
                         item.setSelected(True)
                         item.update()
+                    # self.logger.debug(f"Release: {item=}, {item.isSelected()=}")
                 # self.logger.debug(f"{items=}, {rect=}")
-                self.remove_item(self.selecting_rect)
-                self.selecting_rect = None
+                self.remove_item(self.selecting_item)
+                self.selecting_item = None
         # elif ev.button() == Qt.MouseButton.RightButton:
         #     if self.hs_item_at_point():
         #         self.clear_selections()
@@ -734,7 +797,7 @@ class ZViewBox(pg.ViewBox):
 
     ## reimplement mouseDragEvent to disable continuous axis zoom
     def mouseDragEvent(self, ev, axis=None):
-        if axis is not None and ev.button() == Qt.MouseButton.RightButton:
+        if axis and ev.button() == Qt.MouseButton.RightButton:
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)

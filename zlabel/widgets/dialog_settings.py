@@ -36,9 +36,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.settings.setValue(SettingsKey.URL_PREFIX.value, "")
         self.settings.setValue(SettingsKey.USER_NAME.value, "DefaultUser")
         self.settings.setValue(SettingsKey.USER_PWD.value, "")
-        self.settings.setValue(SettingsKey.ENCODER.value, "")
-        self.settings.setValue(SettingsKey.DECODER.value, "")
-        self.settings.setValue(SettingsKey.MODEL_API.value, "")
         self.settings.setValue(SettingsKey.LOGLEVEL.value, "INFO")
         self.settings.setValue(SettingsKey.COLOR.value, "#000000")
 
@@ -52,9 +49,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_urlprefix.setText(str(self.settings.value(SettingsKey.URL_PREFIX.value, "")))
         self.ledit_username.setText(str(self.settings.value(SettingsKey.USER_NAME.value, "")))
         self.ledit_password.setText(str(self.settings.value(SettingsKey.USER_PWD.value, "")))
-        self.ledit_encoder.setText(str(self.settings.value(SettingsKey.ENCODER.value, "")))
-        self.ledit_decoder.setText(str(self.settings.value(SettingsKey.DECODER.value, "")))
-        self.ledit_model_api.setText(str(self.settings.value(SettingsKey.MODEL_API.value, "")))
 
         self.ledit_projname.setText(str(self.settings.value(SettingsKey.PROJ_NAME.value, "")))
         self.ledit_prjdescrip.setText(str(self.settings.value(SettingsKey.PROJ_DESCRIP.value, "")))
@@ -74,18 +68,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             # os.environ["ZLABEL_LOGLEVEL"] = str(v)
             self.sigLoglevelChanged.emit(str(v))
         self.sigSettingsChanged.emit(self.settings)
-
-    def on_btn_encoder_clicked(self):
-        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
-        if os.path.exists(path):
-            self.ledit_encoder.setText(path)
-            self.on_settings_changed(SettingsKey.ENCODER.value, path)
-
-    def on_btn_decoder_clicked(self):
-        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
-        if os.path.exists(path):
-            self.ledit_decoder.setText(path)
-            self.on_settings_changed(SettingsKey.DECODER.value, path)
 
     def set_btn_select_color(self, color: str):
         self.btn_select_color.setStyleSheet(
@@ -113,15 +95,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_password.textEdited.connect(
             lambda v: self.on_settings_changed(SettingsKey.USER_PWD.value, v)
         )
-        self.ledit_encoder.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.ENCODER.value, v)
-        )
-        self.ledit_decoder.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.DECODER.value, v)
-        )
-        self.ledit_model_api.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.MODEL_API.value, v)
-        )
 
         self.ledit_projname.textEdited.connect(
             lambda v: self.on_settings_changed(SettingsKey.PROJ_NAME.value, v)
@@ -130,8 +103,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             lambda v: self.on_settings_changed(SettingsKey.PROJ_DESCRIP.value, v)
         )
 
-        self.btn_encoder.clicked.connect(self.on_btn_encoder_clicked)
-        self.btn_decoder.clicked.connect(self.on_btn_decoder_clicked)
         self.btn_select_color.clicked.connect(self.on_btn_select_color_clicked)
 
         self.btn_apply.clicked.connect(self.apply)

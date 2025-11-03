@@ -132,15 +132,22 @@ class SamApiHelper(object):
         self,
         username: str,
         password: str,
-        sam_api: str = "http://127.0.0.1:8001",
+        sam_api: str = "http://127.0.0.1:8000",
     ) -> None:
         self.logger = ZLogger("SamApiHelper")
         self.username = username
         self.password = password
         self.user_token = ""
+
         self.sam_api: str = sam_api
-        self.predict_api = f"{self.sam_api}/predict"
-        self.setimage_api = f"{self.sam_api}/setimage"
+        self.login_api: str = f"{self.sam_api}/api/v1/login"
+        self.predict_api: str = f"{self.sam_api}/api/v1/predict"
+        self.set_image_api: str = f"{self.sam_api}/api/v1/set_image"
+        self.get_image_api: str = f"{self.sam_api}/api/v1/get_image"
+        self.get_zlabel_api: str = f"{self.sam_api}/api/v1/get_zlabel"
+        self.save_zlabel_api: str = f"{self.sam_api}/api/v1/save_zlabel"
+        self.get_tasks_api: str = f"{self.sam_api}/api/v1/get_tasks"
+
         self.headers = {
             "User-Agent": "ZLabel/1.0.0",
         }
@@ -170,8 +177,7 @@ class SamApiHelper(object):
         image.save(img, format="png")
         files = {"image": (anno_id, img.getvalue())}
 
-        url = f"{self.sam_api}/predict"
-        resp = requests.post(url, data=data, files=files)
+        resp = requests.post(self.predict_api, data=data, files=files)
         try:
             return resp.json()
         except Exception:
@@ -187,6 +193,7 @@ class SamApiHelper(object):
         rects: List[Dict[str, float]] | None = None,
         threshold: int = 100,
         mode: int = 1,
+        return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
     ) -> Dict[str, Any]:
         anno = {
             "id": anno_id,
@@ -199,11 +206,11 @@ class SamApiHelper(object):
             "threshold": threshold,
             "mode": mode,
             "image_name": image_name,
+            "return_type": return_type,
         }
-        url = f"{self.sam_api}/predict"
-        resp = requests.post(url, data=data)
+        resp = requests.post(self.predict_api, data=data, headers=self.headers)
         if resp.status_code == 200:
-            return resp.json()
+            return resp.json()["data"]
         self.logger.warning(f"Predict Failed, {resp.text=}")
         return {"anno_id": anno_id, "status": False, "msg": resp.text}
 
@@ -213,31 +220,35 @@ class SamApiHelper(object):
         files = {"image": (anno_id, img.getvalue())}
 
         try:
-            resp = requests.post(self.setimage_api, files=files)
+            resp = requests.post(self.set_image_api, files=files)
             self.logger.info(f"Uploaded image, {resp.text=}")
         except Exception as e:
-            print(f"Uploaded image Failed, {e=}")
+            self.logger.error(f"Uploaded image Failed, {e=}")
 
     def login(self, username: str = "", password: str = "") -> str | None:
-        if username:
-            self.username = username
-        if password:
-            self.password = password
-        url = f"{self.sam_api}/login"
+        self.username = username or self.username
+        self.password = password or self.password
         resp = requests.post(
-            url, data={"username": self.username, "password": self.password}, headers=self.headers
+            self.login_api,
+            params={"username": self.username, "password": self.password},
+            headers=self.headers,
         )
-        if resp.status_code == 200:
-            self.user_token = resp.json()["token"]
+        try:
+            resp_json: dict = resp.json()
+        except Exception as e:
+            self.logger.error(f"Login failed, parse json error, {e=}, {resp.text=}")
+            return None
+
+        if resp.status_code == 200 and resp_json.get("message", None) == "success":
+            self.user_token = resp_json["data"]["token"]
             self.headers["Authorization"] = self.user_token
             return self.user_token
         else:
-            self.logger.error(f"Login failed, {resp.text=}")
+            self.logger.error(f"Login failed, {resp_json=}")
             return None
 
     def get_image(self, name: str):
-        url = f"{self.sam_api}/get_image/{name}"
-        resp = requests.get(url, headers=self.headers)
+        resp = requests.get(self.get_image_api, params={"name": name}, headers=self.headers)
         if resp.status_code == 200:
             return Image.open(BytesIO(resp.content))
         else:
@@ -245,8 +256,7 @@ class SamApiHelper(object):
             return None
 
     def get_zlabel(self, name: str):
-        url = f"{self.sam_api}/get_zlabel/{name}"
-        resp = requests.get(url, headers=self.headers)
+        resp = requests.get(self.get_zlabel_api, params={"name": name}, headers=self.headers)
         if resp.status_code == 200:
             return resp.text
         else:
@@ -255,30 +265,32 @@ class SamApiHelper(object):
 
     def get_tasks(self, num: int = 50, finished: int = 1):
         """
-            finished: -1: all, 0: unfinished, 1: finished
+        finished: -1: all, 0: unfinished, 1: finished
         """
-        url = f"{self.sam_api}/get_tasks?num={num}&finished={finished}"
-        resp = requests.get(url, headers=self.headers)
+        resp = requests.get(
+            self.get_tasks_api,
+            params={"num": num, "finished": finished},
+            headers=self.headers,
+        )
         if resp.status_code == 200:
-            return resp.json()
+            return resp.json()["data"]
         else:
             self.logger.error(f"Get tasks failed, {resp.text=}")
 
     def save_zlabel(self, filename: str):
-        url = f"{self.sam_api}/save_zlabel"
         fs = open(filename, "r", encoding="utf-8")
         data = fs.read().encode("utf-8")
         fs.close()
         form = {
             "username": self.username,
             "zlabel": data,
-            "filename": filename,
+            "filename": Path(filename).name,
         }
-        resp = requests.put(url, data=form, headers=self.headers)
+        resp = requests.put(self.save_zlabel_api, data=form, headers=self.headers)
         if resp.status_code == 200:
             self.logger.info(resp.text)
             d = resp.json()
-            if d[0]["status"]:
+            if d["message"] == "success":
                 return True
         else:
             self.logger.error(f"Save anno failed, {resp.text=}")

@@ -139,9 +139,7 @@ class SwitchBtn(QWidget):
 
         rect = QRect(0, 0, self.width(), self.height())
         sliderWidth = rect.height() - self.space * 2
-        sliderRect = QRect(
-            self.startX + self.space, self.space, sliderWidth, sliderWidth
-        )
+        sliderRect = QRect(int(self.startX + self.space), self.space, sliderWidth, sliderWidth)
         painter.drawEllipse(sliderRect)
 
         painter.restore()

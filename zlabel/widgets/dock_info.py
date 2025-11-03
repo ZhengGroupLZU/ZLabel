@@ -13,7 +13,7 @@ from qtpy.QtWidgets import (
     QDockWidget,
 )
 
-from zlabel.utils import Annotation, Result, User
+from zlabel.utils import Annotation, Result, User, RectangleResult, PolygonResult
 
 from .ui import Ui_ZDockInfoContent
 
@@ -28,10 +28,8 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
             return
         self.label_username.setText(user.name)
 
-    def set_info_by_result(self, result: Result | None):
-        if result is None:
-            txt_note, txt_x, txt_y, txt_w, txt_h = "", "", "", "", ""
-        else:
+    def set_info_by_result(self, result: RectangleResult | PolygonResult | None):
+        if isinstance(result, RectangleResult):
             txt_note, txt_x, txt_y, txt_w, txt_h = (
                 result.note,
                 f"{result.x:.2f}",
@@ -39,6 +37,8 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
                 f"{result.w:.2f}",
                 f"{result.h:.2f}",
             )
+        else:
+            txt_note, txt_x, txt_y, txt_w, txt_h = "", "", "", "", ""
         self.ledit_anno_note.setText(txt_note)
         self.label_anno_x.setText(txt_x)
         self.label_anno_y.setText(txt_y)

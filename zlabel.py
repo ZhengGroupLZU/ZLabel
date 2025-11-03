@@ -2,7 +2,7 @@
 
 import sys
 
-from zlabel import main
+from zlabel.main import main
 
 if sys.stdout is None:
     sys.stdout = open(f"{__file__}.out.txt", "w")

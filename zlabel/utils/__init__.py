@@ -1,6 +1,6 @@
 from .enums import AutoMode, SettingsKey, ClickMode, ContourMode, DrawMode, MapMode, StatusMode
 from .logger import ZLogger
-from .api_helper import AlistApiHelper, SamApiHelper
+from .api_helper import SamApiHelper
 from .project import (
     Label,
     Task,
@@ -8,6 +8,8 @@ from .project import (
     Result,
     ResultType,
     ResultStep,
+    RectangleResult,
+    PolygonResult,
     Annotation,
     User,
     id_md5,

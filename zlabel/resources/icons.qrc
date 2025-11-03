@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/polygon.svg</file>
+    <file>icons/polygon_0.svg</file>
     <file>icons/merge.svg</file>
     <file>icons/channel_gray.svg</file>
     <file>icons/channel.svg</file>

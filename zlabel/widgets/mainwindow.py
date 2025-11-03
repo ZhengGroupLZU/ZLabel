@@ -18,9 +18,10 @@ from qtpy.QtCore import (
     QTranslator,
     Signal,
     Slot,
+    QSize,
 )
-from qtpy.QtGui import QSurfaceFormat, QUndoStack
-from qtpy.QtWidgets import QFileDialog, QMainWindow, QMessageBox
+from qtpy.QtGui import QSurfaceFormat, QUndoStack, QIcon
+from qtpy.QtWidgets import QFileDialog, QMainWindow, QMessageBox, QComboBox
 
 from zlabel.utils import (
     SamApiHelper,
@@ -34,6 +35,8 @@ from zlabel.utils import (
     Project,
     Result,
     ResultType,
+    RectangleResult,
+    PolygonResult,
     Task,
     User,
     id_md5,
@@ -119,7 +122,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.user.name = self.settings.username
         # self.api_alist = AlistApiHelper(self.settings.host, self.settings.url_prefix)
         self.api_predict = SamApiHelper(
-            self.settings.username, self.settings.password, self.settings.model_api
+            self.settings.username,
+            self.settings.password,
+            self.settings.host,
         )
         self.login()
         self.set_loglevel(self.settings.log_level)
@@ -301,7 +306,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.StandardButton.Ok,
         )
 
-    def add_result(self, result: Result):
+    def add_result(self, result: RectangleResult | PolygonResult):
         if self.proj.crt_anno is None:
             self.logger.error(f"Current annotation is None! {self.proj.crt_task=}")
             return
@@ -311,15 +316,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_item(result.id)
         self.logger.debug(f"Added result {result}")
 
-    def add_results(self, results: List[Result]):
+    def add_results(self, results: List[RectangleResult | PolygonResult]):
         for result in results:
             self.add_result(result)
 
     def add_result_undo_cmd(
         self,
-        results: List[Result],
+        results: List[RectangleResult | PolygonResult],
         mode: ResultUndoMode,
-        results_old: List[Result] | None = None,
+        results_old: List[RectangleResult | PolygonResult] | None = None,
     ):
         cmd = ZResultUndoCmd(self, results, mode, results_old)
         self.undo_stack.push(cmd)
@@ -336,7 +341,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for id_ in ids:
             self.remove_result(id_)
 
-    def modify_result(self, result: Result):
+    def modify_result(self, result: RectangleResult | PolygonResult):
         if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
             return
         self.logger.debug(f"{result=}\n{self.result_old=}")
@@ -345,12 +350,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.set_row_by_text(result.id)
         self.canvas.set_item_state_by_result(result, update=False)
 
-    def modify_results(self, results: List[Result]):
+    def modify_results(self, results: List[RectangleResult | PolygonResult]):
         for r in results:
             self.modify_result(r)
 
     def add_annotation(self, anno: Annotation):
-        if anno.key_label is None:
+        if anno.key_label is None and len(anno.labels) > 0:
             anno.key_label = list(anno.labels.keys())[0]
         self.proj.key_task = anno.id
         self.proj.add_annotation(anno)
@@ -653,32 +658,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 return
             self.refresh_tasks(tasks)
 
-    def on_action_rgb_triggered(self):
-        others = []
-        if self.sender() == self.actionR:
+    def on_cmbox_annotype_index_changed(self, index: int):
+        if index < 0 or index >= len(self.annotation_types):
+            return
+        self.settings.annotation_type = index
+
+    def on_cmbox_rgb_index_changed(self, index: int):
+        if index < 0 or index >= len(self.rgb_channels):
+            return
+        rgb_mode = self.rgb_channels[index][0]
+        if rgb_mode == "R":
             self.rgb_mode = RgbMode.R
-            self.actionR.setChecked(True)
-            others = [self.actionG, self.actionB, self.actionRGB, self.actionGray]
-        elif self.sender() == self.actionG:
+        elif rgb_mode == "G":
             self.rgb_mode = RgbMode.G
-            self.actionG.setChecked(True)
-            others = [self.actionR, self.actionB, self.actionRGB, self.actionGray]
-        elif self.sender() == self.actionB:
+        elif rgb_mode == "B":
             self.rgb_mode = RgbMode.B
-            self.actionB.setChecked(True)
-            others = [self.actionR, self.actionG, self.actionRGB, self.actionGray]
-        elif self.sender() == self.actionRGB:
+        elif rgb_mode == "RGB":
             self.rgb_mode = RgbMode.RGB
-            self.actionRGB.setChecked(True)
-            others = [self.actionR, self.actionG, self.actionB, self.actionGray]
-        elif self.sender() == self.actionGray:
+        elif rgb_mode == "Gray":
             self.rgb_mode = RgbMode.GRAY
-            self.actionGray.setChecked(True)
-            others = [self.actionR, self.actionG, self.actionB, self.actionRGB]
         else:
-            self.logger.error(f"{self.sender()=} not implemented")
-        for action in others:
-            action.setChecked(False)
+            self.logger.error(f"{rgb_mode=} not implemented")
+
         self.canvas.set_rgb(self.rgb_mode)
 
     def on_slider_threshold_changed(self, v: int):
@@ -826,7 +827,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
-        self.dockcnt_labels.set_labels(list(self.proj.crt_anno.labels.values()), self.proj.crt_anno.key_label)  # type: ignore
+        self.dockcnt_labels.set_labels(
+            list(self.proj.crt_anno.labels.values()),  # type: ignore
+            self.proj.crt_anno.key_label,  # type: ignore
+        )
         self.dockcnt_labels.set_color(self.settings.color)
 
         # clear items in canvas
@@ -887,6 +891,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             threshold=self.threshold,
             mode=self.auto_mode,
             result_labels=[self.proj.crt_label],
+            # anno_type=0 => RECT, 1 => POLYGON
+            return_type=1 if self.settings.annotation_type == 0 else 2,
         )
         self.run_sam_api_worker(worker)
 
@@ -904,7 +910,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
 
-        result = Result.new(
+        result = RectangleResult.new(
             id_=item_state["id"],
             type_id=ResultType.RECTANGLE,
             x=item_state["pos"].x(),
@@ -953,6 +959,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             threshold=self.threshold,
             mode=self.auto_mode,
             result_labels=[self.proj.crt_label],
+            # anno_type=0 => RECT, 1 => POLYGON
+            return_type=1 if self.settings.annotation_type == 0 else 2,
         )
         self.run_sam_api_worker(worker)
 
@@ -966,12 +974,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_canvas_item_state_changed(self, state: Dict[str, Any]):
         if self.proj.crt_result is None:
             return
-        result: Result = copy.deepcopy(self.proj.crt_result)
-        result.x = state["pos"].x()
-        result.y = state["pos"].y()
-        result.w = state["size"].x()
-        result.h = state["size"].y()
-        result.rotation = state["angle"]
+        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
+        if isinstance(result, RectangleResult):
+            result.x = state["pos"].x()
+            result.y = state["pos"].y()
+            result.w = state["size"].x()
+            result.h = state["size"].y()
+            result.rotation = state["angle"]
+        elif isinstance(result, PolygonResult):
+            result.points = state["points"]
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
         self.dockcnt_info.set_info_by_result(result)
@@ -981,12 +992,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_canvas_item_state_change_finished(self, state: Dict[str, Any]):
         if self.proj.crt_result is None or self.result_old is None:
             return
-        result: Result = copy.deepcopy(self.proj.crt_result)
-        result.x = state["pos"].x()
-        result.y = state["pos"].y()
-        result.w = state["size"].x()
-        result.h = state["size"].y()
-        result.rotation = state["angle"]
+        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
+        if isinstance(result, RectangleResult):
+            result.x = state["pos"].x()
+            result.y = state["pos"].y()
+            result.w = state["size"].x()
+            result.h = state["size"].y()
+            result.rotation = state["angle"]
+        elif isinstance(result, PolygonResult):
+            result.points = [(p.x(), p.y()) for p in state["points"]]
         if not result.equal_v(self.result_old):
             self.logger.debug("Adding modify undo command")
             self.add_result_undo_cmd([result], ResultUndoMode.MODIFY, [self.result_old])
@@ -1019,6 +1033,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_about = DialogAbout(self)
         self.dialog_processing = DialogProcessing(self)
         self.setupUi(self)
+
+        self.annotation_types = [
+            ("Rectangle", ":/icon/icons/rectangle_two_points.svg"),
+            ("Polygon", ":/icon/icons/polygon.svg"),
+        ]
+        self.cmbox_anno_type = QComboBox(self)
+        for anno_type, icon_path in self.annotation_types:
+            icon = QIcon()
+            icon.addFile(icon_path, QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+            self.cmbox_anno_type.addItem(icon, anno_type)
+        self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type)
+        self.toolBar.insertWidget(self.actionSAM, self.cmbox_anno_type)
+
+        self.rgb_channels = [
+            ("Gray", ":/icon/icons/channel_gray.svg"),
+            ("R", ":/icon/icons/channel_r.svg"),
+            ("G", ":/icon/icons/channel_g.svg"),
+            ("B", ":/icon/icons/channel_b.svg"),
+            ("RGB", ":/icon/icons/channel.svg"),
+        ]
+        self.cmbox_rgb = QComboBox(self)
+        for channel, icon_path in self.rgb_channels:
+            icon = QIcon()
+            icon.addFile(icon_path, QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+            self.cmbox_rgb.addItem(icon, channel)
+        self.cmbox_rgb.setCurrentIndex(4)
+        self.toolBar.addWidget(self.cmbox_rgb)
 
         self.slider_threshold = ZSlider(Qt.Orientation.Horizontal, self)
         self.slider_threshold.setValue(self.threshold)
@@ -1063,11 +1104,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
 
-        self.actionR.triggered.connect(self.on_action_rgb_triggered)
-        self.actionG.triggered.connect(self.on_action_rgb_triggered)
-        self.actionB.triggered.connect(self.on_action_rgb_triggered)
-        self.actionGray.triggered.connect(self.on_action_rgb_triggered)
-        self.actionRGB.triggered.connect(self.on_action_rgb_triggered)
+        self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
+        self.cmbox_rgb.currentIndexChanged.connect(self.on_cmbox_rgb_index_changed)
 
         # self.btn_online_mode.sigCheckStateChanged.connect(self.on_btn_online_mode_check_changed)
         self.slider_threshold.valueChanged.connect(self.on_slider_threshold_changed)

@@ -14,7 +14,17 @@ from qtpy.QtWidgets import (
     QTableWidget,
     QMainWindow,
 )
-from qtpy.QtCore import Qt, Signal, QRect, QRectF, QPointF, QTimer, QSize, QPropertyAnimation
+from qtpy.QtCore import (
+    Qt,
+    Signal,
+    QRect,
+    QRectF,
+    QPointF,
+    QTimer,
+    QSize,
+    QPropertyAnimation,
+    QByteArray,
+)
 from qtpy.QtGui import (
     QIcon,
     QColor,
@@ -141,7 +151,7 @@ class ZLabelItemWidget(QWidget):
         super().__init__(parent)
         self.id_ = id_
         self.color = color
-        self.clipboard = QClipboard()
+        self.clipboard = QGuiApplication.clipboard()
 
         self.label_color = QPushButton("")
         self.label_color.setMaximumWidth(20)
@@ -288,7 +298,7 @@ class Toast(QWidget):
         screen = QGuiApplication.primaryScreen()
         p0 = screen.geometry()
         p = self.frameGeometry()
-        self.move(p0.center().x() - p.width() // 2, int((p0.height() - p.height())*0.85))
+        self.move(p0.center().x() - p.width() // 2, int((p0.height() - p.height()) * 0.85))
 
     def init_ui(self, message):
         message_label = QLabel()
@@ -307,7 +317,7 @@ class Toast(QWidget):
 
     def create_animation(self, timeout):
         # 1.定义一个动画
-        self.animation = QPropertyAnimation(self, b"windowOpacity")
+        self.animation = QPropertyAnimation(self, QByteArray(b"windowOpacity"))
         self.animation.setTargetObject(self)
         # 2.设置属性值
         self.animation.setStartValue(0)

@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_file.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.1
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -81,7 +81,7 @@ class Ui_ZDockFileContent(object):
         self.cbox_fetch_num.addItem("")
         self.cbox_fetch_num.addItem("")
         self.cbox_fetch_num.setObjectName(u"cbox_fetch_num")
-        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.cbox_fetch_num.sizePolicy().hasHeightForWidth())
@@ -93,6 +93,7 @@ class Ui_ZDockFileContent(object):
 
         self.ckbox_finished = QCheckBox(self.widget_num)
         self.ckbox_finished.setObjectName(u"ckbox_finished")
+        self.ckbox_finished.setChecked(False)
         self.ckbox_finished.setTristate(True)
 
         self.horizontalLayout.addWidget(self.ckbox_finished)
@@ -100,7 +101,7 @@ class Ui_ZDockFileContent(object):
         self.btn_fetch = QPushButton(self.widget_num)
         self.btn_fetch.setObjectName(u"btn_fetch")
         icon = QIcon()
-        icon.addFile(u":/icon/icons/import.svg", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u":/icon/icons/import.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.btn_fetch.setIcon(icon)
 
         self.horizontalLayout.addWidget(self.btn_fetch)

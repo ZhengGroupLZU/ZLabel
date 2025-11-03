@@ -2,7 +2,7 @@ from enum import Enum
 from typing import List
 from qtpy.QtGui import QUndoCommand
 
-from zlabel.utils import Result
+from zlabel.utils import Result, RectangleResult, PolygonResult
 
 
 class ResultUndoMode(Enum):
@@ -13,7 +13,13 @@ class ResultUndoMode(Enum):
 
 
 class ZResultUndoCmd(QUndoCommand):
-    def __init__(self, mainwindow, results: List[Result], mode: ResultUndoMode, results_old: List[Result]| None = None):
+    def __init__(
+        self,
+        mainwindow,
+        results: List[RectangleResult | PolygonResult],
+        mode: ResultUndoMode,
+        results_old: List[RectangleResult | PolygonResult] | None = None,
+    ):
         super().__init__()
         self.mw = mainwindow
         self.results = results
