@@ -1,12 +1,9 @@
 from datetime import datetime
 from enum import Enum
-from functools import cached_property
 import hashlib
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, NamedTuple, Tuple
+from typing import NamedTuple
 from collections import OrderedDict
-from typing_extensions import Literal
-from uuid import uuid4
 import uuid
 from pydantic import BaseModel, Field, PrivateAttr
 from rich import print
@@ -76,12 +73,12 @@ class Result(BaseModel):
     origin: str = "manual"
     score: float = 0
     note: str = ""
-    labels: List[Label]
+    labels: list[Label]
 
     @staticmethod
     def new(
         type_id: ResultType,
-        labels: List[Label],
+        labels: list[Label],
         origin: str = "manual",
         score: float = 0,
         id_=None,
@@ -107,7 +104,7 @@ class RectangleResult(Result):
     @staticmethod
     def new(
         type_id: ResultType = ResultType.RECTANGLE,
-        labels: List[Label] = [],
+        labels: list[Label] | None = None,
         origin: str = "manual",
         score: float = 0,
         id_=None,
@@ -120,7 +117,7 @@ class RectangleResult(Result):
         r = RectangleResult(
             id=id_ or id_uuid4(),
             type_id=type_id,
-            labels=labels,
+            labels=labels or [],
             origin=origin,
             score=score,
             x=x,
@@ -148,24 +145,42 @@ class RectangleResult(Result):
 
 
 class PolygonResult(Result):
-    points: List[Tuple[float, float]] = []
+    x: float = 0.0
+    y: float = 0.0
+    w: float = 0.0
+    h: float = 0.0
+    rotation: float = 0
+    closed: bool
+    points: list[tuple[float, float]] = []
 
     @staticmethod
     def new(
         type_id: ResultType = ResultType.POLYGON,
-        labels: List[Label] = [],
+        labels: list[Label] | None = None,
         origin: str = "manual",
         score: float = 0,
         id_=None,
-        points: List[Tuple[float, float]] = [],
+        x: float = 0.0,
+        y: float = 0.0,
+        w: float = 0.0,
+        h: float = 0.0,
+        rotation: float = 0,
+        closed: bool = True,
+        points: list[tuple[float, float]] | None = None,
     ):
         r = PolygonResult(
             id=id_ or id_uuid4(),
             type_id=type_id,
-            labels=labels,
+            labels=labels or [],
             origin=origin,
             score=score,
-            points=points,
+            x=x,
+            y=y,
+            w=w,
+            h=h,
+            rotation=rotation,
+            closed=closed,
+            points=points or [],
         )
 
         return r
@@ -177,6 +192,16 @@ class PolygonResult(Result):
             and self.labels == r.labels
             and self.origin == r.origin
             and self.score == r.score
+            and self.x == r.x
+            and self.y == r.y
+            and self.w == r.w
+            and self.h == r.h
+            and self.rotation == r.rotation
+            and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.closed == r.closed
             and self.points == r.points
         )
 
@@ -189,13 +214,13 @@ class Annotation(BaseModel):
     updated_at: datetime
 
     image_path: str
-    ground_truth: Optional[bool] = False
+    ground_truth: bool = False
 
     original_width: float
     original_height: float
-    image_rotation: Optional[int] = 0
+    image_rotation: int = 0
 
-    results: OrderedDict[str, RectangleResult | PolygonResult] = OrderedDict()
+    results: OrderedDict[str, PolygonResult | RectangleResult] = OrderedDict()
     labels: OrderedDict[str, Label] = OrderedDict()
 
     key_result: str | None = None
@@ -297,7 +322,7 @@ class Task(BaseModel):
     id: int
     anno_id: str
     filename: str
-    labels: List[str]
+    labels: list[str]
     finished: bool = False
 
     anno: Annotation | None = Field(None, exclude=True)
@@ -307,7 +332,7 @@ class Task(BaseModel):
 class Project(BaseModel):
     id: str
     name: str
-    description: Optional[str] = "New Project"
+    description: str | None = "New Project"
 
     key_task: str | None = None
 
@@ -319,7 +344,7 @@ class Project(BaseModel):
     def new(
         name: str = "New Project",
         description: str = "New Project",
-        tasks: OrderedDict[str, Task] = OrderedDict(),
+        tasks: OrderedDict[str, Task] | None = None,
         draft: Annotation | None = None,
         id: str | None = None,
     ):
@@ -327,7 +352,7 @@ class Project(BaseModel):
             id=id or id_uuid4(),
             name=name,
             description=description,
-            tasks=tasks,
+            tasks=tasks or OrderedDict(),
             draft=draft,
         )
         return proj

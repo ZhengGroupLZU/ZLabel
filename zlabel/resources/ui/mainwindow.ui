@@ -247,11 +247,13 @@
    <addaction name="separator"/>
    <addaction name="actionSAM"/>
    <addaction name="actionOpenCV"/>
+   <addaction name="separator"/>
    <addaction name="actionMove"/>
    <addaction name="actionEdit"/>
    <addaction name="actionRectangle"/>
    <addaction name="actionPoint"/>
    <addaction name="actionPolygon"/>
+   <addaction name="separator"/>
    <addaction name="actionMerge"/>
    <addaction name="separator"/>
    <addaction name="actionFinish"/>
@@ -768,20 +770,20 @@
   </action>
   <action name="actionPolygon">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/anchor.svg</normaloff>:/icon/icons/anchor.svg</iconset>
+     <normaloff>:/icon/icons/polygon.svg</normaloff>:/icon/icons/polygon.svg</iconset>
    </property>
    <property name="text">
     <string>Polygon</string>
    </property>
    <property name="toolTip">
-    <string>Draw polygon</string>
+    <string>Draw polygon (O)</string>
    </property>
    <property name="statusTip">
-    <string>Accurately annotate by drawing polygon. </string>
+    <string>Accurately annotate by drawing polygon.  (O)</string>
    </property>
    <property name="shortcut">
     <string>O</string>
@@ -1127,6 +1129,9 @@
    </property>
    <property name="toolTip">
     <string>Merge (G)</string>
+   </property>
+   <property name="statusTip">
+    <string>Merge multiple shapes (G)</string>
    </property>
    <property name="shortcut">
     <string>G</string>

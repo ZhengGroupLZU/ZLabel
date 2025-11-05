@@ -8,7 +8,6 @@ readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
     "Pillow<11.0.0,>=10.1.0",
-    "PyYAML<7.0.0,>=6.0.1",
     "numpy<2.0.0,>=1.26.2",
     "qtpy<3.0.0,>=2.4.1",
     "pyside6<7.0.0,>=6.6.1",
@@ -18,14 +17,12 @@ dependencies = [
     "types-pillow<11.0.0.0,>=10.1.0.2",
     "types-requests<3.0.0.0,>=2.31.0.10",
     "pyqtgraph<1.0.0,>=0.13.3",
-    "pyoxidizer<1.0.0,>=0.24.0",
-    "pyinstaller<7.0.0,>=6.3.0",
-    "vispy>=0.14.1",
     "qtawesome>=1.3.0",
 ]
 
 [dependency-groups]
 dev = [
+    "PyYAML<7.0.0,>=6.0.1",
     "black>=25.1.0",
     "pyinstaller-versionfile>=2.1.1,<3.0.0",
     "nuitka>=2.7.2",
@@ -33,7 +30,9 @@ dev = [
     "pytest>=8.4.2",
     "poethepoet>=0.37.0",
     "typed-argument-parser>=1.11.0",
+    "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
+    "imageio>=2.37.0",
 ]
 
 [tool.pyright]
@@ -45,20 +44,20 @@ url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 
 [tool.ruff.lint]
 select = [
-    "E",  # pycodestyle errors
-    "W",  # pycodestyle warnings
-    "F",  # pyflakes
-    "I",  # isort
-    "B",  # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "UP",  # pyupgrade
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
     "ARG001", # unused arguments in functions
 ]
 ignore = [
-    "E501",  # line too long, handled by black
-    "B008",  # do not perform function calls in argument defaults
-    "W191",  # indentation contains tabs
-    "B904",  # Allow raising exceptions without from e, for HTTPException
+    "E501", # line too long, handled by black
+    "B008", # do not perform function calls in argument defaults
+    "W191", # indentation contains tabs
+    "B904", # Allow raising exceptions without from e, for HTTPException
     "B905",
     "E712",
 ]
@@ -69,6 +68,7 @@ exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]
 [tool.poe.tasks]
 run = "python ./main.py"
 build = """python ./build.py"""
+build_nuitka = """python -m nuitka --standalone --enable-plugin=pyside6 --include-qt-plugins=sensible --macos-create-app --macos-app-name=ZLabel --macos-app-icon=zlabel/resources/icons/zlabel.png --output-dir=build/nuitka zlabel.py"""
 
 designer = "pyside6-designer.exe "
 uic_rcc = "python ./uic_rcc.py"

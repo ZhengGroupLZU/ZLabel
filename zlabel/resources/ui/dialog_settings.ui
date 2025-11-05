@@ -101,7 +101,7 @@
             <item row="0" column="1">
              <widget class="QLineEdit" name="ledit_host">
               <property name="enabled">
-               <bool>false</bool>
+               <bool>true</bool>
               </property>
              </widget>
             </item>
@@ -136,7 +136,7 @@
             <item row="1" column="1">
              <widget class="QLineEdit" name="ledit_urlprefix">
               <property name="enabled">
-               <bool>false</bool>
+               <bool>true</bool>
               </property>
              </widget>
             </item>

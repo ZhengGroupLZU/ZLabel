@@ -7,7 +7,6 @@ import os
 import re
 from argparse import ArgumentParser
 from pathlib import Path
-from typing import List
 
 import tomli
 from PIL import Image
@@ -74,7 +73,7 @@ def main(version: str, enable_debug: bool = False, jobs: int = CPUS):
     os.system(cmd)
 
     # make directories and copy necessary files
-    mkdirs: List[Path] = []
+    mkdirs: list[Path] = []
     for path in mkdirs:
         if not path.exists():
             print(f"Making directory: {path}")

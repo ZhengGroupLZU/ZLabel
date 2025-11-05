@@ -85,7 +85,7 @@ class Ui_DialogSettings(object):
         self.gridLayout_4.setObjectName(u"gridLayout_4")
         self.ledit_host = QLineEdit(self.groupBox)
         self.ledit_host.setObjectName(u"ledit_host")
-        self.ledit_host.setEnabled(False)
+        self.ledit_host.setEnabled(True)
 
         self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
 
@@ -111,7 +111,7 @@ class Ui_DialogSettings(object):
 
         self.ledit_urlprefix = QLineEdit(self.groupBox)
         self.ledit_urlprefix.setObjectName(u"ledit_urlprefix")
-        self.ledit_urlprefix.setEnabled(False)
+        self.ledit_urlprefix.setEnabled(True)
 
         self.gridLayout_4.addWidget(self.ledit_urlprefix, 1, 1, 1, 1)
 

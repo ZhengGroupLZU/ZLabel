@@ -4,7 +4,7 @@ import json
 import os
 from collections import OrderedDict
 from pathlib import Path
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 import numpy as np
 from PIL import Image
@@ -96,7 +96,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.anno_suffix = "zlabel"
         self.last_path = "."
-        self._image_cache: Dict[str, Image.Image] = {}
+        self._image_cache: dict[str, Image.Image] = {}
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
 
@@ -110,7 +110,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         path = Path(self.settings_path)
         if path.exists() and path.is_file():
             self.settings = ZSettings(self.settings_path, self.settings_format)
-            if not self.settings.validate():
+            if not (self.settings.validate() and self.settings.project_name):
                 self.dialog_settings.show()
                 return
         else:
@@ -192,7 +192,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.dialog_processing.close()
 
-    def refresh_tasks(self, tasks: List[Task]):
+    def refresh_tasks(self, tasks: list[Task]):
         self.proj.tasks.clear()
         for task in tasks:
             self.proj.add_task(task)
@@ -233,7 +233,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker.emitter.fail.connect(self.on_get_tasks_failed)
         self.threadpool.start(worker)
 
-    def on_get_tasks_success(self, tasks: List[Task]):
+    def on_get_tasks_success(self, tasks: list[Task]):
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -316,15 +316,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_item(result.id)
         self.logger.debug(f"Added result {result}")
 
-    def add_results(self, results: List[RectangleResult | PolygonResult]):
+    def add_results(self, results: list[RectangleResult | PolygonResult]):
         for result in results:
             self.add_result(result)
 
     def add_result_undo_cmd(
         self,
-        results: List[RectangleResult | PolygonResult],
+        results: list[RectangleResult | PolygonResult],
         mode: ResultUndoMode,
-        results_old: List[RectangleResult | PolygonResult] | None = None,
+        results_old: list[RectangleResult | PolygonResult] | None = None,
     ):
         cmd = ZResultUndoCmd(self, results, mode, results_old)
         self.undo_stack.push(cmd)
@@ -337,7 +337,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.remove_items_by_ids([id_])
         self.dockcnt_anno.remove_item(id_)
 
-    def remove_results(self, ids: List[str]):
+    def remove_results(self, ids: list[str]):
         for id_ in ids:
             self.remove_result(id_)
 
@@ -350,7 +350,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.set_row_by_text(result.id)
         self.canvas.set_item_state_by_result(result, update=False)
 
-    def modify_results(self, results: List[RectangleResult | PolygonResult]):
+    def modify_results(self, results: list[RectangleResult | PolygonResult]):
         for r in results:
             self.modify_result(r)
 
@@ -388,14 +388,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def restore_project(self):
         path = Path(self.settings.project_path)
+        if not self.settings.project_name:
+            self.dialog_settings.show()
+            return
         if not path.exists():
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
             self.create_project()
         else:
             try:
                 with open(path, "r", encoding="utf-8") as f:
-                    self.proj = Project.model_validate_json(f.read())
+                    self.proj = Project.model_validate_json(f.read(), strict=True)
             except Exception as e:
                 button = QMessageBox.critical(
                     self,
@@ -414,7 +416,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for p in annos:
             try:
                 with open(p, "r", encoding="utf-8") as f:
-                    anno = Annotation.model_validate_json(f.read())
+                    anno = Annotation.model_validate_json(f.read(), strict=True)
                 self.add_annotation(anno)
             except Exception as e:
                 self.logger.warning(f"validate {p=} failed with {e=}")
@@ -601,44 +603,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.show_toast("+".join(msg))
 
     def on_action_move_triggered(self):
-        self.actionEdit.setEnabled(True)
-        self.actionMove.setEnabled(False)
-        self.actionRectangle.setEnabled(True)
-        self.actionPoint.setEnabled(True)
-        self.show_toast("Move Mode")
+        for action in self.action_group_edit:
+            action.setEnabled(action != self.actionMove)
 
         self.canvas.setStatusMode(StatusMode.VIEW)
+        self.show_toast("Move Mode")
 
     def on_action_edit_triggered(self):
-        self.actionEdit.setEnabled(False)
-        self.actionMove.setEnabled(True)
-        self.actionRectangle.setEnabled(True)
-        self.actionPoint.setEnabled(True)
-        self.show_toast(msg="Edit Mode")
+        for action in self.action_group_edit:
+            action.setEnabled(action != self.actionEdit)
 
         self.canvas.setStatusMode(StatusMode.EDIT)
+        self.show_toast(msg="Edit Mode")
 
     def on_action_rectangle_triggered(self):
-        self.actionMove.setEnabled(True)
-        self.actionEdit.setEnabled(True)
-        self.actionRectangle.setEnabled(False)
-        self.actionPoint.setEnabled(True)
-        self.show_toast("Draw Rectangle")
+        for action in self.action_group_edit:
+            action.setEnabled(action != self.actionRectangle)
 
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.RECTANGLE)
+        self.show_toast("Draw Rectangle")
 
     def on_action_point_triggered(self):
-        self.actionMove.setEnabled(True)
-        self.actionEdit.setEnabled(True)
-        self.actionRectangle.setEnabled(True)
-        self.actionPoint.setEnabled(False)
-        self.show_toast("Draw Point")
+        for action in self.action_group_edit:
+            action.setEnabled(action != self.actionPoint)
 
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.POINT)
+        self.show_toast("Draw Point")
 
     def on_action_polygon_triggered(self):
+        for action in self.action_group_edit:
+            action.setEnabled(action != self.actionPolygon)
+
         self.canvas.setStatusMode(StatusMode.CREATE)
         self.canvas.setDrawMode(DrawMode.POLYGON)
         self.show_toast("Draw Polygon")
@@ -768,7 +765,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
-    def on_dock_anno_item_deleted(self, ids: List[str]):
+    def on_dock_anno_item_deleted(self, ids: list[str]):
         if self.proj.crt_anno:
             results = [self.proj.crt_anno.results[id_] for id_ in ids]
             self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
@@ -803,7 +800,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 anno_json = self.api_predict.get_zlabel(name=name)
                 if anno_json is None:
                     raise Exception(f"Response of {name} is None")
-                anno = Annotation.model_validate_json(anno_json)
+                anno = Annotation.model_validate_json(anno_json, strict=True)
                 self.add_annotation(anno)
                 self.logger.info(f"Got anno from remote, added {name}")
             except Exception as e:
@@ -817,7 +814,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         labels=labels,
                     )
                 )
-                self.logger.warning(f"{task.anno_id=} not found in remote, created, {e=}")
+                self.logger.warning(
+                    f"{task.anno_id=} not found in remote, created, {e=}"
+                )
 
         self.try_set_image()
 
@@ -848,7 +847,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker.emitter.sigFinished.connect(self.on_sam_worker_finished)
         self.threadpool.start(worker)
 
-    def on_sam_worker_finished(self, worker_results: List[SamWorkerResult]):
+    def on_sam_worker_finished(self, worker_results: list[SamWorkerResult]):
         if len(worker_results) == 0:
             return
         results = [wr.result for wr in worker_results]
@@ -857,7 +856,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
 
     def on_canvas_point_created(self, point: QPointF):
-        if self.current_image is None or self.proj.crt_label is None or self.proj.key_task is None:
+        if (
+            self.current_image is None
+            or self.proj.crt_label is None
+            or self.proj.key_task is None
+        ):
             self.logger.warning(f"{self.proj.crt_label=}, {self.proj.key_task=}")
             return
 
@@ -896,9 +899,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.run_sam_api_worker(worker)
 
-    def on_canvas_rectangle_created(self, item_state: Dict[str, Any] | None):
-        if item_state is None or self.proj.key_task is None or self.current_image is None:
-            self.logger.warning(f"Wrong {item_state=} or {self.proj.key_task=} or current_image")
+    def on_canvas_rectangle_created(self, item_state: dict[str, Any] | None):
+        if (
+            item_state is None
+            or self.proj.key_task is None
+            or self.current_image is None
+        ):
+            self.logger.warning(
+                f"Wrong {item_state=} or {self.proj.key_task=} or current_image"
+            )
             return
         self.logger.debug(f"Rectangle Created: {item_state=}")
         if not self.proj.crt_label:
@@ -971,17 +980,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.set_row_by_text(id_)
         self.dockcnt_info.set_info_by_result(self.proj.crt_result)
 
-    def on_canvas_item_state_changed(self, state: Dict[str, Any]):
+    def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None:
             return
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
-        if isinstance(result, RectangleResult):
-            result.x = state["pos"].x()
-            result.y = state["pos"].y()
-            result.w = state["size"].x()
-            result.h = state["size"].y()
-            result.rotation = state["angle"]
-        elif isinstance(result, PolygonResult):
+        result.x = state["pos"].x()
+        result.y = state["pos"].y()
+        result.w = state["size"].x()
+        result.h = state["size"].y()
+        result.rotation = state["angle"]
+        if isinstance(result, PolygonResult):
+            result.closed = state["closed"]
             result.points = state["points"]
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
@@ -989,10 +998,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.set_row_by_text(result.id)
         # self.logger.debug(self.current_result)
 
-    def on_canvas_item_state_change_finished(self, state: Dict[str, Any]):
-        if self.proj.crt_result is None or self.result_old is None:
+    def on_canvas_item_state_change_finished(self, state: dict[str, Any]):
+        if self.proj.crt_result is None:
             return
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
+        result_old: RectangleResult | PolygonResult = copy.deepcopy(
+            self.proj.crt_result
+        )
         if isinstance(result, RectangleResult):
             result.x = state["pos"].x()
             result.y = state["pos"].y()
@@ -1001,17 +1013,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result.rotation = state["angle"]
         elif isinstance(result, PolygonResult):
             result.points = [(p.x(), p.y()) for p in state["points"]]
-        if not result.equal_v(self.result_old):
+        if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
-            self.add_result_undo_cmd([result], ResultUndoMode.MODIFY, [self.result_old])
-        self.result_old = None
+            self.add_result_undo_cmd([result], ResultUndoMode.MODIFY, [result_old])
 
-    def on_canvas_item_state_change_started(self, state: Dict[str, Any]):
-        self.proj.key_result = state["id"]
-        if self.proj.crt_result is not None:
-            self.result_old = copy.deepcopy(self.proj.crt_result)
-
-    def on_canvas_items_removed(self, ids: List[str]):
+    def on_canvas_items_removed(self, ids: list[str]):
         if self.proj.crt_anno is None:
             return
         results = [self.proj.crt_anno.results[i] for i in ids]
@@ -1033,6 +1039,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_about = DialogAbout(self)
         self.dialog_processing = DialogProcessing(self)
         self.setupUi(self)
+        self.action_group_edit = [
+            self.actionMove,
+            self.actionEdit,
+            self.actionRectangle,
+            self.actionPoint,
+            self.actionPolygon,
+        ]
 
         self.annotation_types = [
             ("Rectangle", ":/icon/icons/rectangle_two_points.svg"),
@@ -1104,7 +1117,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
 
-        self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
+        self.cmbox_anno_type.currentIndexChanged.connect(
+            self.on_cmbox_annotype_index_changed
+        )
         self.cmbox_rgb.currentIndexChanged.connect(self.on_cmbox_rgb_index_changed)
 
         # self.btn_online_mode.sigCheckStateChanged.connect(self.on_btn_online_mode_check_changed)
@@ -1115,33 +1130,50 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigRectangleCreated.connect(self.on_canvas_rectangle_created)
         self.canvas.sigItemClicked.connect(self.on_canvas_item_clicked)
         self.canvas.sigItemStateChanged.connect(self.on_canvas_item_state_changed)
-        self.canvas.sigItemStateChangeFinished.connect(self.on_canvas_item_state_change_finished)
-        self.canvas.sigItemStateChangeStarted.connect(self.on_canvas_item_state_change_started)
+        self.canvas.sigItemStateChangeFinished.connect(
+            self.on_canvas_item_state_change_finished
+        )
         self.canvas.sigItemsRemoved.connect(self.on_canvas_items_removed)
         self.canvas.sigMouseMoved.connect(self.on_canvas_scene_mouse_moved)
         self.canvas.sigMouseBackClicked.connect(self.actionPrev.trigger)
         self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
-        self.dockcnt_info.ledit_anno_note.textChanged.connect(self.on_dock_info_ledit_note_changed)
-        self.dockcnt_info.btn_delete_anno.clicked.connect(self.on_dock_info_btn_del_clicked)
+        self.dockcnt_info.ledit_anno_note.textChanged.connect(
+            self.on_dock_info_ledit_note_changed
+        )
+        self.dockcnt_info.btn_delete_anno.clicked.connect(
+            self.on_dock_info_btn_del_clicked
+        )
 
         # dock files
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
         self.dockcnt_files.sigFetchTasks.connect(self.on_dock_files_fetch_tasks)
 
         # dock labels
-        self.dockcnt_labels.listw_labels.itemClicked.connect(self.on_dock_label_listw_item_clicked)
-        self.dockcnt_labels.btn_decrease.clicked.connect(self.on_dock_label_btn_dec_clicked)
-        self.dockcnt_labels.btn_increase.clicked.connect(self.on_dock_label_btn_add_clicked)
+        self.dockcnt_labels.listw_labels.itemClicked.connect(
+            self.on_dock_label_listw_item_clicked
+        )
+        self.dockcnt_labels.btn_decrease.clicked.connect(
+            self.on_dock_label_btn_dec_clicked
+        )
+        self.dockcnt_labels.btn_increase.clicked.connect(
+            self.on_dock_label_btn_add_clicked
+        )
         # self.dockcnt_labels.ledit_add_label.editingFinished.connect(
         #     self.on_dock_label_btn_add_clicked
         # )
-        self.dockcnt_labels.sigBtnDeleteClicked.connect(self.on_dock_label_btn_del_clicked)
-        self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
+        self.dockcnt_labels.sigBtnDeleteClicked.connect(
+            self.on_dock_label_btn_del_clicked
+        )
+        self.dockcnt_labels.sigItemColorChanged.connect(
+            self.on_dock_label_item_color_changed
+        )
 
         # dock annotations
-        self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
+        self.dockcnt_anno.listWidget.itemClicked.connect(
+            self.on_dock_anno_listw_item_clicked
+        )
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
         self.dockcnt_anno.sigItemCountChanged.connect(
             lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)")
