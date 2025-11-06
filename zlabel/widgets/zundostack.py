@@ -1,8 +1,8 @@
 from enum import Enum
-from typing import List
-from qtpy.QtGui import QUndoCommand
 
-from zlabel.utils import Result, RectangleResult, PolygonResult
+from pyqtgraph.Qt.QtGui import QUndoCommand
+
+from zlabel.utils import PolygonResult, RectangleResult
 
 
 class ResultUndoMode(Enum):
@@ -16,9 +16,9 @@ class ZResultUndoCmd(QUndoCommand):
     def __init__(
         self,
         mainwindow,
-        results: List[RectangleResult | PolygonResult],
+        results: list[RectangleResult | PolygonResult],
         mode: ResultUndoMode,
-        results_old: List[RectangleResult | PolygonResult] | None = None,
+        results_old: list[RectangleResult | PolygonResult] | None = None,
     ):
         super().__init__()
         self.mw = mainwindow
@@ -34,7 +34,7 @@ class ZResultUndoCmd(QUndoCommand):
         elif self.mode == ResultUndoMode.REMOVE:
             self.mw.remove_results([r.id for r in self.results])
         elif self.mode == ResultUndoMode.MODIFY:
-            self.mw.modify_results(self.results)
+            self.mw.modify_results(self.results, update=True)
         # TODO: add merge
         else:
             raise NotImplementedError
@@ -45,7 +45,7 @@ class ZResultUndoCmd(QUndoCommand):
         elif self.mode == ResultUndoMode.REMOVE:
             self.mw.add_results(self.results)
         elif self.mode == ResultUndoMode.MODIFY:
-            self.mw.modify_results(self.results_old)
+            self.mw.modify_results(self.results_old, update=False)
         # TODO: add merge
         else:
             raise NotImplementedError

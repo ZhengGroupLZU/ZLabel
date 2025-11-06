@@ -1,12 +1,14 @@
+import hashlib
+import uuid
+from collections import OrderedDict
 from datetime import datetime
 from enum import Enum
-import hashlib
 from pathlib import Path
-from typing import NamedTuple
-from collections import OrderedDict
-import uuid
-from pydantic import BaseModel, Field, PrivateAttr
-from rich import print
+from typing import Any, NamedTuple
+
+import pyqtgraph as pg
+from pydantic import BaseModel, Field
+from rich import print  # noqa: F401
 
 
 def id_uuid4(length=9) -> str:
@@ -93,6 +95,9 @@ class Result(BaseModel):
 
         return r
 
+    def getState(self) -> dict[str, Any]:
+        raise NotImplementedError
+
 
 class RectangleResult(Result):
     x: float = 0.0
@@ -142,6 +147,14 @@ class RectangleResult(Result):
             and self.h == r.h
             and self.rotation == r.rotation
         )
+
+    def getState(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "pos": pg.Point(self.x, self.y),
+            "size": pg.Point(self.w, self.h),
+            "angle": self.rotation,
+        }
 
 
 class PolygonResult(Result):
@@ -204,6 +217,16 @@ class PolygonResult(Result):
             and self.closed == r.closed
             and self.points == r.points
         )
+
+    def getState(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "pos": pg.Point(self.x, self.y),
+            "size": pg.Point(self.w, self.h),
+            "angle": self.rotation,
+            "points": self.points,
+            "closed": self.closed,
+        }
 
 
 class Annotation(BaseModel):

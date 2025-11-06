@@ -1,10 +1,9 @@
-# -*- coding: utf-8 -*-
 # @Author  : LG
 # from https://blog.51cto.com/u_15872074/5841477
 
-from qtpy.QtWidgets import QWidget
-from qtpy.QtCore import Signal, QTimer, QRect, QRectF, Qt
-from qtpy.QtGui import QColor, QFont, QPainter, QPainterPath
+from pyqtgraph.Qt.QtCore import QRect, QRectF, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtGui import QColor, QFont, QPainter, QPainterPath
+from pyqtgraph.Qt.QtWidgets import QWidget
 
 
 class SwitchBtn(QWidget):
@@ -12,7 +11,7 @@ class SwitchBtn(QWidget):
     checkedChanged = Signal(bool)
 
     def __init__(self, parent=None):
-        super(SwitchBtn, self).__init__(parent)
+        super().__init__(parent)
 
         self.checked = False
         self.bgColorOff = QColor(255, 255, 255)

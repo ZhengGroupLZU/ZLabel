@@ -1,10 +1,7 @@
-# -*- coding: utf-8 -*-
-# import os
-
 import sys
 
-from qtpy.QtWidgets import QApplication
-from qtpy.QtGui import QFont
+from pyqtgraph.Qt.QtGui import QFont
+from pyqtgraph.Qt.QtWidgets import QApplication
 
 from zlabel.widgets.mainwindow import MainWindow
 

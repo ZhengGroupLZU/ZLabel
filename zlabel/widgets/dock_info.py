@@ -1,19 +1,6 @@
-# -*- coding: utf-8 -*-
-# @Author  : LG
+from pyqtgraph.Qt.QtWidgets import QWidget
 
-from typing import List
-from qtpy.QtCore import Qt, QSize, Signal, Slot
-from qtpy.QtWidgets import (
-    QWidget,
-    QListWidgetItem,
-    QButtonGroup,
-    QHBoxLayout,
-    QLabel,
-    QRadioButton,
-    QDockWidget,
-)
-
-from zlabel.utils import Annotation, Result, User, RectangleResult, PolygonResult
+from zlabel.utils import Annotation, PolygonResult, RectangleResult, User
 
 from .ui import Ui_ZDockInfoContent
 

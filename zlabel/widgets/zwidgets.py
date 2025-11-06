@@ -1,44 +1,29 @@
-from typing import Optional
-from qtpy.QtWidgets import (
-    QListWidgetItem,
-    QHBoxLayout,
-    QWidget,
-    QLabel,
-    QPushButton,
-    QLineEdit,
-    QColorDialog,
-    QSlider,
-    QSizePolicy,
-    QListWidget,
-    QTableWidgetItem,
-    QTableWidget,
-    QMainWindow,
-)
-from qtpy.QtCore import (
-    Qt,
-    Signal,
-    QRect,
-    QRectF,
-    QPointF,
-    QTimer,
-    QSize,
-    QPropertyAnimation,
-    QByteArray,
-)
-from qtpy.QtGui import (
-    QIcon,
-    QColor,
-    QPainter,
-    QPen,
+from pyqtgraph.Qt.QtCore import QByteArray, QPointF, QPropertyAnimation, QSize, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtGui import (
     QBrush,
-    QMouseEvent,
-    QClipboard,
-    QPaintEvent,
+    QColor,
     QGuiApplication,
+    QIcon,
+    QMouseEvent,
+    QPainter,
+    QPaintEvent,
+    QPen,
 )
-from rich import print
-
-from zlabel.utils import Task
+from pyqtgraph.Qt.QtWidgets import (
+    QColorDialog,
+    QHBoxLayout,
+    QLabel,
+    QListWidget,
+    QListWidgetItem,
+    QMainWindow,
+    QPushButton,
+    QSizePolicy,
+    QSlider,
+    QTableWidget,
+    QTableWidgetItem,
+    QWidget,
+)
+from rich import print  # noqa: F401
 
 
 class ZListWidget(QListWidget):
@@ -125,6 +110,7 @@ class ZListWidgetItem(QListWidgetItem):
         super().__init__(text, listview)
         self.id_ = id_
         self.alpha_ = 0.3
+        self.setSizeHint(QSize(100, 30))
 
     def set_finished(self):
         color = QColor("#24bfa5")
@@ -154,13 +140,14 @@ class ZLabelItemWidget(QWidget):
         self.clipboard = QGuiApplication.clipboard()
 
         self.label_color = QPushButton("")
-        self.label_color.setMaximumWidth(20)
+        self.label_color.setMaximumWidth(30)
         self.label_color.clicked.connect(self.on_label_color_clicked)
         self.set_label_color(color)
         self.label_text = QLabel(text)
         self.btn_delete = QPushButton()
-        self.btn_delete.setMaximumSize(20, 20)
         self.btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
+        self.btn_delete.setIconSize(QSize(10, 10))
+        self.btn_delete.setMaximumSize(25, 25)
         self.btn_delete.clicked.connect(self.on_btn_delete_clicked)
 
         self.layout_ = QHBoxLayout()
@@ -171,7 +158,7 @@ class ZLabelItemWidget(QWidget):
         self.setLayout(self.layout_)
 
     def set_label_color(self, color: str):
-        self.label_color.setStyleSheet(f"QPushButton {{margin: 3px; background-color : {color};}}")
+        self.label_color.setStyleSheet(f"QPushButton {{margin: 1px; background-color : {color};}}")
 
     def on_btn_delete_clicked(self):
         self.sigBtnDeleteClicked.emit(self.id_)
@@ -248,6 +235,14 @@ class ZSlider(QWidget):
         self.slider = QSlider(orientation, self)
         self.slider.setMinimum(1)
         self.slider.setMaximum(200)
+        self.setStyleSheet("""
+QSlider::groove:horizontal {
+    height: 10px;
+}
+QSlider::handle:horizontal {
+    width: 10px;
+    height: 10px;
+}""")
         self.label = QLabel(self)
 
         layout = QHBoxLayout()
@@ -279,9 +274,7 @@ class Toast(QWidget):
         # 由于不知道动画结束的事件，所以借助QTimer来关闭窗口，动画结束就关闭窗口，所以这里的事件要和动画时间一样
         self.timer.singleShot(timeout, self.close)  # singleShot表示timer只会启动一次
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.ToolTip
-            | Qt.WindowType.WindowStaysOnTopHint
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.ToolTip | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)  # 设置窗口透明
         # self.setMaximumSize(QSize(300, 200))

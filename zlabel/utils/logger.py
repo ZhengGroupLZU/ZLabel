@@ -1,5 +1,5 @@
 import logging
-import os
+
 from rich.logging import RichHandler
 
 LEVEL_MAP = {

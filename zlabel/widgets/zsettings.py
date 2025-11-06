@@ -1,4 +1,5 @@
-from qtpy.QtCore import QSettings
+from pyqtgraph.Qt.QtCore import QSettings
+
 from zlabel.utils import SettingsKey
 
 

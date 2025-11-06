@@ -1,21 +1,9 @@
-import functools
-import re
-import sys
-from typing import List, Optional, TypeAlias, TypeVar, NewType
+from pyqtgraph.Qt.QtCore import Qt, Signal
+from pyqtgraph.Qt.QtGui import QIntValidator
+from pyqtgraph.Qt.QtWidgets import QWidget
 
-from qtpy.QtWidgets import (
-    QCheckBox,
-    QWidget,
-    QListWidgetItem,
-    QHBoxLayout,
-    QLabel,
-    QDockWidget,
-)
-from qtpy.QtGui import QIntValidator, QColor, QMouseEvent
-from qtpy.QtCore import Slot, Qt, Signal
-
-from zlabel.utils import ZLogger, Task, id_md5
-from zlabel.widgets import ZListWidget, ZListWidgetItem, ZTableWidgetItem
+from zlabel.utils import Task, ZLogger
+from zlabel.widgets import ZTableWidgetItem
 
 from .ui import Ui_ZDockFileContent
 
@@ -33,12 +21,23 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         self.table_files.itemClicked.connect(lambda it: self.sigItemClicked.emit(it.id_))
         self.ledit_jump.editingFinished.connect(self.on_ledit_jump_changed)
         self.btn_fetch.clicked.connect(self.on_btn_fetch_clicked)
+        self.ckbox_finished.checkStateChanged.connect(self.on_ckbox_finished_state_changed)
+
+    def on_ckbox_finished_state_changed(self, state: Qt.CheckState):
+        if state == Qt.CheckState.Checked:
+            self.ckbox_finished.setText("Finished")
+        elif state == Qt.CheckState.Unchecked:
+            self.ckbox_finished.setText("Unfinished")
+        elif state == Qt.CheckState.PartiallyChecked:
+            self.ckbox_finished.setText("All")
+        else:
+            ...
 
     def on_btn_fetch_clicked(self):
         fetch_finished = 0
         try:
             if self.cbox_fetch_num.currentIndex() == self.cbox_fetch_num.count() - 1:
-                num = 0x3f3f3f
+                num = 0x3F3F3F
             else:
                 num = int(self.cbox_fetch_num.currentText())
             if self.ckbox_finished.checkState() == Qt.CheckState.Checked:
@@ -57,13 +56,15 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
             item = self.table_files.item(row, 1)
             self.table_files.setCurrentCell(row, 0)
             self.sigItemClicked.emit(item)
-        except Exception as e:
+        except Exception:
             ...
 
     def get_row_txt(self, row: int):
         if row < 0 or row >= self.table_files.rowCount():
             return
-        return self.table_files.item(row, 1).text()
+        item = self.table_files.item(row, 1)
+        if item:
+            return item.text()
 
     def set_row_by_txt(self, s: str | None):
         if s is None:
@@ -74,7 +75,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
                 self.table_files.setCurrentCell(row, 0)
                 return
 
-    def set_file_list(self, tasks: List[Task] | None = None):
+    def set_file_list(self, tasks: list[Task] | None = None):
         if tasks is None:
             return
         self.table_files.clear()
@@ -120,8 +121,8 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
     def set_qlabels(self):
         row = self.table_files.currentRow()
         self.label_all.setText(f"{self.table_files.rowCount()}")
-        self.label_current.setText(f"{row+1}")
-        self.ledit_jump.setText(f"{row+1}")
+        self.label_current.setText(f"{row + 1}")
+        self.ledit_jump.setText(f"{row + 1}")
 
     def currentRow(self):
         return self.table_files.currentRow()

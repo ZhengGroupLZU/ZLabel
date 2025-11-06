@@ -1,26 +1,17 @@
-from dataclasses import dataclass
-import json
 import os
 import time
+from dataclasses import dataclass
 
 from PIL import Image
-from qtpy.QtCore import QObject, QThread, Signal, QRunnable
+from pyqtgraph.Qt.QtCore import QObject, QRunnable, Signal
 from rich import print
 
-from zlabel.utils import (
-    SamApiHelper,
-    AutoMode,
-    Label,
-    Result,
-    ResultType,
-    RectangleResult,
-    PolygonResult,
-)
+from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult, SamApiHelper
 from zlabel.utils.project import Task
 
 
 @dataclass
-class SamWorkerResult(object):
+class SamWorkerResult:
     anno_id: str
     result: RectangleResult | PolygonResult
 

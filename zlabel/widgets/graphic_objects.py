@@ -1,32 +1,15 @@
-from typing import Any
-import pyqtgraph as pg
-from pyqtgraph.graphicsItems.ROI import ROI, Handle
-from pyqtgraph.GraphicsScene.mouseEvents import (
-    HoverEvent,
-    MouseClickEvent,
-    MouseDragEvent,
-)
-from qtpy.QtCore import QPointF, QRectF, Qt, Signal, QTimer
-from qtpy.QtGui import (
-    QBrush,
-    QColor,
-    QKeyEvent,
-    QPainter,
-    QPen,
-    QPainterPathStroker,
-    QPainterPath,
-    QPolygonF,
-)
-from qtpy.QtWidgets import (
-    QGraphicsItem,
-    QGraphicsObject,
-    QGraphicsPathItem,
-    QGraphicsSceneMouseEvent,
-)
-from rich import print
 import math
+from typing import Any
 
-from zlabel.utils import id_uuid4, ZLogger
+import pyqtgraph as pg  # type: ignore
+from pyqtgraph.graphicsItems.ROI import ROI, Handle
+from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent
+from pyqtgraph.Qt.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
+from pyqtgraph.Qt.QtWidgets import QGraphicsItem
+from rich import print  # noqa: F401
+
+from zlabel.utils import ZLogger, id_uuid4
 
 
 class Rectangle(pg.RectROI):
@@ -102,6 +85,11 @@ class Rectangle(pg.RectROI):
         else:
             ev.ignore()
 
+    def paint(self, p: QPainter, opt, widget):
+        p.setBrush(self.brush)
+        p.setPen(self.hoverPen if self.isSelected() else self.currentPen)
+        super().paint(p, opt, widget)
+
     def removeHandles(self):
         while self.handles:
             self.removeHandle(0)
@@ -156,7 +144,7 @@ class Rectangle(pg.RectROI):
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def getState(self):
-        state = super().getState()
+        state: dict[str, Any] = super().getState()
         state["id"] = self.id_
         return state
 
@@ -248,14 +236,14 @@ class Polygon(pg.ROI):
         return self._selected
 
     def getState(self):
-        state = ROI.getState(self)
+        state: dict[str, Any] = ROI.getState(self)
         state["closed"] = self.closed
         state["id"] = self.id_
         state["points"] = [pg.Point(h.pos()) for h in self.getHandles()]
         return state
 
     def saveState(self):
-        state = ROI.saveState(self)
+        state: dict[str, Any] = ROI.saveState(self)
         state["closed"] = self.closed
         state["id"] = self.id_
         state["points"] = [tuple(h.pos()) for h in self.getHandles()]
@@ -362,16 +350,17 @@ class Polygon(pg.ROI):
             h["item"].show()
 
     def paint(self, p: QPainter, opt, widget=None):
-        r = QRectF(0, 0, self.state["size"][0], self.state["size"][1]).normalized()
+        # w: float, h: float
+        w, h = self.state["size"]  # type: ignore
+        r = QRectF(0, 0, w, h).normalized()
         p.setRenderHint(QPainter.RenderHint.Antialiasing, self._antialias)
         p.setPen(self.hoverPen if self.isSelected() else self.currentPen)
+        p.setBrush(self.brush)
         p.translate(r.left(), r.top())
         p.scale(r.width(), r.height())
 
         if len(self.handles) > 1:
-            polygon = QPolygonF(
-                [QPointF(h["pos"].x(), h["pos"].y()) for h in self.handles]
-            )
+            polygon = QPolygonF([QPointF(h["pos"].x(), h["pos"].y()) for h in self.handles])
             if self.closed:
                 p.drawPolygon(polygon)
             else:
@@ -442,22 +431,16 @@ class Polygon(pg.ROI):
         line_len_sq = line_vec.x() * line_vec.x() + line_vec.y() * line_vec.y()
 
         if line_len_sq == 0:
-            distance = math.sqrt(
-                (point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2
-            )
+            distance = math.sqrt((point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2)
             return distance, line_start
 
         t = (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y()) / line_len_sq
 
-        t = max(0, min(1, t))
+        t = max(0.0, min(1.0, t))
 
-        closest_point = QPointF(
-            line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y()
-        )
+        closest_point = QPointF(line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y())
 
-        distance = math.sqrt(
-            (point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2
-        )
+        distance = math.sqrt((point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2)
 
         return distance, closest_point
 
@@ -481,9 +464,7 @@ class Polygon(pg.ROI):
             start_point = self.handles[i]["item"].pos()
             end_point = self.handles[(i + 1) % num_points]["item"].pos()
 
-            distance, nearest_point = self._point_to_line_distance(
-                click_pos, start_point, end_point
-            )
+            distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
 
             if distance < min_distance and distance <= tolerance:
                 min_distance = distance
@@ -607,16 +588,6 @@ class ZHandle(Handle):
         super().__init__(radius, type, pen, hoverPen, parent, deletable)
         self.polygon_parent = None
         self.vertex_index = None
-
-    def mouseDragEvent(self, ev):
-        """重写鼠标拖拽事件，通知父多边形更新"""
-        super().mouseDragEvent(ev)
-
-        # 通知父多边形更新顶点位置
-        if hasattr(self, "polygon_parent") and self.polygon_parent is not None:
-            if hasattr(self, "vertex_index") and self.vertex_index is not None:
-                pos = self.pos()
-                self.polygon_parent._handle_moved(self, self.vertex_index)
 
     def hoverEvent(self, ev: HoverEvent):
         if ev.isEnter():

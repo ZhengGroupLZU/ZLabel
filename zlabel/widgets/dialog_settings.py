@@ -1,9 +1,9 @@
-# -*- coding: utf-8 -*-
 import os
 
-from qtpy.QtCore import QSettings, QSize, Qt, Signal
-from qtpy.QtWidgets import QDialog, QFileDialog, QColorDialog
-from qtpy.QtGui import QColor
+from pyqtgraph.Qt.QtCore import QSettings, Qt, Signal
+from pyqtgraph.Qt.QtGui import QColor
+from pyqtgraph.Qt.QtWidgets import QColorDialog, QDialog
+
 from zlabel.utils import SettingsKey
 
 from .ui import Ui_DialogSettings
@@ -17,7 +17,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
     sigColorChanged = Signal(str)
 
     def __init__(self, path: str = "zlabel.conf", parent=None):
-        super(DialogSettings, self).__init__(parent)
+        super().__init__(parent)
         self.setupUi(self)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
@@ -70,9 +70,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.sigSettingsChanged.emit(self.settings)
 
     def set_btn_select_color(self, color: str):
-        self.btn_select_color.setStyleSheet(
-            f"QPushButton {{margin: 3px; background-color : {color};}}"
-        )
+        self.btn_select_color.setStyleSheet(f"QPushButton {{margin: 3px; background-color : {color};}}")
 
     def on_btn_select_color_clicked(self):
         _color = str(self.settings.value(SettingsKey.COLOR.value))
@@ -83,9 +81,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.sigColorChanged.emit(color.name())
 
     def init_signals(self):
-        self.ledit_host.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.HOST.value, v)
-        )
+        self.ledit_host.textEdited.connect(lambda v: self.on_settings_changed(SettingsKey.HOST.value, v))
         self.ledit_urlprefix.textEdited.connect(
             lambda v: self.on_settings_changed(SettingsKey.URL_PREFIX.value, v)
         )

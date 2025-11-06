@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dock_info.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.9.0
+## Created by: Qt User Interface Compiler version 6.10.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -23,7 +23,12 @@ class Ui_ZDockInfoContent(object):
     def setupUi(self, ZDockInfoContent):
         if not ZDockInfoContent.objectName():
             ZDockInfoContent.setObjectName(u"ZDockInfoContent")
-        ZDockInfoContent.resize(188, 133)
+        ZDockInfoContent.resize(188, 143)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(ZDockInfoContent.sizePolicy().hasHeightForWidth())
+        ZDockInfoContent.setSizePolicy(sizePolicy)
         self.gridLayout_2 = QGridLayout(ZDockInfoContent)
         self.gridLayout_2.setSpacing(2)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
@@ -33,11 +38,11 @@ class Ui_ZDockInfoContent(object):
         self.gridLayout.setContentsMargins(2, 2, 2, 3)
         self.label_4 = QLabel(ZDockInfoContent)
         self.label_4.setObjectName(u"label_4")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
-        self.label_4.setSizePolicy(sizePolicy)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.label_4.sizePolicy().hasHeightForWidth())
+        self.label_4.setSizePolicy(sizePolicy1)
 
         self.gridLayout.addWidget(self.label_4, 1, 0, 1, 1)
 
@@ -53,8 +58,8 @@ class Ui_ZDockInfoContent(object):
 
         self.label_3 = QLabel(ZDockInfoContent)
         self.label_3.setObjectName(u"label_3")
-        sizePolicy.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
-        self.label_3.setSizePolicy(sizePolicy)
+        sizePolicy1.setHeightForWidth(self.label_3.sizePolicy().hasHeightForWidth())
+        self.label_3.setSizePolicy(sizePolicy1)
 
         self.gridLayout.addWidget(self.label_3, 4, 0, 1, 1)
 
@@ -92,15 +97,15 @@ class Ui_ZDockInfoContent(object):
 
         self.label = QLabel(ZDockInfoContent)
         self.label.setObjectName(u"label")
-        sizePolicy.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
-        self.label.setSizePolicy(sizePolicy)
+        sizePolicy1.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
+        self.label.setSizePolicy(sizePolicy1)
 
         self.gridLayout.addWidget(self.label, 0, 0, 1, 1)
 
         self.label_5 = QLabel(ZDockInfoContent)
         self.label_5.setObjectName(u"label_5")
-        sizePolicy.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy)
+        sizePolicy1.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
+        self.label_5.setSizePolicy(sizePolicy1)
 
         self.gridLayout.addWidget(self.label_5, 3, 0, 1, 1)
 
@@ -112,18 +117,15 @@ class Ui_ZDockInfoContent(object):
 
         self.label_7 = QLabel(ZDockInfoContent)
         self.label_7.setObjectName(u"label_7")
-        sizePolicy.setHeightForWidth(self.label_7.sizePolicy().hasHeightForWidth())
-        self.label_7.setSizePolicy(sizePolicy)
+        sizePolicy1.setHeightForWidth(self.label_7.sizePolicy().hasHeightForWidth())
+        self.label_7.setSizePolicy(sizePolicy1)
 
         self.gridLayout.addWidget(self.label_7, 2, 0, 1, 1)
 
         self.btn_delete_anno = QPushButton(ZDockInfoContent)
         self.btn_delete_anno.setObjectName(u"btn_delete_anno")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.btn_delete_anno.sizePolicy().hasHeightForWidth())
-        self.btn_delete_anno.setSizePolicy(sizePolicy1)
+        sizePolicy.setHeightForWidth(self.btn_delete_anno.sizePolicy().hasHeightForWidth())
+        self.btn_delete_anno.setSizePolicy(sizePolicy)
         icon = QIcon()
         icon.addFile(u":/icon/icons/delete-3.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.btn_delete_anno.setIcon(icon)

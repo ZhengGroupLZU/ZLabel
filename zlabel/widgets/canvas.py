@@ -1,39 +1,19 @@
-import copy
-import functools as ftools
+import functools
 import os
 from collections import OrderedDict
-from typing import Any, Dict, List
+from typing import Any
 
 import numpy as np
-import pyqtgraph as pg  # type: ignore
-from pyqtgraph.graphicsItems.ROI import Handle
-from numpy.typing import NDArray
+import pyqtgraph as pg
 from PIL import Image
-from qtpy.QtCore import QPoint, QPointF, QRect, QRectF, QSize, QSizeF, Qt, Signal
-from qtpy.QtGui import (
-    QBrush,
-    QColor,
-    QKeyEvent,
-    QMouseEvent,
-    QPainter,
-    QPicture,
-    QTransform,
-)
-from qtpy.QtWidgets import QGraphicsItem
+from pyqtgraph.graphicsItems.ROI import Handle
+from pyqtgraph.Qt.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
+from pyqtgraph.Qt.QtGui import QKeyEvent, QMouseEvent
+from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
-from zlabel.utils import (
-    Annotation,
-    ResultType,
-    id_uuid4,
-    DrawMode,
-    StatusMode,
-    ZLogger,
-    RectangleResult,
-    PolygonResult,
-)
+from zlabel.utils import Annotation, DrawMode, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
-
-from .graphic_objects import Circle, Polygon, Rectangle, ZHandle
+from zlabel.widgets.graphic_objects import Circle, Polygon, Rectangle, ZHandle
 
 
 class Canvas(pg.PlotWidget):
@@ -55,7 +35,7 @@ class Canvas(pg.PlotWidget):
     def __init__(
         self,
         parent=None,
-        background="w",
+        background="k",
         status_mode: StatusMode = StatusMode.VIEW,
     ):
         self.logger = ZLogger("Canvas")
@@ -76,11 +56,15 @@ class Canvas(pg.PlotWidget):
         self._is_editing_handle = False
         self._is_manual_set_state = False
 
-        self.image_item = ZImageItem()
-        self.current_image: np.ndarray | None = None
+        self._image_backup: np.ndarray | None = None
+        self.image_item = pg.ImageItem()
+        self.image_item.setZValue(-10)
+        self.addItem(self.image_item)
+
         self.current_item: Rectangle | Circle | Polygon | None = None
-        self.selecting_item: Rectangle | Polygon | None = None
+        self.selecting_item: Rectangle | None = None
         self.showing_items: OrderedDict[str, Rectangle | Polygon] = OrderedDict()
+        self.polygon_points: list[pg.Point] = []
 
         self.hline = pg.InfiniteLine(
             angle=0,
@@ -101,33 +85,26 @@ class Canvas(pg.PlotWidget):
 
         self.mouse_down_pos: QPointF | None = None
         self.mouse_up_pos: QPointF | None = None
-        self.tr_im = QTransform().rotate(90)
-        # self.view_box.setTransform(self.tr_im)
         self.view_box.invertY()
 
-        self.showAxis("left", False)
-        self.showAxis("bottom", False)
+        # self.showAxis("left", False)
+        # self.showAxis("bottom", False)
         self.setAspectLocked(True)
 
     # region properties
-    @ftools.cached_property
+    @functools.cached_property
     def im_width(self):
-        if self.current_image is None:
-            return 0
-        return self.current_image.shape[1]
+        return self.image_item.width()
 
-    @ftools.cached_property
+    @functools.cached_property
     def im_height(self):
-        if self.current_image is None:
-            return 0
-        return self.current_image.shape[0]
+        return self.image_item.height()
 
     @property
     def selected_items(self) -> list[Rectangle | Circle | Polygon]:
         items_selected = list(
             filter(
-                lambda it: it.isSelected()
-                and isinstance(it, (Rectangle, Circle, Polygon)),
+                lambda it: it.isSelected() and isinstance(it, (Rectangle, Circle, Polygon)),
                 self.items(),
             )
         )
@@ -155,30 +132,18 @@ class Canvas(pg.PlotWidget):
     # endregion
 
     # region functions
-    def set_image(self, img: str | NDArray):
+    def update_image(self, img: str | np.ndarray):
         if isinstance(img, str):
             if os.path.exists(img):
-                self.current_image = np.asarray(Image.open(img), dtype=np.uint8)  # type: ignore
+                img = np.asarray(Image.open(img), dtype=np.uint8)  # type: ignore
             else:
                 self.logger.error(f"{img} not exists")
                 return
-        else:
-            self.current_image = img
-        if self.image_item:
-            self.removeItem(self.image_item)
-            # self.current_image = None
-        self.image_item = ZImageItem(
-            np.rot90(
-                np.flipud(self.current_image),  # type: ignore
-                axes=(1, 0),
-            )  # type: ignore
-        )
-        self.image_item.setZValue(-10)
-        self.addItem(self.image_item)
+        assert isinstance(img, np.ndarray), f"img must be np.ndarray, got {type(img)}"
+        img = np.rot90(img, k=3, axes=(1, 0))
+        self._image_backup = img.copy()
 
-    def clear_image(self):
-        if self.image_item:
-            self.removeItem(self.image_item)
+        self.image_item.setImage(img)
 
     def copy_item(self, item: Rectangle):
         state = item.getState()
@@ -199,29 +164,26 @@ class Canvas(pg.PlotWidget):
         for item in self.showing_items.values():
             item.setFillColor(color)
 
-    def set_rgb(self, rgb: RgbMode):
-        if rgb == RgbMode.R:
+    def set_rgb(self, mode: RgbMode):
+        if self._image_backup is None:
+            return
+        if mode == RgbMode.R:
             # self.image_item.setColorMap(pg.colormap.get("CET-L13"))
             im_filter = np.asarray([1, 0, 0])
-        elif rgb == RgbMode.G:
+        elif mode == RgbMode.G:
             im_filter = np.asarray([0, 1, 0])
-        elif rgb == RgbMode.B:
+        elif mode == RgbMode.B:
             im_filter = np.asarray([0, 0, 1])
-        elif rgb == RgbMode.GRAY:
+        elif mode == RgbMode.GRAY:
             im_filter = np.asarray([0.299, 0.587, 0.114])
-        elif rgb == RgbMode.RGB:
+        elif mode == RgbMode.RGB:
             im_filter = np.asarray([1, 1, 1])
         else:
             raise NotImplementedError
-        im_new = np.flipud(self.current_image) * im_filter  # type: ignore
-        if rgb == RgbMode.GRAY:
+        im_new = np.flipud(self._image_backup) * im_filter  # type: ignore
+        if mode == RgbMode.GRAY:
             im_new = np.sum(im_new, 2)
-        self.image_item.updateImage(
-            np.rot90(
-                im_new,  # type: ignore
-                axes=(1, 0),
-            )  # type: ignore
-        )
+        self.image_item.updateImage(im_new)
 
     def setStatusMode(self, mode: StatusMode):
         self._status_mode = mode
@@ -249,72 +211,45 @@ class Canvas(pg.PlotWidget):
             return
         if result.id in self.showing_items:
             item = self.showing_items[result.id]
-            state = item.getState()
-            if isinstance(result, RectangleResult):
-                state["pos"] = QPointF(result.x, result.y)
-                state["size"] = QPointF(result.w, result.h)
-                state["angle"] = result.rotation
-            elif isinstance(result, PolygonResult):
-                state["points"] = result.points
-            item.setState(state, update=update)
+            item.setState(result.getState(), update=update)
             # item.update()
 
-    def result_to_state(self, result: RectangleResult | PolygonResult | None):
-        if result is None:
-            return {}
-        state = {
-            "id": result.id,
-            "pos": QPointF(result.x, result.y),
-            "size": QPointF(result.w, result.h),
-            "angle": result.rotation,
-        }
-        if isinstance(result, PolygonResult):
-            state.update(
-                {
-                    "points": result.points,
-                    "closed": True,
-                }
-            )
-        return state
-
-    def get_new_rectangle_state(self):
+    def get_drawing_rectangle_state(self) -> dict[str, Any]:
         # logger.debug(f"{self.mouse_down_pos=}, {self.mouse_up_pos=}")
-        if self.mouse_down_pos and self.mouse_up_pos:
-            x0, y0 = self.mouse_down_pos.x(), self.mouse_down_pos.y()
-            x1, y1 = self.mouse_up_pos.x(), self.mouse_up_pos.y()
-            w, h = abs(x1 - x0), abs(y1 - y0)
-            if w < 1e-3 or h < 1e-3:
-                return {}
-            rect = QRectF(min(x0, x1), min(y0, y1), w, h)
-            # logger.debug(f"{x0=}, {y0=}, {w=}, {h=}")
-            return {
-                "pos": rect.topLeft().toTuple(),
-                "size": rect.size().toTuple(),
-                "angle": 0,
-                "rect": rect,
-            }  # type: ignore
+        if not (self.mouse_down_pos and self.mouse_up_pos):
+            return {}
+        self.dpos = self.mouse_up_pos - self.mouse_down_pos
+        w, h = abs(self.dpos.x()), abs(self.dpos.y())
+        if w < 1e-3 or h < 1e-3:
+            return {}
+        x = min(self.mouse_down_pos.x(), self.mouse_up_pos.x())
+        y = min(self.mouse_down_pos.y(), self.mouse_up_pos.y())
+        return {
+            "pos": pg.Point(x, y),
+            "size": pg.Point(w, h),
+            "angle": 0,
+        }
+
+    def get_drawing_polygon_state(self) -> dict[str, Any]:
+        if not self.mouse_down_pos or not self.mouse_up_pos:
+            return {}
+        # TODO: add polygon state
         return {}
 
-    def get_item_state(self):
+    def get_drawing_item_state(self):
         match self._draw_mode:
             case DrawMode.RECTANGLE:
-                return self.get_new_rectangle_state()
-            case DrawMode.POINT:
-                return {}
+                return self.get_drawing_rectangle_state()
             case DrawMode.POLYGON:
-                return {}
+                return self.get_drawing_polygon_state()
             case _:
                 return {}
 
     def block_item_state_changed(self, v: bool = True):
         if v:
             for item in self.showing_items.values():
-                item.sigRegionChangeStarted.disconnect(
-                    self.on_item_state_change_started
-                )
-                item.sigRegionChangeFinished.disconnect(
-                    self.on_item_state_change_finished
-                )
+                item.sigRegionChangeStarted.disconnect(self.on_item_state_change_started)
+                item.sigRegionChangeFinished.disconnect(self.on_item_state_change_finished)
         else:
             for item in self.showing_items.values():
                 item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
@@ -424,39 +359,69 @@ class Canvas(pg.PlotWidget):
         self.view_box.disableAutoRange()
         self.block_item_state_changed(True)
 
-        new_keys = list(anno.results.keys())
-        old_keys = list(self.showing_items.keys())
-        n_removed, n_created, n_updated = 0, 0, 0
+        # TODO: update existed items' state to avoid recreate
+        # but it's strange that the items won't show after `setState`
+        keys = list(self.showing_items.keys())
+        for k in keys:
+            item = self.showing_items.pop(k)
+            self.remove_item(item)
+        for result in anno.results.values():
+            self.create_item_by_result(result)
 
-        for k in old_keys:
-            if k not in new_keys:
-                self.remove_item(self.showing_items[k])
-                n_removed += 1
+        # new_keys = list(anno.results.keys())
+        # old_keys = list(self.showing_items.keys())
+        # done_new_keys = []
+        # done_old_keys = []
+        # n_old, n_new = len(old_keys), len(new_keys)
+        # find_indexer: int = 0
+        # n_created = 0
+        # n_updated = 0
+        # n_hided = 0
 
-        for key in new_keys:
-            if key not in old_keys:
-                self.create_item_by_result(anno.results[key])
-                n_created += 1
-            else:
-                # Use a polygon-safe updater: for polygons, only update points
-                # to avoid collapsing ROI when result.w/h are 0.
-                self.set_item_state_by_result(anno.results[key], update=True)
-                item = self.showing_items[key]
-                item.setVisible(True)
-                n_updated += 1
+        # def find_free_item_by_result(r: RectangleResult | PolygonResult) -> str | None:
+        #     nonlocal find_indexer
+        #     while find_indexer < n_old:
+        #         k = old_keys[find_indexer]
+        #         find_indexer += 1
+        #         item = self.showing_items[k]
+        #         if (k not in done_new_keys) and (
+        #             (isinstance(r, RectangleResult) and isinstance(item, Rectangle))
+        #             or (isinstance(r, PolygonResult) and isinstance(item, Polygon))
+        #         ):
+        #             return k
+        #     return None
+
+        # # if the number of new results > existed self.rects
+        # # change the state of existing rects and add new
+        # for result in anno.results.values():
+        #     k = find_free_item_by_result(result)
+        #     if k is None:
+        #         self.create_item_by_result(result)
+        #         n_created += 1
+        #         continue
+        #     item = self.showing_items.pop(k)
+        #     item.setVisible(True)
+        #     item.setState(result.getState(), update=True)
+        #     self.showing_items[result.id] = item
+        #     done_new_keys.append(result.id)
+        #     done_old_keys.append(k)
+        #     n_updated += 1
+
+        # for k in old_keys:
+        #     if k not in done_old_keys:
+        #         # self.showing_items[k].setVisible(False)
+        #         n_hided += 1
+
+        # self.logger.debug(
+        #     "Update items finished\n"
+        #     f"updated: {n_updated}\n"
+        #     f"created: {n_created}\n"
+        #     f"hided: {n_hided}\n"
+        #     f"existed: {len(self.showing_items)}"
+        # )
 
         self.block_item_state_changed(False)
         self.view_box.enableAutoRange()
-
-        self.update()
-
-        self.logger.debug(
-            f"Update items finished\n"
-            f"updated: {n_updated}\n"
-            f"created: {n_created}\n"
-            f"removed: {n_removed}\n"
-            f"number of items: {len(self.showing_items)}"
-        )
 
     def merge_items_by_id(self, ids: list[str]):
         items = [self.showing_items[id_] for id_ in ids]
@@ -739,7 +704,7 @@ class Canvas(pg.PlotWidget):
             self.mouse_up_pos = pos
             if self._status_mode == StatusMode.CREATE:
                 if self.current_item:
-                    state = self.get_item_state()
+                    state = self.get_drawing_item_state()
                     if state:
                         state["id"] = self.current_item.id_
                         self.current_item.setState(state, update=False)
@@ -747,7 +712,7 @@ class Canvas(pg.PlotWidget):
                 return
             elif self._status_mode == StatusMode.EDIT:
                 if self.selecting_item:
-                    state = self.get_new_rectangle_state()
+                    state = self.get_drawing_rectangle_state()
                     if state:
                         state["id"] = self.selecting_item.id_
                         self.selecting_item.setState(state, update=False)
@@ -827,20 +792,3 @@ class ZViewBox(pg.ViewBox):
             ev.ignore()
         else:
             pg.ViewBox.mouseDragEvent(self, ev, axis=axis)
-
-
-class ZImageItem(pg.ImageItem):
-    def __init__(self, image: Image.Image | NDArray | None = None, **kargs):
-        if isinstance(image, Image.Image):
-            image = np.asarray(image, dtype=np.uint8)
-        super().__init__(image, **kargs)
-        self._status_mode: StatusMode = StatusMode.VIEW
-
-    def viewMode(self):
-        self._status_mode = StatusMode.VIEW
-
-    def editMode(self):
-        self._status_mode = StatusMode.EDIT
-
-    def setStatusMode(self, mode: StatusMode):
-        self._status_mode = mode

@@ -1,4 +1,4 @@
-from qtpy.QtCore import QObject, QThread, Signal
+from pyqtgraph.Qt.QtCore import QObject, QThread, Signal
 
 from zlabel.utils.api_helper import SamApiHelper
 

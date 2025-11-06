@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-
-from typing import List, Tuple
-
-from qtpy.QtCore import QSize, Qt, Signal, Slot
-from qtpy.QtWidgets import QWidget
+from pyqtgraph.Qt.QtCore import Signal
+from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Label
 from zlabel.widgets import ZLabelItemWidget, ZListWidgetItem
@@ -22,7 +18,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
     def find_item_by_id(
         self,
         id_: str,
-    ) -> Tuple[int, ZListWidgetItem] | Tuple[None, None]:
+    ) -> tuple[int, ZListWidgetItem] | tuple[None, None]:
         for row in range(self.listw_labels.count()):
             item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
             if item.id_ == id_:
@@ -68,7 +64,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             return
         self.listw_labels.takeItem(row)
 
-    def set_labels(self, labels: List[Label] | None, selected_id: str | None = None):
+    def set_labels(self, labels: list[Label] | None, selected_id: str | None = None):
         if labels is None:
             return
         self.listw_labels.clear()
