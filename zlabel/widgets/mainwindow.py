@@ -8,9 +8,9 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QPointF, QSettings, QSize, Qt, QThreadPool, Signal
+from pyqtgraph.Qt.QtCore import QPointF, QSize, Qt, QThreadPool, Signal
 from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QComboBox, QFileDialog, QMainWindow, QMessageBox
+from pyqtgraph.Qt.QtWidgets import QComboBox, QMainWindow, QMessageBox
 
 from zlabel.utils import (
     Annotation,
@@ -22,14 +22,13 @@ from zlabel.utils import (
     RectangleResult,
     ResultType,
     SamApiHelper,
-    SettingsKey,
     StatusMode,
     Task,
     User,
     ZLogger,
     id_uuid4,
 )
-from zlabel.utils.enums import RgbMode
+from zlabel.utils.enums import AnnotationType, FetchType, RgbMode
 from zlabel.widgets import (
     DialogAbout,
     DialogProcessing,
@@ -63,12 +62,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.logger = ZLogger("MainWindow")
-        self.root_dir = "."
         self.settings_path = "zlabel.conf"
-        self.settings_format = QSettings.Format.IniFormat
-
-        self.settings: ZSettings = ZSettings(self.settings_path, self.settings_format)
+        self.settings: ZSettings
         self.api_predict: SamApiHelper
+        self.dialog_settings: DialogSettings = DialogSettings(parent=self)
+        self.dialog_processing: DialogProcessing = DialogProcessing(parent=self)
 
         self.user = User.default()
         self.label_default = Label.default()
@@ -84,22 +82,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
 
+        self.load_settings()
+
         self.init_ui()
         self.init_signals()
-        self.load_settings()
+        self.set_loglevel(self.settings.log_level.name)
 
     # region functions
     def load_settings(self):
         self.dialog_processing.show()
+
         path = Path(self.settings_path)
         if path.exists() and path.is_file():
-            self.settings = ZSettings(self.settings_path, self.settings_format)
-            if not (self.settings.validate() and self.settings.project_name):
+            try:
+                self.settings = ZSettings.model_validate_json(path.read_text())
+                self.dialog_settings.load_settings(self.settings)
+            except Exception as e:
+                self.logger.error(f"Load settings error: {e}")
                 self.dialog_settings.show()
                 return
         else:
-            if not path.parent.exists():
-                path.parent.mkdir(parents=True)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
             self.dialog_settings.show()
             return
         # file exists and check passed
@@ -110,7 +114,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.host,
         )
         self.login()
-        self.set_loglevel(self.settings.log_level)
 
     def login(self):
         # TODO: use async or worker?
@@ -146,8 +149,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.restore_project()
         # self.restore_annotations()
 
-        self.actionSAM.setChecked(self.sam_enabled)
-        self.actionOpenCV.setChecked(self.cv_enabled)
+        self.actionSAM.setChecked(self.settings.sam_enabled)
+        self.actionOpenCV.setChecked(self.settings.cv_enabled)
 
         if len(self.proj.tasks) > 0:
             tasks = list(self.proj.tasks.values())
@@ -158,19 +161,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             if self.proj.crt_anno is None:
                 self.on_dock_files_item_clicked(self.proj.key_task)
-            labels = list(self.proj.crt_anno.labels.keys())  # type: ignore
-            if len(labels) > 0:
-                self.proj.crt_anno.key_label = labels[0]  # type: ignore
+            if len(self.settings.labels) > 0:
+                self.proj.crt_anno.key_label = next(iter(self.settings.labels.keys()))
 
-        if self.proj.crt_anno and self.proj.crt_anno.labels:
+        if self.proj.crt_anno and self.settings.labels:
             self.dockcnt_labels.set_labels(
-                list(self.proj.crt_anno.labels.values()),
-                self.proj.crt_anno.key_label,
+                list(self.settings.labels.values()), self.proj.crt_anno.key_label
             )
             self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
             self.canvas.create_items_by_anno(self.proj.crt_anno)
             self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
-        self.on_settings_color_changed(self.settings.color)
         self.try_set_image()
 
         self.dialog_processing.close()
@@ -208,7 +208,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker = ZGetTasksWorker(
             self.api_predict,
             self.settings.fetch_num,
-            self.settings.fetch_finished,
+            self.settings.fetch_type.value,
             self.settings.username,
             self.settings.password,
         )
@@ -239,7 +239,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def create_project(self):
         self.proj = Project.new(
             name=self.settings.project_name,
-            description=self.settings.project_description,
+            description=self.settings.project_desc,
         )
         self.proj.save_json(self.settings.project_path)
 
@@ -445,47 +445,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @property
     def auto_mode(self):
         mode = AutoMode.MANUAL
-        if self.sam_enabled and self.cv_enabled:
+        if self.settings.sam_enabled and self.settings.cv_enabled:
             mode = AutoMode.SAM & AutoMode.CV
-        elif self.sam_enabled:
+        elif self.settings.sam_enabled:
             mode = AutoMode.SAM
-        elif self.cv_enabled:
+        elif self.settings.cv_enabled:
             mode = AutoMode.CV
         return mode
-
-    @property
-    def sam_enabled(self) -> bool:
-        return self.settings.value(SettingsKey.PROJ_SAM.value, False, type=bool)  # type: ignore
-
-    @sam_enabled.setter
-    def sam_enabled(self, v: bool):
-        self.settings.setValue(SettingsKey.PROJ_SAM.value, v)
-
-    @property
-    def cv_enabled(self) -> bool:
-        return self.settings.value(SettingsKey.PROJ_CV.value, False, type=bool)  # type: ignore
-
-    @cv_enabled.setter
-    def cv_enabled(self, v: bool):
-        self.settings.setValue(SettingsKey.PROJ_CV.value, v)
 
     # endregion
 
     # region Slots
-    def on_dialog_settings_changed(self, settings: QSettings):
-        for k in settings.allKeys():
-            self.settings.setValue(k, settings.value(k))
-
-    def on_settings_color_changed(self, color: str):
-        if self.proj.label_id is not None:
-            self.on_dock_label_item_color_changed(self.proj.label_id, color)
-            self.dockcnt_labels.set_color(color)
+    def on_dialog_settings_changed(self):
+        path = Path(self.settings_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
 
     def set_loglevel(self, level: str):
         self.logger.info(f"Setting loglevel to {level}")
         self.logger.setLevel(level)
-        self.canvas.logger.setLevel(level)
-        self.api_predict.logger.setLevel(level)
+        if getattr(self, "canvas", None) is not None:
+            self.canvas.logger.setLevel(level)
+        if getattr(self, "api_predict", None) is not None:
+            self.api_predict.logger.setLevel(level)
 
     # def check_login(self):
     #     if not self.login():
@@ -570,21 +552,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dockcnt_files.set_item_unfinished(self.proj.crt_task)
 
     def on_action_SAM_triggered(self):
-        self.sam_enabled = self.actionSAM.isChecked()
+        self.settings.sam_enabled = self.actionSAM.isChecked()
+        self.on_dialog_settings_changed()
         msg = []
-        if self.sam_enabled:
+        if self.settings.sam_enabled:
             msg.append("SAM")
-        if self.cv_enabled:
+        if self.settings.cv_enabled:
             msg.append("OpenCV")
         if msg:
             self.show_toast("+".join(msg))
 
     def on_action_opencv_triggered(self):
-        self.cv_enabled = self.actionOpenCV.isChecked()
+        self.settings.cv_enabled = self.actionOpenCV.isChecked()
+        self.on_dialog_settings_changed()
         msg = []
-        if self.sam_enabled:
+        if self.settings.sam_enabled:
             msg.append("SAM")
-        if self.cv_enabled:
+        if self.settings.cv_enabled:
             msg.append("OpenCV")
         if msg:
             self.show_toast("+".join(msg))
@@ -630,20 +614,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_merge_triggered(self):
         self.canvas.merge_items(self.canvas.selected_items)
 
-    def on_action_import_task_triggered(self):
-        path = QFileDialog.getOpenFileName(self, "Select tasks", self.last_path, "Json Files(*.json)")[0]
-        if path:
-            self.last_path = str(Path(path).absolute())
-            self.settings.setValue(SettingsKey.TASKS.value, path)
-            tasks = self.load_tasks(path)
-            if tasks is None:
-                return
-            self.refresh_tasks(tasks)
+    def on_action_import_task_triggered(self): ...
 
     def on_cmbox_annotype_index_changed(self, index: int):
         if index < 0 or index >= len(self.annotation_types):
             return
-        self.settings.annotation_type = index
+        self.settings.annotation_type = AnnotationType(index)
 
     def on_cmbox_rgb_index_changed(self, index: int):
         if index < 0 or index >= len(self.rgb_channels):
@@ -680,7 +656,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        label = Label(id=id_uuid4(), name=txt, color=self.settings.color)
+        label = Label(id=id_uuid4(), name=txt, color=self.settings.default_color)
         self.proj.crt_anno.add_label(label)
         self.dockcnt_labels.add_label(label)
 
@@ -696,7 +672,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
         if self.proj.crt_anno:
             self.proj.crt_anno.key_label = item.id_
-            label = self.proj.crt_anno.labels[item.id_]
+            label = self.settings.labels[item.id_]
             for r in self.proj.crt_anno.results.values():
                 r.labels = [label]
         else:
@@ -776,10 +752,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # 2. if not existed in remote, create
         if self.proj.crt_anno is None:
             task = self.proj.tasks[task_id]
-            labels = OrderedDict()
-            for name in task.labels:
-                label = Label(id=id_uuid4(), name=name, color=self.settings.color)
-                labels[label.id] = label
             try:
                 name = f"{task.anno_id}.{self.anno_suffix}"
                 anno_json = self.api_predict.get_zlabel(name=name)
@@ -789,6 +761,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.add_annotation(anno)
                 self.logger.info(f"Got anno from remote, added {name}")
             except Exception as e:
+                labels = OrderedDict()
+                for name in task.labels:
+                    label = Label(id=id_uuid4(), name=name, color=self.settings.default_color)
+                    labels[label.id] = label
                 self.add_annotation(
                     Annotation.new(
                         image_path=task.filename,
@@ -810,17 +786,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
         self.dockcnt_labels.set_labels(
-            list(self.proj.crt_anno.labels.values()),  # type: ignore
-            self.proj.crt_anno.key_label,  # type: ignore
+            list(self.settings.labels.values()), self.proj.crt_anno.key_label
         )
-        self.dockcnt_labels.set_color(self.settings.color)
+        self.dockcnt_labels.set_color(self.settings.default_color)
 
         # clear items in canvas
         self.canvas.update_by_anno(self.proj.crt_anno)
 
     def on_dock_files_fetch_tasks(self, num: int, finished: int):
         self.settings.fetch_num = num
-        self.settings.fetch_finished = finished
+        self.settings.fetch_type = FetchType(finished)
         self.load_tasks_remote()
 
     # endregion
@@ -839,8 +814,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
 
     def on_canvas_point_created(self, point: QPointF):
-        if self.current_image is None or self.proj.crt_label is None or self.proj.key_task is None:
-            self.logger.warning(f"{self.proj.crt_label=}, {self.proj.key_task=}")
+        if self.current_image is None:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Please select an image first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        if self.proj.crt_label is None or self.proj.key_task is None:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Please select a label and a task first!",
+                QMessageBox.StandardButton.Ok,
+            )
             return
 
         match self.auto_mode:
@@ -882,7 +870,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if item_state is None or self.proj.key_task is None or self.current_image is None:
             self.logger.warning(f"Wrong {item_state=} or {self.proj.key_task=} or current_image")
             return
-        self.logger.debug(f"Rectangle Created: {item_state=}")
+        # self.logger.debug(f"Rectangle Created: {item_state=}")
         if not self.proj.crt_label:
             QMessageBox.warning(
                 self,
@@ -903,7 +891,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             labels=[self.proj.crt_label],
             score=1.0,
         )
-        self.logger.debug(f"{result=}")
+        # self.logger.debug(f"{result=}")
         match self.auto_mode:
             # if neither SAM nor CV selected, means create rect manually
             case AutoMode.MANUAL:
@@ -945,6 +933,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return_type=1 if self.settings.annotation_type == 0 else 2,
         )
         self.run_sam_api_worker(worker)
+
+    def on_canvas_polygon_created(self, item_state: dict[str, Any] | None):
+        if item_state is None or self.proj.key_task is None or self.current_image is None:
+            self.logger.warning(f"Wrong {item_state=} or {self.proj.key_task=} or current_image")
+            return
+        # self.logger.debug(f"Polygon Created: {item_state=}")
+        if not self.proj.crt_label:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "Select a label first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+
+        result = PolygonResult.new(
+            id_=item_state["id"],
+            type_id=ResultType.POLYGON,
+            x=item_state["pos"].x(),
+            y=item_state["pos"].y(),
+            w=item_state["size"].x(),
+            h=item_state["size"].y(),
+            rotation=item_state["angle"],
+            points=[(p.x(), p.y()) for p in item_state["points"]],
+            closed=item_state["closed"],
+            labels=[self.proj.crt_label],
+            score=1.0,
+        )
+        # self.logger.debug(f"{result=}")
+        self.add_result_undo_cmd([result], ResultUndoMode.ADD)
 
     def on_canvas_item_clicked(self, id_: str):
         if self.proj.crt_anno is None:
@@ -1005,9 +1023,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region INIT
     def init_ui(self):
-        self.dialog_settings = DialogSettings(self.settings_path, self)
         self.dialog_about = DialogAbout(self)
-        self.dialog_processing = DialogProcessing(self)
+
         self.setupUi(self)
         self.action_group_edit = [
             self.actionMove,
@@ -1026,7 +1043,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             icon = QIcon()
             icon.addFile(icon_path, QSize(), QIcon.Mode.Normal, QIcon.State.Off)
             self.cmbox_anno_type.addItem(icon, anno_type)
-        self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type)
+        self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
         self.toolBar.insertWidget(self.actionSAM, self.cmbox_anno_type)
 
         self.rgb_channels = [
@@ -1057,8 +1074,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_settings.sigSettingsChanged.connect(self.on_dialog_settings_changed)
         self.dialog_settings.sigApplyClicked.connect(self.load_settings)
         self.dialog_settings.destroyed.connect(self.dialog_processing.close)
-        self.dialog_settings.sigLoglevelChanged.connect(self.set_loglevel)
-        self.dialog_settings.sigColorChanged.connect(self.on_settings_color_changed)
+
         # actions
         self.actionSettings.triggered.connect(self.dialog_settings.show)
         self.actionAbout.triggered.connect(self.dialog_about.show)
@@ -1097,6 +1113,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # canvas
         self.canvas.sigPointCreated.connect(self.on_canvas_point_created)
         self.canvas.sigRectangleCreated.connect(self.on_canvas_rectangle_created)
+        self.canvas.sigPolygonCreated.connect(self.on_canvas_polygon_created)
         self.canvas.sigItemClicked.connect(self.on_canvas_item_clicked)
         self.canvas.sigItemStateChanged.connect(self.on_canvas_item_state_changed)
         self.canvas.sigItemStateChangeFinished.connect(self.on_canvas_item_state_change_finished)

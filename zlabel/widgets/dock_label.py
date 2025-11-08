@@ -2,7 +2,7 @@ from pyqtgraph.Qt.QtCore import Signal
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Label
-from zlabel.widgets import ZLabelItemWidget, ZListWidgetItem
+from zlabel.widgets.zwidgets import ZLabelItemWidget, ZListWidgetItem
 
 from .ui import Ui_ZDockLabelContent
 
@@ -58,7 +58,11 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         self.listw_labels.setCurrentItem(item)
         self.ledit_add_label.clear()
 
-    def remove_label(self, row: int | None = None):
+    def remove_label(self, row: int | str | None = None):
+        if isinstance(row, str):
+            row, _ = self.find_item_by_id(row)
+        if row is None:
+            return
         row = row or self.listw_labels.currentRow()
         if row < 0 or row > self.listw_labels.count():
             return

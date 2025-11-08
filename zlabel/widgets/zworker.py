@@ -92,7 +92,6 @@ class ZSamPredictWorker(QRunnable):
             print(f"Predict Failed, {resp=}")
             return
 
-        print(resp)
         results: list[SamWorkerResult] = []
         if self.return_type == 1:  # RECT
             rects = [(r["x"], r["y"], r["w"], r["h"]) for r in resp["data"]]  # type: ignore

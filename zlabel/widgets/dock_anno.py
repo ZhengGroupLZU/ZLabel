@@ -3,7 +3,7 @@ from pyqtgraph.Qt.QtGui import QGuiApplication, QKeyEvent
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Annotation
-from zlabel.widgets import ZListWidgetItem
+from zlabel.widgets.zwidgets import ZListWidgetItem
 
 from .ui import Ui_ZDockAnnotationContent
 

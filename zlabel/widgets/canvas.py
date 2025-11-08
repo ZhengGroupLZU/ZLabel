@@ -55,16 +55,23 @@ class Canvas(pg.PlotWidget):
         self._z_value = 1
         self._is_editing_handle = False
         self._is_manual_set_state = False
+        # track signal block state to avoid redundant (dis)connections
+        self._signals_blocked: bool = False
 
         self._image_backup: np.ndarray | None = None
+        # cache flipped image for rgb channel rendering
+        self._image_flipped: np.ndarray | None = None
         self.image_item = pg.ImageItem()
         self.image_item.setZValue(-10)
         self.addItem(self.image_item)
 
         self.current_item: Rectangle | Circle | Polygon | None = None
-        self.selecting_item: Rectangle | None = None
+        self.selecting_item: Rectangle | Polygon | None = None
         self.showing_items: OrderedDict[str, Rectangle | Polygon] = OrderedDict()
-        self.polygon_points: list[pg.Point] = []
+        # Committed polygon points added by user clicks during CREATE mode
+        self.polygon_points_committed: list[pg.Point] = []
+        # Current preview point following mouse while drawing polygon
+        self.polygon_preview_point: pg.Point | None = None
 
         self.hline = pg.InfiniteLine(
             angle=0,
@@ -85,11 +92,61 @@ class Canvas(pg.PlotWidget):
 
         self.mouse_down_pos: QPointF | None = None
         self.mouse_up_pos: QPointF | None = None
+        # Track last mouse position in view coordinates for preview updates
+        self.last_mouse_pos_view: QPointF | None = None
         self.view_box.invertY()
 
         # self.showAxis("left", False)
         # self.showAxis("bottom", False)
         self.setAspectLocked(True)
+
+    # region helpers
+    def cancel_drawing(self):
+        """Cancel current drawing without emitting creation signals.
+
+        Removes the temporary item from scene and resets drawing buffers.
+        Applies to Rectangle/Point/Polygon in CREATE mode.
+        """
+        if self.current_item is not None:
+            try:
+                self.removeItem(self.current_item)
+            except Exception:
+                pass
+        # Reset polygon drawing buffers
+        self.polygon_points_committed = []
+        self.polygon_preview_point = None
+        # Reset common flags
+        self.current_item = None
+        self._drawing = False
+        self.mouse_down_pos = None
+        self.mouse_up_pos = None
+
+    def undo_last_polygon_point(self, preview_pos: QPointF | None = None):
+        """Undo the last committed polygon vertex and update preview state.
+
+        If no committed points remain, cancel the entire drawing.
+        """
+        if self._status_mode != StatusMode.CREATE or self._draw_mode != DrawMode.POLYGON:
+            return
+        if self.current_item is None:
+            return
+        if len(self.polygon_points_committed) > 0:
+            self.polygon_points_committed.pop()
+        # If no points left, cancel drawing entirely
+        if len(self.polygon_points_committed) == 0:
+            self.cancel_drawing()
+            return
+        # Keep preview following the mouse
+        if preview_pos is None:
+            preview_pos = self.last_mouse_pos_view
+        if preview_pos is not None:
+            self.polygon_preview_point = pg.Point(preview_pos.x(), preview_pos.y())
+        state = self.get_drawing_polygon_state()
+        if state:
+            state["id"] = self.current_item.id_
+            self.current_item.setState(state, update=False)
+
+    # endregion
 
     # region properties
     @functools.cached_property
@@ -142,6 +199,12 @@ class Canvas(pg.PlotWidget):
         assert isinstance(img, np.ndarray), f"img must be np.ndarray, got {type(img)}"
         img = np.rot90(img, k=3, axes=(1, 0))
         self._image_backup = img.copy()
+        # cache flipped version for later rgb rendering to avoid repeated flipud
+        try:
+            self._image_flipped = np.flipud(self._image_backup)
+        except Exception:
+            # fallback, keep behavior even if flip fails
+            self._image_flipped = None
 
         self.image_item.setImage(img)
 
@@ -167,6 +230,11 @@ class Canvas(pg.PlotWidget):
     def set_rgb(self, mode: RgbMode):
         if self._image_backup is None:
             return
+        # use cached flipped image to reduce per-call cost
+        flip = self._image_flipped if self._image_flipped is not None else np.flipud(self._image_backup)  # type: ignore
+        # persist cache if it was missing
+        if self._image_flipped is None:
+            self._image_flipped = flip
         if mode == RgbMode.R:
             # self.image_item.setColorMap(pg.colormap.get("CET-L13"))
             im_filter = np.asarray([1, 0, 0])
@@ -180,16 +248,22 @@ class Canvas(pg.PlotWidget):
             im_filter = np.asarray([1, 1, 1])
         else:
             raise NotImplementedError
-        im_new = np.flipud(self._image_backup) * im_filter  # type: ignore
+        im_new = flip * im_filter  # type: ignore
         if mode == RgbMode.GRAY:
             im_new = np.sum(im_new, 2)
         self.image_item.updateImage(im_new)
 
     def setStatusMode(self, mode: StatusMode):
+        # guard to avoid redundant text updates
+        if self._status_mode == mode:
+            return
         self._status_mode = mode
         self.set_mode_text()
 
     def setDrawMode(self, mode: DrawMode):
+        # guard to avoid redundant text updates
+        if self._draw_mode == mode:
+            return
         self._draw_mode = mode
         self.set_mode_text()
 
@@ -218,8 +292,8 @@ class Canvas(pg.PlotWidget):
         # logger.debug(f"{self.mouse_down_pos=}, {self.mouse_up_pos=}")
         if not (self.mouse_down_pos and self.mouse_up_pos):
             return {}
-        self.dpos = self.mouse_up_pos - self.mouse_down_pos
-        w, h = abs(self.dpos.x()), abs(self.dpos.y())
+        dpos = self.mouse_up_pos - self.mouse_down_pos
+        w, h = abs(dpos.x()), abs(dpos.y())
         if w < 1e-3 or h < 1e-3:
             return {}
         x = min(self.mouse_down_pos.x(), self.mouse_up_pos.x())
@@ -231,12 +305,33 @@ class Canvas(pg.PlotWidget):
         }
 
     def get_drawing_polygon_state(self) -> dict[str, Any]:
-        if not self.mouse_down_pos or not self.mouse_up_pos:
-            return {}
-        # TODO: add polygon state
-        return {}
+        """Build polygon state using committed points plus a live preview point.
 
-    def get_drawing_item_state(self):
+        This method does not modify committed points; it only prepares a state
+        for updating the current polygon during CREATE mode.
+        """
+        # Base ROI transform stays static for polygon drawing
+        pos = pg.Point(0.0, 0.0)
+        size = pg.Point(1.0, 1.0)
+        angle = 0
+
+        # Compose points: committed vertices + optional preview vertex
+        points: list[pg.Point] = list(self.polygon_points_committed)
+        if self.polygon_preview_point is not None:
+            points.append(self.polygon_preview_point)
+
+        if len(points) == 0:
+            return {}
+
+        return {
+            "pos": pos,
+            "size": size,
+            "angle": angle,
+            "points": points,
+            "closed": False,
+        }
+
+    def get_drawing_item_state(self) -> dict[str, Any]:
         match self._draw_mode:
             case DrawMode.RECTANGLE:
                 return self.get_drawing_rectangle_state()
@@ -246,6 +341,9 @@ class Canvas(pg.PlotWidget):
                 return {}
 
     def block_item_state_changed(self, v: bool = True):
+        # avoid redundant (dis)connections if state unchanged
+        if v == self._signals_blocked:
+            return
         if v:
             for item in self.showing_items.values():
                 item.sigRegionChangeStarted.disconnect(self.on_item_state_change_started)
@@ -254,6 +352,7 @@ class Canvas(pg.PlotWidget):
             for item in self.showing_items.values():
                 item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
                 item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
+        self._signals_blocked = v
 
     def new_rectangle(
         self,
@@ -292,8 +391,8 @@ class Canvas(pg.PlotWidget):
             color=color or self.color,
             movable=movable,
             id_=id_,
-            antialias=False,  # 显式禁用抗锯齿以提高性能
-        )  # type: ignore
+            antialias=False,
+        )
         # self.logger.debug(f"Created polygon {id_=}")
         return polygon
 
@@ -312,8 +411,16 @@ class Canvas(pg.PlotWidget):
                     color=self.color,
                 )
             case DrawMode.POLYGON:
+                # Initialize polygon with first committed vertex
+                first = self.mouse_down_pos
+                if first is not None:
+                    self.polygon_points_committed = [pg.Point(first.x(), first.y())]
+                else:
+                    self.polygon_points_committed = []
+                self.polygon_preview_point = None
+
                 self.current_item = Polygon(
-                    positions=[self.mouse_down_pos.toTuple()],  # type: ignore
+                    positions=[p.toTuple() for p in self.polygon_points_committed],
                     closed=False,
                     color=self.color,
                     movable=False,
@@ -323,25 +430,57 @@ class Canvas(pg.PlotWidget):
         if self.current_item is not None:
             # self.create_item(self.current_item)
             self.addItem(self.current_item)
+        self._drawing = True
+
+    def update_drawing(self):
+        if self.current_item is None:
+            return
+        state = self.get_drawing_item_state()
+        self.current_item.setState(state, update=False)
+        self.current_item.update()
 
     def stop_drawing(self):
         if self.current_item is None:
             return
-        state = self.current_item.getState()
-        self.removeItem(self.current_item)
-        match self.current_item:
-            case Rectangle():
-                if state["size"].x() > 1 and state["size"].y() > 1:
-                    self.sigRectangleCreated.emit(state)
-            case Circle():
-                self.sigPointCreated.emit(state["pos"])
-            case Polygon():
+
+        # Finalize state per item type before removal
+        if isinstance(self.current_item, Polygon):
+            # Only finalize if there are at least 3 committed vertices
+            if len(self.polygon_points_committed) >= 3:
+                final_state = {
+                    "pos": pg.Point(0.0, 0.0),
+                    "size": pg.Point(1.0, 1.0),
+                    "angle": 0,
+                    "points": list(self.polygon_points_committed),
+                    "closed": True,
+                    "id": self.current_item.id_,
+                }
+                self.current_item.setState(final_state, update=True)
+                state = self.current_item.getState()
                 self.sigPolygonCreated.emit(state)
-            case _:
-                ...
+            # Remove polygon item from scene regardless
+            self.removeItem(self.current_item)
+            # Reset polygon drawing buffers
+            self.polygon_points_committed = []
+            self.polygon_preview_point = None
+        else:
+            # For Rectangle/Point: emit based on current state
+            state = self.current_item.getState()
+            self.removeItem(self.current_item)
+            match self.current_item:
+                case Rectangle():
+                    if state["size"].x() > 1 and state["size"].y() > 1:
+                        self.sigRectangleCreated.emit(state)
+                case Circle():
+                    self.sigPointCreated.emit(state["pos"])
+                case _:
+                    ...
+
+        # Reset common flags
         self.current_item = None
         self.mouse_down_pos = None
         self.mouse_up_pos = None
+        self._drawing = False
 
     def map_scene_to_view(self, point: QPoint):
         pos = self.view_box.mapSceneToView(point)
@@ -651,14 +790,47 @@ class Canvas(pg.PlotWidget):
             self.sigMouseBackClicked.emit()
         elif ev.button() == Qt.MouseButton.ForwardButton:
             self.sigMouseForwardClicked.emit()
+        elif ev.button() == Qt.MouseButton.RightButton:
+            # Right-click undo for polygon drawing in CREATE mode
+            if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
+                preview_pos = self.map_scene_to_view(ev.pos())
+                self.undo_last_polygon_point(preview_pos)
+                ev.accept()
+                return
+            # Otherwise, let base behavior handle (e.g., autorange in ViewBox)
         elif ev.button() == Qt.MouseButton.LeftButton:
             # self.logger.debug(f"ZGraphicsScene Press: {ev=}, {self._status_mode=}")
             self.mouse_down_pos = self.map_scene_to_view(ev.pos())
             if self._status_mode == StatusMode.CREATE:
                 self.clear_selections_if_no_ctrl(ev)
-                self.start_drawing()
-                ev.accept()
-                return
+                # Branch by draw mode for CREATE
+                if self._draw_mode == DrawMode.POLYGON:
+                    if self.current_item is None:
+                        # Start polygon drawing with first vertex
+                        self.start_drawing()
+                    else:
+                        # Commit the clicked point as a new polygon vertex
+                        if self.mouse_down_pos is not None:
+                            self.polygon_points_committed.append(
+                                pg.Point(self.mouse_down_pos.x(), self.mouse_down_pos.y())
+                            )
+                            # Clear preview; it will be set by mouse move
+                            self.polygon_preview_point = None
+                            # Update polygon item to reflect new committed vertices
+                            state = self.get_drawing_polygon_state()
+                            if state:
+                                state["id"] = self.current_item.id_
+                                self.current_item.setState(state, update=False)
+                    ev.accept()
+                    return
+                else:
+                    # RECTANGLE / POINT create flow
+                    if self.current_item is None:
+                        self.start_drawing()
+                    else:
+                        self.update_drawing()
+                    ev.accept()
+                    return
             elif self._status_mode == StatusMode.EDIT:
                 self.set_items_movable(True)
                 # Click and edit
@@ -694,28 +866,47 @@ class Canvas(pg.PlotWidget):
         return super().mousePressEvent(ev)
 
     def mouseMoveEvent(self, ev: QMouseEvent):
-        pos = self.map_scene_to_view(ev.pos())
+        pos: QPointF = self.map_scene_to_view(ev.pos())
+        self.last_mouse_pos_view = pos
         self.hline.setPos(pos.y())
         self.vline.setPos(pos.x())
         self.sigMouseMoved.emit(pos)
+
+        # Allow polygon live preview even when no mouse button is pressed
+        if (
+            self._status_mode == StatusMode.CREATE
+            and self._draw_mode == DrawMode.POLYGON
+            and self.current_item
+        ):
+            prev = self.polygon_preview_point
+            # skip redundant updates when preview point unchanged
+            if not (prev is not None and prev.x() == pos.x() and prev.y() == pos.y()):
+                self.polygon_preview_point = pg.Point(pos.x(), pos.y())
+                state = self.get_drawing_polygon_state()
+                if state:
+                    state["id"] = self.current_item.id_
+                    self.current_item.setState(state, update=False)
+            ev.accept()
+            return
 
         if ev.buttons() == Qt.MouseButton.LeftButton:
             # self.logger.debug(f"Move: {ev=}, {self._status_mode=}")
             self.mouse_up_pos = pos
             if self._status_mode == StatusMode.CREATE:
                 if self.current_item:
-                    state = self.get_drawing_item_state()
-                    if state:
-                        state["id"] = self.current_item.id_
-                        self.current_item.setState(state, update=False)
+                    # Non-polygon create: live adjust with mouse drag
+                    if self._draw_mode != DrawMode.POLYGON:
+                        state = self.get_drawing_item_state()
+                        if state:
+                            state["id"] = self.current_item.id_
+                            self.current_item.setState(state, update=False)
                 ev.accept()
                 return
             elif self._status_mode == StatusMode.EDIT:
-                if self.selecting_item:
-                    state = self.get_drawing_rectangle_state()
-                    if state:
-                        state["id"] = self.selecting_item.id_
-                        self.selecting_item.setState(state, update=False)
+                state = self.get_drawing_item_state()
+                if self.selecting_item and state and isinstance(self.selecting_item, Rectangle):
+                    state["id"] = self.selecting_item.id_
+                    self.selecting_item.setState(state, update=False)
                     ev.accept()
                     return
             elif self._status_mode == StatusMode.VIEW:
@@ -726,7 +917,13 @@ class Canvas(pg.PlotWidget):
         if ev.button() == Qt.MouseButton.LeftButton:
             # self.logger.debug(f"ZGraphicsScene Release: {ev=}, {self._status_mode=}")
             if self._status_mode == StatusMode.CREATE:
-                self.stop_drawing()
+                # Finalize on release for RECTANGLE / POINT only
+                if self._draw_mode in (DrawMode.RECTANGLE, DrawMode.POINT):
+                    if self._drawing:
+                        self.stop_drawing()
+                    ev.accept()
+                    return
+                # POLYGON keeps drawing until double-click to close
                 ev.accept()
                 return
             elif self._status_mode == StatusMode.EDIT:
@@ -768,9 +965,40 @@ class Canvas(pg.PlotWidget):
                 pass
         return super().mouseReleaseEvent(ev)
 
+    def mouseDoubleClickEvent(self, ev: QMouseEvent):
+        if self._status_mode == StatusMode.CREATE:
+            # Double-click in POLYGON mode closes and finalizes the polygon
+            if self._draw_mode == DrawMode.POLYGON and self.current_item is not None:
+                self.stop_drawing()
+                ev.accept()
+                return
+        super().mouseDoubleClickEvent(ev)
+
     def keyPressEvent(self, ev: QKeyEvent) -> None:
         if ev.key() == Qt.Key.Key_Delete:
             self.remove_selected_items()
+            ev.accept()
+            return
+        elif ev.key() == Qt.Key.Key_Escape:
+            # ESC cancels current drawing in CREATE mode
+            if self._status_mode == StatusMode.CREATE:
+                self.cancel_drawing()
+                ev.accept()
+                return
+        elif self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
+            # Backspace or Ctrl+Z undo last committed vertex, keep preview
+            if ev.key() == Qt.Key.Key_Backspace or (
+                ev.key() == Qt.Key.Key_Z and (ev.modifiers() & Qt.KeyboardModifier.ControlModifier)
+            ):
+                self.undo_last_polygon_point(self.last_mouse_pos_view)
+                ev.accept()
+                return
+            # Enter/Return finalizes the polygon (equivalent to double-click)
+            if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+                if self._drawing and self.current_item is not None:
+                    self.stop_drawing()
+                    ev.accept()
+                    return
         super().keyPressEvent(ev)
 
     # endregion

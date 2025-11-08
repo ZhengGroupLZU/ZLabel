@@ -144,13 +144,12 @@ class Rectangle(pg.RectROI):
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def getState(self):
-        state: dict[str, Any] = super().getState()
-        state["id"] = self.id_
-        return state
+        return {"id": self.id_, **super().getState()}
 
-    def setState(self, state, update=True):
+    def setState(self, state: dict[str, Any], update=True):
         super().setState(state, update)
-        self.id_ = state["id"]
+        if state.get("id", None):
+            self.id_ = state["id"]
         if self.isSelected():
             self.showHandles()
         else:
@@ -236,11 +235,12 @@ class Polygon(pg.ROI):
         return self._selected
 
     def getState(self):
-        state: dict[str, Any] = ROI.getState(self)
-        state["closed"] = self.closed
-        state["id"] = self.id_
-        state["points"] = [pg.Point(h.pos()) for h in self.getHandles()]
-        return state
+        return {
+            **ROI.getState(self),
+            "id": self.id_,
+            "points": [pg.Point(h.pos()) for h in self.getHandles()],
+            "closed": self.closed,
+        }
 
     def saveState(self):
         state: dict[str, Any] = ROI.saveState(self)
@@ -431,16 +431,22 @@ class Polygon(pg.ROI):
         line_len_sq = line_vec.x() * line_vec.x() + line_vec.y() * line_vec.y()
 
         if line_len_sq == 0:
-            distance = math.sqrt((point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2)
+            distance = math.sqrt(
+                (point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2
+            )
             return distance, line_start
 
         t = (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y()) / line_len_sq
 
         t = max(0.0, min(1.0, t))
 
-        closest_point = QPointF(line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y())
+        closest_point = QPointF(
+            line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y()
+        )
 
-        distance = math.sqrt((point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2)
+        distance = math.sqrt(
+            (point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2
+        )
 
         return distance, closest_point
 
@@ -464,7 +470,9 @@ class Polygon(pg.ROI):
             start_point = self.handles[i]["item"].pos()
             end_point = self.handles[(i + 1) % num_points]["item"].pos()
 
-            distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
+            distance, nearest_point = self._point_to_line_distance(
+                click_pos, start_point, end_point
+            )
 
             if distance < min_distance and distance <= tolerance:
                 min_distance = distance

@@ -63,12 +63,15 @@ ignore = [
 ]
 
 [tool.mypy]
-exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^test/"]
+exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^tests/", "^dist/", "^build/"]
+disable_error_code = ["import-untyped"]
+check_untyped_defs = true
 
 [tool.poe.tasks]
 run = "python ./main.py"
 build = """python ./build.py"""
 build_nuitka = """python -m nuitka --standalone --enable-plugin=pyside6 --include-qt-plugins=sensible --macos-create-app --macos-app-name=ZLabel --macos-app-icon=zlabel/resources/icons/zlabel.png --output-dir=build/nuitka zlabel.py"""
 
-designer = "pyside6-designer.exe "
+designer = "pyside6-designer.exe"
+designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"

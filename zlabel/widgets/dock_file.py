@@ -3,7 +3,7 @@ from pyqtgraph.Qt.QtGui import QIntValidator
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Task, ZLogger
-from zlabel.widgets import ZTableWidgetItem
+from zlabel.widgets.zwidgets import ZTableWidgetItem
 
 from .ui import Ui_ZDockFileContent
 
