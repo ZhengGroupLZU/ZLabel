@@ -2,18 +2,24 @@ from pyqtgraph.Qt.QtCore import Signal
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Label
+from zlabel.utils.project import id_uuid4
 from zlabel.widgets.zwidgets import ZLabelItemWidget, ZListWidgetItem
 
 from .ui import Ui_ZDockLabelContent
 
 
 class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
+    sigBtnIncreaseClicked = Signal(object)  # Label instance
+    SigBtnDecreaseClicked = Signal(str)  # label id
     sigBtnDeleteClicked = Signal(str)
     sigItemColorChanged = Signal(str, str)
 
     def __init__(self, parent=None):
         super().__init__(parent)
         self.setupUi(self)
+
+        self.btn_increase.clicked.connect(self.on_btn_increase_clicked)
+        self.btn_decrease.clicked.connect(self.on_btn_decrease_clicked)
 
     def find_item_by_id(
         self,
@@ -30,6 +36,20 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
             widget: ZLabelItemWidget = self.listw_labels.itemWidget(item)  # type: ignore
             widget.set_label_color(color)
+
+    def on_btn_increase_clicked(self):
+        txt = self.ledit_add_label.text()
+        if not txt:
+            return
+        label = Label(id=id_uuid4(), name=txt)
+        self.add_label(label)
+        self.sigBtnIncreaseClicked.emit(label)
+
+    def on_btn_decrease_clicked(self):
+        row = self.listw_labels.currentRow()
+        self.remove_label(row)
+        item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
+        self.SigBtnDecreaseClicked.emit(item.id_)
 
     def on_btn_delete_clicked(self, id_: str):
         """

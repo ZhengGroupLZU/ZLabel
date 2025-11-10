@@ -72,7 +72,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.label_default = Label.default()
         self.user_token: str | None = None
 
-        self.proj: Project
         self.undo_stack = QUndoStack(self)
         self.threadpool = QThreadPool()
 
@@ -86,7 +85,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.init_ui()
         self.init_signals()
-        self.set_loglevel(self.settings.log_level.name)
+        self.ui_update_settings()
+
+    # region properties
+    @property
+    def proj(self) -> Project:
+        return self.settings.project
+
+    @functools.cached_property
+    def image_paths(self):
+        return [task.filename for task in self.proj.tasks.values()]
+
+    @property
+    def current_image(self) -> Image.Image | None:
+        if self.proj.crt_task is not None:
+            img_name = self.proj.crt_task.filename
+            if img_name in self._image_cache:
+                return self._image_cache[img_name]
+        return None
+
+    def cache_image(self, img_name: str, img: Image.Image):
+        self._image_cache[img_name] = img
+
+    @property
+    def auto_mode(self):
+        mode = AutoMode.MANUAL
+        if self.settings.sam_enabled and self.settings.cv_enabled:
+            mode = AutoMode.SAM & AutoMode.CV
+        elif self.settings.sam_enabled:
+            mode = AutoMode.SAM
+        elif self.settings.cv_enabled:
+            mode = AutoMode.CV
+        return mode
+
+    # endregion
 
     # region functions
     def load_settings(self):
@@ -114,6 +146,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.host,
         )
         self.login()
+
+    def ui_update_settings(self):
+        self.set_loglevel(self.settings.log_level.name)
+        self.canvas.set_color(self.settings.default_color, self.settings.alpha)
 
     def login(self):
         # TODO: use async or worker?
@@ -144,10 +180,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_login_success(self, token: str):
         self.user_token = token
         self.logger.info(f"Login success, {self.settings.username=}")
-        self.dialog_settings.close()
-
-        self.restore_project()
-        # self.restore_annotations()
+        if self.dialog_settings.isVisible():
+            self.dialog_settings.close()
 
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
@@ -161,13 +195,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             if self.proj.crt_anno is None:
                 self.on_dock_files_item_clicked(self.proj.key_task)
-            if len(self.settings.labels) > 0:
-                self.proj.crt_anno.key_label = next(iter(self.settings.labels.keys()))
+            if self.proj.crt_anno and len(self.proj.labels) > 0:
+                self.proj.key_label = list(self.proj.labels.keys())[0]
 
-        if self.proj.crt_anno and self.settings.labels:
-            self.dockcnt_labels.set_labels(
-                list(self.settings.labels.values()), self.proj.crt_anno.key_label
-            )
+        if self.proj.crt_anno and self.proj.labels:
+            self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
             self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
             self.canvas.create_items_by_anno(self.proj.crt_anno)
             self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
@@ -180,7 +212,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for task in tasks:
             self.proj.add_task(task)
         self.proj.reset_task_key()
-        self.proj.save_json(self.settings.project_path)
+        self.proj.save_json(self.proj.project_path)
         if self.user_token:
             self.on_login_success(self.user_token)
 
@@ -235,13 +267,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             f"Get Tasks Failed, {msg=}",
             QMessageBox.StandardButton.Ok,
         )
-
-    def create_project(self):
-        self.proj = Project.new(
-            name=self.settings.project_name,
-            description=self.settings.project_desc,
-        )
-        self.proj.save_json(self.settings.project_path)
 
     def try_set_image(self, image: Image.Image | None = None):
         if self.proj.crt_task is None:
@@ -343,8 +368,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.modify_result(r, update)
 
     def add_annotation(self, anno: Annotation):
-        if anno.key_label is None and len(anno.labels) > 0:
-            anno.key_label = list(anno.labels.keys())[0]
         self.proj.key_task = anno.id
         self.proj.add_annotation(anno)
 
@@ -374,32 +397,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def is_current_anno_result_ok(self):
         return self.is_current_anno_ok() and self.is_current_result_ok()
 
-    def restore_project(self):
-        path = Path(self.settings.project_path)
-        if not self.settings.project_name:
-            self.dialog_settings.show()
-            return
-        if not path.exists():
-            path.parent.mkdir(parents=True, exist_ok=True)
-            self.create_project()
-        else:
-            try:
-                with open(path, "r", encoding="utf-8") as f:
-                    self.proj = Project.model_validate_json(f.read(), strict=True)
-            except Exception as e:
-                button = QMessageBox.critical(
-                    self,
-                    "Error",
-                    f"Load project Error! {e=}, create new and overwrite?",
-                    QMessageBox.StandardButton.Ok,
-                    QMessageBox.StandardButton.Cancel,
-                )
-                if button == QMessageBox.StandardButton.Ok:
-                    self.create_project()
-
     def restore_annotations(self):
         # restore annotations
-        path = Path(self.settings.project_dir) / "annos"
+        if not self.settings.project_dir:
+            self.logger.error("project_dir is None")
+            return
+        path = self.settings.project_anno_dir
         annos = list(path.glob(f"*.{self.anno_suffix}"))
         for p in annos:
             try:
@@ -426,40 +429,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # endregion
 
-    # region properties
-    @functools.cached_property
-    def image_paths(self):
-        return [task.filename for task in self.proj.tasks.values()]
-
-    @property
-    def current_image(self) -> Image.Image | None:
-        if self.proj.crt_task is not None:
-            img_name = self.proj.crt_task.filename
-            if img_name in self._image_cache:
-                return self._image_cache[img_name]
-        return None
-
-    def cache_image(self, img_name: str, img: Image.Image):
-        self._image_cache[img_name] = img
-
-    @property
-    def auto_mode(self):
-        mode = AutoMode.MANUAL
-        if self.settings.sam_enabled and self.settings.cv_enabled:
-            mode = AutoMode.SAM & AutoMode.CV
-        elif self.settings.sam_enabled:
-            mode = AutoMode.SAM
-        elif self.settings.cv_enabled:
-            mode = AutoMode.CV
-        return mode
-
-    # endregion
-
     # region Slots
     def on_dialog_settings_changed(self):
-        path = Path(self.settings_path)
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
+        self.settings.save_json(self.settings_path)
+        if self.sender() == self.dialog_settings:
+            self.proj.save_json(self.proj.project_path)
+        self.ui_update_settings()
 
     def set_loglevel(self, level: str):
         self.logger.info(f"Setting loglevel to {level}")
@@ -497,7 +472,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.on_dock_files_item_clicked(item.id_)
 
     def on_action_save_triggered(self):
-        self.proj.save_json(self.settings.project_path)
+        self.proj.save_json(self.proj.project_path)
 
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
@@ -523,7 +498,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_task is None or self.proj.crt_anno is None:
             return
         self.on_action_save_triggered()
-        filename = f"{self.settings.project_dir}/annos/{self.proj.crt_anno.id}.{self.anno_suffix}"
+        filename = f"{self.settings.project_anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
         self.proj.crt_anno.save_json(filename)
 
         # if triggered by click, set task finished and upload
@@ -646,9 +621,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region DockLabel
-    def on_dock_label_btn_add_clicked(self):
-        txt = self.dockcnt_labels.ledit_add_label.text()
-        if self.proj.crt_anno is None or txt == "":
+    def on_dock_label_btn_add_clicked(self, label: Label):
+        if self.proj.crt_anno is None:
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -656,48 +630,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        label = Label(id=id_uuid4(), name=txt, color=self.settings.default_color)
-        self.proj.crt_anno.add_label(label)
-        self.dockcnt_labels.add_label(label)
+        self.proj.add_label(label)
+        self.proj.save_json(self.proj.project_path)
 
-    def on_dock_label_btn_dec_clicked(self):
-        row = self.dockcnt_labels.listw_labels.currentRow()
-        item: ZListWidgetItem = self.dockcnt_labels.listw_labels.item(row)  # type: ignore
-        self.dockcnt_labels.remove_label(row)
-        if self.proj.crt_anno is not None:
-            self.proj.crt_anno.remove_label(item.id_)
-        else:
-            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
+    def on_dock_label_btn_dec_clicked(self, id_: str):
+        self.proj.remove_label(id_)
+        self.proj.save_json(self.proj.project_path)
 
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
         if self.proj.crt_anno:
-            self.proj.crt_anno.key_label = item.id_
-            label = self.settings.labels[item.id_]
-            for r in self.proj.crt_anno.results.values():
-                r.labels = [label]
+            self.proj.key_label = item.id_
+            label = self.proj.labels[item.id_]
+            if self.proj.crt_result:
+                self.proj.crt_result.labels = [label]
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_label_btn_del_clicked(self, id_: str):
-        if self.proj.crt_anno:
-            self.proj.crt_anno.remove_label(id_)
-        else:
-            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
+        self.proj.remove_label(id_)
+        self.proj.save_json(self.proj.project_path)
 
     def on_dock_label_item_color_changed(self, id_: str, color: str):
-        if self.proj.crt_anno:
-            self.proj.crt_anno.labels[id_].color = color
-            if id_ == self.proj.crt_anno.key_label:
-                self.canvas.set_color(color)
-                self.proj.crt_anno.set_color(color)
-            self.logger.debug(f"Labels color changed: {self.proj.crt_anno.labels=}")
-        else:
-            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
+        self.proj.labels[id_].color = color
+        if id_ == self.proj.key_label:
+            self.canvas.set_color(color, self.settings.alpha)
+        self.logger.debug(f"Labels color changed: {self.proj.labels[id_]=}")
+        self.proj.save_json(self.proj.project_path)
 
     # endregion
 
     # region DockInfo
-    ##### DockInfo #####
+    # DockInfo #####
     def on_dock_info_ledit_note_changed(self, s: str):
         if self.proj.crt_result is None:
             self.logger.warning(f"Current Result is None, {self.proj.crt_anno=}")
@@ -714,7 +677,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region DockAnnotation
-    ##### DockAnnotation #####
+    # DockAnnotation #####
     def on_dock_anno_listw_item_clicked(self, item: ZListWidgetItem):
         self.canvas.block_item_state_changed(True)
         self.canvas.select_item(item.id_)
@@ -736,7 +699,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region DockFiles
-    ##### DockFiles #####
+    # DockFiles #####
     def on_dock_files_item_clicked(self, task_id: str):
         # save first
         self.on_action_finish_triggered()
@@ -766,13 +729,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     label = Label(id=id_uuid4(), name=name, color=self.settings.default_color)
                     labels[label.id] = label
                 self.add_annotation(
-                    Annotation.new(
+                    Annotation(
                         image_path=task.filename,
-                        width=0,
-                        height=0,
-                        create_user=self.user,
-                        id_=task.anno_id,
-                        labels=labels,
+                        original_height=0,
+                        original_width=0,
+                        created_by=self.user,
+                        updated_by=self.user,
+                        id=task.anno_id,
                     )
                 )
                 self.logger.warning(f"{task.anno_id=} not found in remote, created, {e=}")
@@ -785,10 +748,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
-        self.dockcnt_labels.set_labels(
-            list(self.settings.labels.values()), self.proj.crt_anno.key_label
-        )
-        self.dockcnt_labels.set_color(self.settings.default_color)
+        self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
+        # self.dockcnt_labels.set_color(self.settings.default_color)
 
         # clear items in canvas
         self.canvas.update_by_anno(self.proj.crt_anno)
@@ -822,7 +783,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        if self.proj.crt_label is None or self.proj.key_task is None:
+        if self.proj.crt_label is None or self.proj.crt_task is None:
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -854,7 +815,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         worker = ZSamPredictWorker(
             api=self.api_predict,
-            anno_id=self.proj.key_task,
+            anno_id=self.proj.crt_task.anno_id,
             image=image_name,
             points=[(point.x(), point.y())],
             labels=[1.0],
@@ -1132,8 +1093,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # dock labels
         self.dockcnt_labels.listw_labels.itemClicked.connect(self.on_dock_label_listw_item_clicked)
-        self.dockcnt_labels.btn_decrease.clicked.connect(self.on_dock_label_btn_dec_clicked)
-        self.dockcnt_labels.btn_increase.clicked.connect(self.on_dock_label_btn_add_clicked)
+        self.dockcnt_labels.SigBtnDecreaseClicked.connect(self.on_dock_label_btn_dec_clicked)
+        self.dockcnt_labels.sigBtnIncreaseClicked.connect(self.on_dock_label_btn_add_clicked)
         # self.dockcnt_labels.ledit_add_label.editingFinished.connect(
         #     self.on_dock_label_btn_add_clicked
         # )
@@ -1143,9 +1104,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
-        self.dockcnt_anno.sigItemCountChanged.connect(
-            lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)")
-        )
+        self.dockcnt_anno.sigItemCountChanged.connect(lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)"))
 
     # endregion
 

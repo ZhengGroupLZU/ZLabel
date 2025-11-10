@@ -253,7 +253,6 @@ class ZGetTasksWorker(QRunnable):
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
         tasks = self.api.get_tasks(self.num, self.finished)
-        print(tasks)
         if tasks is not None:
             try:
                 task_list = [Task.model_validate(t) for t in tasks]

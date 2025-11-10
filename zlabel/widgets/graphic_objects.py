@@ -21,6 +21,7 @@ class Rectangle(pg.RectROI):
         sideScalers: bool = False,
         id_: str | None = None,
         movable: bool = True,
+        alpha: float = 0.3,
         **args,
     ):
         self.id_: str = id_ or id_uuid4()
@@ -37,9 +38,9 @@ class Rectangle(pg.RectROI):
         )
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.logger: ZLogger = ZLogger(__name__)
-        self.alpha_: float = 0.1
+        self.alpha: float = alpha
         self.fill_color: QColor = QColor(color)
-        self.fill_color.setAlphaF(self.alpha_)
+        self.fill_color.setAlphaF(self.alpha)
         self._selected: bool = False
         self._update_pending: bool = False
 
@@ -119,13 +120,12 @@ class Rectangle(pg.RectROI):
         state = self.getState()
         return state["size"].x() * state["size"].y()
 
-    def setFillColor(self, color: str):
-        new_color = QColor(color)
-        if self.fill_color.name() != new_color.name():
-            self.fill_color = new_color
-            self.fill_color.setAlphaF(self.alpha_)
-            self.brush = QBrush(self.fill_color)
-            self.scheduleUpdate()
+    def setFillColor(self, color: str, alpha: float = 0.3):
+        self.fill_color = QColor(color)
+        self.alpha = alpha
+        self.fill_color.setAlphaF(self.alpha)
+        self.brush = QBrush(self.fill_color)
+        self.scheduleUpdate()
 
     def scheduleUpdate(self):
         if not self._update_pending:
@@ -164,6 +164,7 @@ class Polygon(pg.ROI):
         pos: tuple[float, float] = (0, 0),
         color: str = "#f47b90",
         id_: str | None = None,
+        alpha: float = 0.3,
         **args,
     ):
         self.id_: str = id_ or id_uuid4()
@@ -178,13 +179,13 @@ class Polygon(pg.ROI):
         )
         self.state["id_"] = self.id_
 
-        self.alpha_: float = 0.1
+        self.alpha: float = alpha
         self._selected: bool = False
         self._update_pending: bool = False  # 防止频繁更新
 
-        fill_color: QColor = QColor(color)
-        fill_color.setAlphaF(self.alpha_)
-        self.brush: QBrush = QBrush(fill_color)
+        self.fill_color: QColor = QColor(color)
+        self.fill_color.setAlphaF(self.alpha)
+        self.brush: QBrush = QBrush(self.fill_color)
         self.hoverPen.setStyle(Qt.PenStyle.DashLine)
 
         self.setPoints(positions)
@@ -298,7 +299,7 @@ class Polygon(pg.ROI):
         )
 
     def addHandle(self, info, index=None, finish=False):
-        ## If a Handle was not supplied, create it now
+        # If a Handle was not supplied, create it now
         if "item" not in info or info["item"] is None:
             h = Handle(
                 self.handleSize,
@@ -315,7 +316,7 @@ class Polygon(pg.ROI):
                 info["pos"] = h.pos()
         h.setPos(info["pos"] * self.state["size"])
 
-        ## connect the handle to this ROI
+        # connect the handle to this ROI
         # iid = len(self.handles)
         h.connectROI(self)
         if index is None:
@@ -404,10 +405,11 @@ class Polygon(pg.ROI):
     def setPen(self, *args, **kwds):
         ROI.setPen(self, *args, **kwds)
 
-    def setFillColor(self, color: str):
-        new_color = QColor(color)
-        new_color.setAlphaF(self.alpha_)
-        self.brush = QBrush(new_color)
+    def setFillColor(self, color: str, alpha: float = 0.3):
+        self.fill_color = QColor(color)
+        self.alpha = alpha
+        self.fill_color.setAlphaF(self.alpha)
+        self.brush = QBrush(self.fill_color)
         self.scheduleUpdate()
 
     def scheduleUpdate(self):
@@ -431,22 +433,16 @@ class Polygon(pg.ROI):
         line_len_sq = line_vec.x() * line_vec.x() + line_vec.y() * line_vec.y()
 
         if line_len_sq == 0:
-            distance = math.sqrt(
-                (point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2
-            )
+            distance = math.sqrt((point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2)
             return distance, line_start
 
         t = (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y()) / line_len_sq
 
         t = max(0.0, min(1.0, t))
 
-        closest_point = QPointF(
-            line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y()
-        )
+        closest_point = QPointF(line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y())
 
-        distance = math.sqrt(
-            (point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2
-        )
+        distance = math.sqrt((point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2)
 
         return distance, closest_point
 
@@ -470,9 +466,7 @@ class Polygon(pg.ROI):
             start_point = self.handles[i]["item"].pos()
             end_point = self.handles[(i + 1) % num_points]["item"].pos()
 
-            distance, nearest_point = self._point_to_line_distance(
-                click_pos, start_point, end_point
-            )
+            distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
 
             if distance < min_distance and distance <= tolerance:
                 min_distance = distance

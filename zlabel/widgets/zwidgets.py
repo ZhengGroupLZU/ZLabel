@@ -139,10 +139,11 @@ class ZLabelItemWidget(QWidget):
         self.color = color
         self.clipboard = QGuiApplication.clipboard()
 
-        self.label_color = QPushButton("")
+        self.label_color = QPushButton()
         self.label_color.setMaximumWidth(30)
         self.label_color.clicked.connect(self.on_label_color_clicked)
         self.set_label_color(color)
+
         self.label_text = QLabel(text)
         self.btn_delete = QPushButton()
         self.btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
@@ -158,7 +159,7 @@ class ZLabelItemWidget(QWidget):
         self.setLayout(self.layout_)
 
     def set_label_color(self, color: str):
-        self.label_color.setStyleSheet(f"QPushButton {{margin: 1px; background-color : {color};}}")
+        self.label_color.setStyleSheet(f"QPushButton {{margin: 1px; background-color: {color};}}")
 
     def on_btn_delete_clicked(self):
         self.sigBtnDeleteClicked.emit(self.id_)

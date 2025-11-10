@@ -15,3 +15,7 @@ uv sync
 ```bash
 uv run main.py
 ```
+
+## TODO
+
+- [ ] hide some labels

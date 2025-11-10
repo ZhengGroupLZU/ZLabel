@@ -1,9 +1,12 @@
 import sys
 
+import pyqtgraph as pg
 from pyqtgraph.Qt.QtGui import QFont
 from pyqtgraph.Qt.QtWidgets import QApplication
 
 from zlabel.widgets.mainwindow import MainWindow
+
+pg.setConfigOptions(useOpenGL=True, useCupy=True, useNumba=True)
 
 
 def main():

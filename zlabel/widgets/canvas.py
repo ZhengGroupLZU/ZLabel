@@ -50,7 +50,8 @@ class Canvas(pg.PlotWidget):
         self._status_mode = status_mode
         self._draw_mode = DrawMode.RECTANGLE
         self._point_radius: float = 1.5
-        self._color = "#000000"
+        self._default_color = "#000000"
+        self._alpha: float = 0.5
         self._drawing = False
         self._z_value = 1
         self._is_editing_handle = False
@@ -179,12 +180,23 @@ class Canvas(pg.PlotWidget):
             raise ValueError(f"point radius must be between 0 and 20, got {v}")
 
     @property
-    def color(self):
-        return self._color
+    def default_color(self):
+        return self._default_color
 
-    @color.setter
-    def color(self, v: str):
-        self._color = v
+    @default_color.setter
+    def default_color(self, v: str):
+        self._default_color = v
+
+    @property
+    def alpha(self) -> float:
+        return self._alpha
+
+    @alpha.setter
+    def alpha(self, v: float):
+        if 0 < v < 1:
+            self._alpha = v
+        else:
+            raise ValueError(f"alpha must be between 0 and 1, got {v}")
 
     # endregion
 
@@ -222,10 +234,11 @@ class Canvas(pg.PlotWidget):
             )
         raise NotImplementedError
 
-    def set_color(self, color: str):
-        self.color = color
+    def set_color(self, color: str, alpha: float = 0.5):
+        self.default_color = color
+        self.alpha = alpha
         for item in self.showing_items.values():
-            item.setFillColor(color)
+            item.setFillColor(color, alpha)
 
     def set_rgb(self, mode: RgbMode):
         if self._image_backup is None:
@@ -364,7 +377,7 @@ class Canvas(pg.PlotWidget):
         movable=True,
         id_=None,
     ):
-        color = color or self.color
+        color = color or self.default_color
         # create a new one
         rect = QRectF(x, y, w, h)
         rectangle = Rectangle(
@@ -388,7 +401,7 @@ class Canvas(pg.PlotWidget):
         polygon = Polygon(
             positions=positions,
             closed=closed,
-            color=color or self.color,
+            color=color or self.default_color,
             movable=movable,
             id_=id_,
             antialias=False,
@@ -401,14 +414,14 @@ class Canvas(pg.PlotWidget):
             case DrawMode.RECTANGLE:
                 self.current_item = Rectangle(
                     QRectF(0, 0, 0, 0),
-                    color=self.color,
+                    color=self.default_color,
                     movable=False,
                 )  # type: ignore
             case DrawMode.POINT:
                 self.current_item = Circle(
                     pos=self.mouse_down_pos.toTuple(),  # type: ignore
                     radius=self.point_radius,
-                    color=self.color,
+                    color=self.default_color,
                 )
             case DrawMode.POLYGON:
                 # Initialize polygon with first committed vertex
@@ -422,7 +435,7 @@ class Canvas(pg.PlotWidget):
                 self.current_item = Polygon(
                     positions=[p.toTuple() for p in self.polygon_points_committed],
                     closed=False,
-                    color=self.color,
+                    color=self.default_color,
                     movable=False,
                 )
             case _:
@@ -620,6 +633,7 @@ class Canvas(pg.PlotWidget):
                 closed=True,
                 id_=result.id,
                 movable=True,
+                color=result.labels[0].color,
             )
             self.create_item(polygon)
         elif isinstance(result, RectangleResult):
@@ -635,7 +649,7 @@ class Canvas(pg.PlotWidget):
                 state["id"] = result.id
                 item.setState(state)
                 # item.set_fill_color(result.labels[0].color)
-                item.setFillColor(self.color)
+                item.setFillColor(self.default_color)
                 self.showing_items[state["id"]] = item
                 self.logger.debug(f"Find existed rect not visible {result.id=}")
                 item.setVisible(True)
@@ -648,6 +662,7 @@ class Canvas(pg.PlotWidget):
                 result.h,
                 id_=result.id,
                 movable=True,
+                color=result.labels[0].color,
             )
             self.create_item(rectangle)
         else:
@@ -873,11 +888,7 @@ class Canvas(pg.PlotWidget):
         self.sigMouseMoved.emit(pos)
 
         # Allow polygon live preview even when no mouse button is pressed
-        if (
-            self._status_mode == StatusMode.CREATE
-            and self._draw_mode == DrawMode.POLYGON
-            and self.current_item
-        ):
+        if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON and self.current_item:
             prev = self.polygon_preview_point
             # skip redundant updates when preview point unchanged
             if not (prev is not None and prev.x() == pos.x() and prev.y() == pos.y()):
@@ -1014,7 +1025,7 @@ class ZViewBox(pg.ViewBox):
             self.autoRange()
         super().mouseClickEvent(ev)
 
-    ## reimplement mouseDragEvent to disable continuous axis zoom
+    # reimplement mouseDragEvent to disable continuous axis zoom
     def mouseDragEvent(self, ev, axis=None):
         if axis and ev.button() == Qt.MouseButton.RightButton:
             ev.ignore()
