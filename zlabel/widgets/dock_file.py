@@ -16,11 +16,17 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         super().__init__(parent)
         self.setupUi(self)
         self.logger = ZLogger("ZDockFileContent")
+
         self.ledit_jump.setValidator(QIntValidator(1, 999999, self.ledit_jump))
+        self.ledit_jump.editingFinished.connect(self.on_ledit_jump_changed)
+
         self.table_files.itemClicked.connect(lambda it: self.set_qlabels())
         self.table_files.itemClicked.connect(lambda it: self.sigItemClicked.emit(it.id_))
-        self.ledit_jump.editingFinished.connect(self.on_ledit_jump_changed)
+        self.table_files.setWordWrap(True)
+        self.table_files.setTextElideMode(Qt.TextElideMode.ElideLeft)
+
         self.btn_fetch.clicked.connect(self.on_btn_fetch_clicked)
+
         self.ckbox_finished.checkStateChanged.connect(self.on_ckbox_finished_state_changed)
 
     def on_ckbox_finished_state_changed(self, state: Qt.CheckState):
@@ -53,9 +59,9 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         try:
             s = self.ledit_jump.text()
             row = int(s) - 1
-            item = self.table_files.item(row, 1)
+            item: ZTableWidgetItem = self.table_files.item(row, 1)  # type: ignore
             self.table_files.setCurrentCell(row, 0)
-            self.sigItemClicked.emit(item)
+            self.sigItemClicked.emit(item.id_)
         except Exception:
             ...
 
@@ -88,10 +94,11 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
                 0,
                 ZTableWidgetItem(task.anno_id, task.anno_id, finished=task.finished),
             )
+            filename = task.filename.split("/")[-1]
             self.table_files.setItem(
                 row,
                 1,
-                ZTableWidgetItem(task.anno_id, task.filename, finished=task.finished),
+                ZTableWidgetItem(task.anno_id, filename, finished=task.finished),
             )
             row += 1
 
@@ -135,13 +142,6 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
 
     def getItem(self, row: int) -> ZTableWidgetItem:
         return self.table_files.item(row, 1)  # type: ignore
-
-    def get_current_task_name(self) -> str:
-        row = self.currentRow()
-        if row < 0 or row >= self.table_files.rowCount():
-            return ""
-        item: ZTableWidgetItem = self.table_files.item(row, 1)  # type: ignore
-        return item.text()
 
     def get_current_task_id(self) -> str:
         row = self.currentRow()

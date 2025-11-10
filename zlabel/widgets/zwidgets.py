@@ -166,6 +166,8 @@ class ZLabelItemWidget(QWidget):
 
     def on_label_color_clicked(self):
         color = QColorDialog.getColor(QColor(self.color), self)
+        if not color.isValid():
+            return
         self.color = color.name()
         self.set_label_color(self.color)
         self.sigColorChanged.emit(self.id_)

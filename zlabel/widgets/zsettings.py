@@ -48,19 +48,25 @@ class ZSettings(BaseModel):
             for p in Path(self.project_root).glob("*")
             if p.is_dir() and (p.name == self.project_name if self.project_name else True)
         ]
+        self._project = Project(id=id_uuid4())
         if projs:
             path = projs[0] / f"{self.project_name}.json"
-            self._project = Project.model_validate_json(path.read_text(), strict=True)
-        else:
-            self._project = Project(id=id_uuid4())
-        self._project.key_label = list(self._project.labels.keys())[0]
+            if path.exists() and path.is_file():
+                self._project = Project.model_validate_json(path.read_text(), strict=True)
+        labels = list(self._project.labels.keys())
+        if labels:
+            self._project.key_label = labels[0]
 
     @field_validator("host", mode="before")
     @classmethod
     def is_http(cls, value: str) -> str:
-        if not value.startswith("http"):
+        # Allow empty host so users can configure it later in Settings.
+        # When non-empty, it must be a valid http(s) URL.
+        if not value:
+            return value
+        if not str(value).startswith("http"):
             raise ValueError(f"{value} is not a http url")
-        return value
+        return str(value)
 
     def save_json(self, path: str):
         p = Path(path)

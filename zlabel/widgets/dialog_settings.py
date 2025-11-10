@@ -1,8 +1,8 @@
 from pyqtgraph.Qt.QtCore import Qt, Signal
-from pyqtgraph.Qt.QtGui import QColor, QIcon
+from pyqtgraph.Qt.QtGui import QIcon
 from pyqtgraph.Qt.QtWidgets import QColorDialog, QDialog, QPushButton, QTableWidgetItem
 
-from zlabel.utils import id_uuid4
+from zlabel.utils import id_md5
 from zlabel.utils.enums import LogLevel
 from zlabel.utils.project import Label
 from zlabel.widgets.zsettings import ZSettings
@@ -95,28 +95,43 @@ class DialogSettings(QDialog, Ui_DialogSettings):
     def on_table_labels_item_changed(self, item: QTableWidgetItem):
         if self.settings is None or item.column() == 0:
             return
-        # ID
-        item_id = self.table_labels.item(item.row(), 0)
-        label_id = item_id.text().strip() if item_id else ""
-        if not label_id:
-            return
 
         # Name
-        if item.column() == 1:
-            label_name = item.text().strip()
-            self.settings.project.labels[label_id].name = label_name
-        # Color
-        elif item.column() == 2:
-            color = QColor(item.background().color())
-            self.settings.project.labels[label_id].color = color.name()
-
-    def on_btn_label_add_clicked(self):
-        if self.settings is None:
+        item_name = self.table_labels.item(item.row(), 1)
+        label_name = item_name.text().strip() if item_name else ""
+        if not item_name:
             return
 
-        label_id = id_uuid4()
-        self.settings.project.labels[label_id] = Label(id=label_id, name="")
-        self.add_row(self.settings.project.labels[label_id])
+        # ID
+        label_id = id_md5(label_name)
+        item_id = self.table_labels.item(item.row(), 0)
+        prev_id = item_id.text().strip() if item_id else ""
+        if item_id:
+            item_id.setText(label_id)
+        else:
+            self.table_labels.setItem(item.row(), 0, QTableWidgetItem(label_id))
+        # Determine current color from the row's color button (if present)
+        color_btn = self.table_labels.cellWidget(item.row(), 2)
+        color_text = "#000000"
+        if isinstance(color_btn, QPushButton):
+            t = color_btn.text().strip()
+            if t:
+                color_text = t.lower()
+        # If the ID changed due to a name edit, drop the old entry
+        if prev_id and prev_id != label_id:
+            self.settings.project.labels.pop(prev_id, None)
+
+        if label_id in self.settings.project.labels:
+            self.settings.project.labels[label_id].name = label_name
+            self.settings.project.labels[label_id].color = color_text
+        else:
+            self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color_text)
+
+        # Only handle name edits here; color is managed by the button widget
+        self.sigSettingsChanged.emit()
+
+    def on_btn_label_add_clicked(self):
+        self.add_row(Label(id="", name=""))
 
     def on_btn_label_delete_clicked(self):
         if self.settings is None:
@@ -126,11 +141,12 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         selected_rows = list({item.row() for item in selected_items})
         selected_rows.sort(reverse=True)
         for row in selected_rows:
-            self.table_labels.removeRow(row)
             label_item = self.table_labels.item(row, 0)
             if label_item:
                 label_id = label_item.text().strip()
                 self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(row)
+        self.sigSettingsChanged.emit()
 
     def on_btn_label_clear_clicked(self):
         if self.settings is None:
@@ -140,48 +156,86 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.table_labels.setRowCount(0)
 
     def add_row(self, label: Label, row: int | None = None):
-        def btn_item_select_color_clicked(btn: QPushButton, label_id: str):
-            color = QColorDialog.getColor()
-            if color.isValid():
-                btn.setStyleSheet(f"background-color: {color.name()}")
-                btn.setText(color.name().upper())
-                if self.settings is not None:
-                    self.settings.project.labels[label_id].color = color.name()
-
-        def btn_item_delete_clicked(label_id: str):
-            if self.settings is None:
-                return
-
-            self.settings.project.labels.pop(label_id, None)
-            for row in range(self.table_labels.rowCount()):
-                item = self.table_labels.item(row, 0)
-                if item and item.text().strip() == label_id:
-                    self.table_labels.removeRow(row)
-                    break
-
-        idx = row or self.table_labels.rowCount()
+        idx = row if row is not None else self.table_labels.rowCount()
         self.table_labels.insertRow(idx)
 
         # ID
-        self.table_labels.setItem(idx, 0, QTableWidgetItem(label.id))
-        item = self.table_labels.item(idx, 0)
-        if item:
-            item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        item = QTableWidgetItem("")
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        if label.id:
+            item.setText(label.id)
+        self.table_labels.setItem(idx, 0, item)
 
         # name
-        self.table_labels.setItem(idx, 1, QTableWidgetItem(label.name))
+        item = QTableWidgetItem("")
+        if label.name:
+            item.setText(label.name)
+        self.table_labels.setItem(idx, 1, item)
+
+        def btn_item_select_color_clicked(btn: QPushButton):
+            color = QColorDialog.getColor()
+            if not color.isValid():
+                return
+            btn.setStyleSheet(f"background-color: {color.name()}")
+            btn.setText(color.name().upper())
+            # Update settings with the selected color based on current row/name
+            if self.settings is None:
+                return
+            # find the row of this button
+            row_idx = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 2) is btn:
+                    row_idx = r
+                    break
+            if row_idx < 0:
+                return
+            item_name = self.table_labels.item(row_idx, 1)
+            label_name = item_name.text().strip() if item_name else ""
+            if not label_name:
+                # No name yet; just update button UI, wait for name input
+                return
+            label_id = id_md5(label_name)
+            item_id = self.table_labels.item(row_idx, 0)
+            if item_id:
+                item_id.setText(label_id)
+            else:
+                self.table_labels.setItem(row_idx, 0, QTableWidgetItem(label_id))
+            if label_id in self.settings.project.labels:
+                self.settings.project.labels[label_id].color = color.name()
+                self.settings.project.labels[label_id].name = label_name
+            else:
+                self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color.name())
+            self.sigSettingsChanged.emit()
+
+        def btn_item_delete_clicked(btn: QPushButton):
+            if self.settings is None:
+                return
+            # Identify the row from the clicked button
+            target_row = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 3) is btn:
+                    target_row = r
+                    break
+            if target_row < 0:
+                return
+            label_item_id = self.table_labels.item(target_row, 0)
+            label_id = label_item_id.text().strip() if label_item_id else ""
+            if label_id:
+                self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(target_row)
+            self.sigSettingsChanged.emit()
 
         # color
         btn_select_color = QPushButton("Select Color")
         btn_select_color.setStyleSheet(f"background-color: {label.color}")
         btn_select_color.setText(label.color.upper())
-        btn_select_color.clicked.connect(lambda: btn_item_select_color_clicked(btn_select_color, label.id))
+        btn_select_color.clicked.connect(lambda: btn_item_select_color_clicked(btn_select_color))
         self.table_labels.setCellWidget(idx, 2, btn_select_color)
 
         # delete
         btn_delete = QPushButton("Delete")
         btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
-        btn_delete.clicked.connect(lambda: btn_item_delete_clicked(label.id))
+        btn_delete.clicked.connect(lambda: btn_item_delete_clicked(btn_delete))
         self.table_labels.setCellWidget(idx, 3, btn_delete)
 
     def set_labels(self, labels: dict[str, Label]):

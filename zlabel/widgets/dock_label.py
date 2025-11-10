@@ -2,7 +2,7 @@ from pyqtgraph.Qt.QtCore import Signal
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Label
-from zlabel.utils.project import id_uuid4
+from zlabel.utils.project import id_md5
 from zlabel.widgets.zwidgets import ZLabelItemWidget, ZListWidgetItem
 
 from .ui import Ui_ZDockLabelContent
@@ -41,7 +41,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         txt = self.ledit_add_label.text()
         if not txt:
             return
-        label = Label(id=id_uuid4(), name=txt)
+        label = Label(id=id_md5(txt), name=txt)
         self.add_label(label)
         self.sigBtnIncreaseClicked.emit(label)
 

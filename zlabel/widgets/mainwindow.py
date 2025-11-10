@@ -81,10 +81,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
 
-        self.load_settings()
-
         self.init_ui()
         self.init_signals()
+        self.load_settings()
         self.ui_update_settings()
 
     # region properties
@@ -122,8 +121,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region functions
     def load_settings(self):
-        self.dialog_processing.show()
-
         path = Path(self.settings_path)
         if path.exists() and path.is_file():
             try:
@@ -131,25 +128,39 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.dialog_settings.load_settings(self.settings)
             except Exception as e:
                 self.logger.error(f"Load settings error: {e}")
+                self.settings = ZSettings()
+                self.dialog_settings.load_settings(self.settings)
+                if self.dialog_processing.isVisible():
+                    self.dialog_processing.close()
                 self.dialog_settings.show()
                 return
         else:
             path.parent.mkdir(parents=True, exist_ok=True)
+            self.settings = ZSettings()
             path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
+            self.dialog_settings.load_settings(self.settings)
+            if self.dialog_processing.isVisible():
+                self.dialog_processing.close()
             self.dialog_settings.show()
             return
-        # file exists and check passed
         self.user.name = self.settings.username
-        self.api_predict = SamApiHelper(
-            self.settings.username,
-            self.settings.password,
-            self.settings.host,
-        )
-        self.login()
+        if self.settings.host:
+            self.api_predict = SamApiHelper(
+                self.settings.username,
+                self.settings.password,
+                self.settings.host,
+            )
+            self.dialog_processing.show()
+            self.login()
+        else:
+            if self.dialog_processing.isVisible():
+                self.dialog_processing.close()
 
     def ui_update_settings(self):
+        self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
         self.set_loglevel(self.settings.log_level.name)
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
+        self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
 
     def login(self):
         # TODO: use async or worker?
@@ -436,6 +447,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proj.save_json(self.proj.project_path)
         self.ui_update_settings()
 
+    def on_dialog_settings_apply_clicked(self):
+        if self.settings.host:
+            self.api_predict = SamApiHelper(
+                self.settings.username,
+                self.settings.password,
+                self.settings.host,
+            )
+            self.dialog_processing.show()
+            self.login()
+        else:
+            if self.dialog_processing.isVisible():
+                self.dialog_processing.close()
+
     def set_loglevel(self, level: str):
         self.logger.info(f"Setting loglevel to {level}")
         self.logger.setLevel(level)
@@ -493,6 +517,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_action_zoom_out_triggered(self):
         self.canvas.view_box.scaleBy((1.1, 1.1))
+
+    def on_action_fit_window_triggered(self):
+        self.canvas.view_box.autoRange()
 
     def on_action_finish_triggered(self):
         if self.proj.crt_task is None or self.proj.crt_anno is None:
@@ -804,8 +831,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 )
                 return
         # TODO: if image already uploaded, ignore uploading image with points
-        image_name = self.dockcnt_files.get_current_task_name()
-        if not image_name:
+        if not (self.proj.crt_anno and self.proj.crt_anno.image_path):
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -816,7 +842,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker = ZSamPredictWorker(
             api=self.api_predict,
             anno_id=self.proj.crt_task.anno_id,
-            image=image_name,
+            image=self.proj.crt_anno.image_path,
             points=[(point.x(), point.y())],
             labels=[1.0],
             threshold=self.threshold,
@@ -872,8 +898,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 )
                 return
 
-        image_name = self.dockcnt_files.get_current_task_name()
-        if not image_name:
+        if not (self.proj.crt_anno and self.proj.crt_anno.image_path):
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -885,7 +910,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         worker = ZSamPredictWorker(
             api=self.api_predict,
             anno_id=self.proj.key_task,
-            image=image_name,
+            image=self.proj.crt_anno.image_path,
             rects=[(result.x, result.y, result.w, result.h)],
             threshold=self.threshold,
             mode=self.auto_mode,
@@ -1004,7 +1029,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             icon = QIcon()
             icon.addFile(icon_path, QSize(), QIcon.Mode.Normal, QIcon.State.Off)
             self.cmbox_anno_type.addItem(icon, anno_type)
-        self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
         self.toolBar.insertWidget(self.actionSAM, self.cmbox_anno_type)
 
         self.rgb_channels = [
@@ -1033,7 +1057,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def init_signals(self):
         # dialog
         self.dialog_settings.sigSettingsChanged.connect(self.on_dialog_settings_changed)
-        self.dialog_settings.sigApplyClicked.connect(self.load_settings)
+        self.dialog_settings.sigApplyClicked.connect(self.on_dialog_settings_apply_clicked)
         self.dialog_settings.destroyed.connect(self.dialog_processing.close)
 
         # actions
@@ -1062,6 +1086,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionVisible.triggered.connect(self.on_action_visible_triggered)
         self.actionZoom_in.triggered.connect(self.on_action_zoom_in_triggered)
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
+        self.actionFit_wiondow.triggered.connect(self.on_action_fit_window_triggered)
 
         self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
 

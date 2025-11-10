@@ -1,11 +1,11 @@
 import os
-import warnings
-from typing import List, Literal, Tuple, Union
+from typing import Literal
+
 from tap import Tap
 from tqdm.rich import tqdm  # type: ignore
 
 
-class SrcDst(object):
+class SrcDst:
     def __init__(self, src: str, dst: str) -> None:
         self.src = src
         self.dst = dst
@@ -22,8 +22,8 @@ def to_src_dst(s: str):
 
 class UicRccParser(Tap):
     pyside: Literal["pyside6", "pyside2"] = "pyside6"
-    uic_path: List[str]
-    rcc_path: List[str]
+    uic_path: list[str]
+    rcc_path: list[str]
 
     def process_args(self) -> None:
         self.uics = [to_src_dst(p) for p in self.uic_path]
@@ -59,7 +59,8 @@ if __name__ == "__main__":
         # f"{ui_dir}/dialog_model_manager.ui,{ui_dst}/dialog_model_manager.py",
     ]
     args = parser.parse_args([
-        "--uic_path", f"{ui_dir}/mainwindow.ui,{ui_dst}/mainwindow.py",
+        "--uic_path",
+        f"{ui_dir}/mainwindow.ui,{ui_dst}/mainwindow.py",
         f"{ui_dir}/dialog_processing.ui,{ui_dst}/dialog_processing.py",
         f"{ui_dir}/dialog_about.ui,{ui_dst}/dialog_about.py",
         f"{ui_dir}/dialog_settings.ui,{ui_dst}/dialog_settings.py",
@@ -67,7 +68,8 @@ if __name__ == "__main__":
         f"{ui_dir}/dock_file.ui,{ui_dst}/dock_file.py",
         f"{ui_dir}/dock_info.ui,{ui_dst}/dock_info.py",
         f"{ui_dir}/dock_label.ui,{ui_dst}/dock_label.py",
-        "--rcc_path", "zlabel/resources/icons.qrc,icons_rc.py",
+        "--rcc_path",
+        "zlabel/resources/icons.qrc,icons_rc.py",
     ])
     # args = parser.parse_args()
     main(args)
