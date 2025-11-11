@@ -10,6 +10,7 @@ class ResultUndoMode(Enum):
     REMOVE = 1
     MODIFY = 2
     MERGE = 3
+    MODIFY_NO_UPDATE = 4
 
 
 class ZResultUndoCmd(QUndoCommand):
@@ -26,7 +27,7 @@ class ZResultUndoCmd(QUndoCommand):
         self.results_old = results_old
         self.mode = mode
         # with modify, results_old must be provided
-        assert results_old or self.mode != ResultUndoMode.MODIFY
+        assert results_old or self.mode != ResultUndoMode.MODIFY or self.mode == ResultUndoMode.MODIFY_NO_UPDATE
 
     def redo(self):
         if self.mode == ResultUndoMode.ADD:
@@ -35,6 +36,8 @@ class ZResultUndoCmd(QUndoCommand):
             self.mw.remove_results([r.id for r in self.results])
         elif self.mode == ResultUndoMode.MODIFY:
             self.mw.modify_results(self.results, update=True)
+        elif self.mode == ResultUndoMode.MODIFY_NO_UPDATE:
+            self.mw.modify_results(self.results, update=False)
         # TODO: add merge
         else:
             raise NotImplementedError
@@ -46,6 +49,8 @@ class ZResultUndoCmd(QUndoCommand):
             self.mw.add_results(self.results)
         elif self.mode == ResultUndoMode.MODIFY:
             self.mw.modify_results(self.results_old, update=False)
+        elif self.mode == ResultUndoMode.MODIFY_NO_UPDATE:
+            self.mw.modify_results(self.results_old, update=True)
         # TODO: add merge
         else:
             raise NotImplementedError

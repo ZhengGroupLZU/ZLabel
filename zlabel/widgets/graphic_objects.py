@@ -169,6 +169,7 @@ class Polygon(pg.ROI):
     ):
         self.id_: str = id_ or id_uuid4()
         self.closed: bool = closed
+        self.points = [pg.Point(p) for p in positions]
         ROI.__init__(
             self,
             pos,
@@ -181,15 +182,15 @@ class Polygon(pg.ROI):
 
         self.alpha: float = alpha
         self._selected: bool = False
-        self._update_pending: bool = False  # 防止频繁更新
+        self._update_pending: bool = False
 
         self.fill_color: QColor = QColor(color)
         self.fill_color.setAlphaF(self.alpha)
         self.brush: QBrush = QBrush(self.fill_color)
-        self.hoverPen.setStyle(Qt.PenStyle.DashLine)
 
-        self.setPoints(positions)
-        self.hideHandles()
+    @property
+    def handles_created(self):
+        return len(self.handles) > 0
 
     def setPoints(self, points, closed: bool | None = None, update=True):
         """
@@ -205,20 +206,12 @@ class Polygon(pg.ROI):
 
         """
         self.closed = closed or self.closed
+        self.points = [pg.Point(p) for p in points]
 
-        self.clearPoints(finish=False)
-
-        for p in points:
-            self.addFreeHandle(p, finish=False)
         self.stateChanged(finish=update)
 
     def clearPoints(self, finish=True):
-        """
-        Remove all handles and segments.
-        """
-        # batch remove and then update
-        while len(self.handles) > 0:
-            self.removeHandle(self.handles[0]["item"], finish=False)
+        self.points.clear()
         self.stateChanged(finish=finish)
 
     def setMovable(self, movable: bool):
@@ -232,14 +225,26 @@ class Polygon(pg.ROI):
         self._selected = s
         super().setSelected(s)
 
+        if s and not self.handles_created:
+            self._createHandles()
+        elif s and self.handles_created:
+            self.showHandles()
+        elif not s and self.handles_created:
+            self._removeHandles()
+
     def isSelected(self):
         return self._selected
 
     def getState(self):
+        if self.handles:
+            points = [pg.Point(h.pos()) for h in self.getHandles()]
+        else:
+            points = [pg.Point(p[0], p[1]) for p in self.points]
+
         return {
             **ROI.getState(self),
             "id": self.id_,
-            "points": [pg.Point(h.pos()) for h in self.getHandles()],
+            "points": points,
             "closed": self.closed,
         }
 
@@ -247,7 +252,12 @@ class Polygon(pg.ROI):
         state: dict[str, Any] = ROI.saveState(self)
         state["closed"] = self.closed
         state["id"] = self.id_
-        state["points"] = [tuple(h.pos()) for h in self.getHandles()]
+
+        if self.handles:
+            state["points"] = [tuple(h.pos()) for h in self.getHandles()]
+        else:
+            state["points"] = [(p[0], p[1]) for p in self.points]
+
         return state
 
     def setState(self, state, update: bool = True):
@@ -256,9 +266,9 @@ class Polygon(pg.ROI):
         self.setAngle(state["angle"], update=False)
         self.setPoints(state["points"], closed=state["closed"], update=False)
         if self.isSelected():
-            self.showHandles()
+            self._createHandles()
         else:
-            self.hideHandles()
+            self._removeHandles()
         self.stateChanged(finish=update)
 
     def setMouseHover(self, hover):
@@ -361,34 +371,48 @@ class Polygon(pg.ROI):
         p.scale(r.width(), r.height())
 
         if len(self.handles) > 1:
-            polygon = QPolygonF([QPointF(h["pos"].x(), h["pos"].y()) for h in self.handles])
-            if self.closed:
-                p.drawPolygon(polygon)
-            else:
-                p.drawPolyline(polygon)
+            # Use actual handle item positions so the drawing reflects edits immediately
+            polygon = QPolygonF([QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles])
+        else:
+            polygon = QPolygonF([QPointF(p[0], p[1]) for p in self.points])
+        if self.closed:
+            p.drawPolygon(polygon)
+        else:
+            p.drawPolyline(polygon)
 
     def boundingRect(self):
         return self.shape().boundingRect()
 
     def shape(self):
         p = QPainterPath()
-        if len(self.handles) == 0:
+
+        points_to_use = []
+        if self.points:
+            points_to_use = [QPointF(p[0], p[1]) for p in self.points]
+        elif len(self.handles) > 0:
+            points_to_use = [h["item"].pos() for h in self.handles]
+
+        if not points_to_use:
             return p
-        p.moveTo(self.handles[0]["item"].pos())
-        for i in range(len(self.handles)):
-            p.lineTo(self.handles[i]["item"].pos())
-        p.lineTo(self.handles[0]["item"].pos())
+
+        p.moveTo(points_to_use[0])
+        for i in range(1, len(points_to_use)):
+            p.lineTo(points_to_use[i])
+        if self.closed and len(points_to_use) > 2:
+            p.lineTo(points_to_use[0])
         return p
 
     def area(self) -> float:
         """area = 1/2 * |Σ(x_i * y_{i+1} - x_{i+1} * y_i)|"""
-        if not self.closed or len(self.handles) < 3:
+        if self.points:
+            points = self.points
+        elif len(self.handles) >= 3:
+            points = [(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles]
+        else:
             return 0.0
 
-        points = []
-        for handle in self.handles:
-            pos = handle["item"].pos()
-            points.append((pos.x(), pos.y()))
+        if not self.closed or len(points) < 3:
+            return 0.0
 
         n = len(points)
         area = 0.0
@@ -451,20 +475,24 @@ class Polygon(pg.ROI):
         click_pos: QPointF,
         tolerance: float = 5.0,
     ) -> tuple[int, QPointF] | None:
-        if len(self.handles) < 2:
+        if self.points:
+            points = [QPointF(p[0], p[1]) for p in self.points]
+        elif len(self.handles) >= 2:
+            points = [h["item"].pos() for h in self.handles]
+        else:
             return None
 
         min_distance = float("inf")
         closest_edge_index = -1
         closest_point: QPointF | None = None
 
-        num_points = len(self.handles)
+        num_points = len(points)
         for i in range(num_points):
             if not self.closed and i == num_points - 1:
                 break
 
-            start_point = self.handles[i]["item"].pos()
-            end_point = self.handles[(i + 1) % num_points]["item"].pos()
+            start_point = points[i]
+            end_point = points[(i + 1) % num_points]
 
             distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
 
@@ -506,6 +534,8 @@ class Polygon(pg.ROI):
 
                 if edge_info:
                     edge_index, insert_point = edge_info
+                    if not self.handles_created:
+                        self._createHandles()
                     self._insert_point_at_edge(edge_index, insert_point)
                     self.stateChangeFinished()
                     ev.accept()
@@ -516,6 +546,7 @@ class Polygon(pg.ROI):
                     self.setSelected(True)
                 else:
                     self.setSelected(False)
+                self.sigClicked.emit(self, ev)
             else:
                 ev.ignore()
                 return
@@ -528,6 +559,25 @@ class Polygon(pg.ROI):
         else:
             ev.ignore()
             return super().mouseDragEvent(ev)
+
+    def _createHandles(self):
+        if self.handles_created:
+            return
+
+        if self.handles:
+            self._removeHandles()
+        for p in self.points:
+            self.addFreeHandle(p, finish=False)
+        self.stateChanged(finish=False)
+
+    def _removeHandles(self):
+        if not self.handles_created:
+            return
+
+        self.points = [pg.Point(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles]
+
+        while self.handles:
+            self.removeHandle(0)
 
 
 class Circle(pg.CircleROI):

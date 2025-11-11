@@ -28,6 +28,7 @@ class SamApiHelper:
         self.get_image_api: str = f"{self.sam_api}/api/v1/get_image"
         self.get_zlabel_api: str = f"{self.sam_api}/api/v1/get_zlabel"
         self.save_zlabel_api: str = f"{self.sam_api}/api/v1/save_zlabel"
+        self.get_projects_api: str = f"{self.sam_api}/api/v1/get_projects"
         self.get_tasks_api: str = f"{self.sam_api}/api/v1/get_tasks"
 
         self.headers = {
@@ -145,13 +146,21 @@ class SamApiHelper:
             self.logger.error(f"Get anno failed, {resp.text=}")
             return None
 
-    def get_tasks(self, num: int = 50, finished: int = 1):
+    def get_projects(self) -> list[dict[str, Any]] | None:
+        resp = requests.get(self.get_projects_api, headers=self.headers)
+        if resp.status_code == 200:
+            return resp.json()["data"]
+        else:
+            self.logger.error(f"Get projects failed, {resp.text=}")
+            return None
+
+    def get_tasks(self, project_id: int = -1, num: int = 50, finished: int = 1):
         """
         finished: -1: all, 0: unfinished, 1: finished
         """
         resp = requests.get(
             self.get_tasks_api,
-            params={"num": num, "finished": finished},
+            params={"project_id": project_id, "num": num, "finished": finished},
             headers=self.headers,
         )
         if resp.status_code == 200:

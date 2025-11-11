@@ -54,8 +54,12 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_password.textEdited.connect(lambda v: self.on_settings_changed("password", v))
         self.dspbox_alpha.valueChanged.connect(lambda v: self.on_settings_changed("alpha", v))
 
-        self.ledit_projname.textEdited.connect(lambda v: self.on_settings_changed("project_name", v))
-        self.ledit_prjdesc.textEdited.connect(lambda v: self.on_settings_changed("project_desc", v))
+        self.ledit_projname.editingFinished.connect(
+            lambda: self.on_settings_changed("project_name", self.ledit_projname.text().strip())
+        )
+        self.ledit_prjdesc.editingFinished.connect(
+            lambda: self.on_settings_changed("project_desc", self.ledit_prjdesc.text().strip())
+        )
 
         # Track edits in the labels table
         self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)
@@ -81,11 +85,11 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.password = str(v)
         elif k == "alpha":
             self.settings.alpha = float(v)
-        elif k == "project_name":
-            self.settings.project.name = str(v)
-            self.settings.project_name = str(v)
-        elif k == "project_desc":
-            self.settings.project.description = str(v)
+        # elif k == "project_name":
+        #     self.settings.project.name = str(v)
+        #     self.settings.project_name = str(v)
+        # elif k == "project_desc":
+        #     self.settings.project.description = str(v)
         elif k == "log_level":
             self.settings.log_level = LogLevel(int(v))
         else:
@@ -93,13 +97,13 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.sigSettingsChanged.emit()
 
     def on_table_labels_item_changed(self, item: QTableWidgetItem):
-        if self.settings is None or item.column() == 0:
+        if self.settings is None or self.sender() != self.table_labels or item.column() == 0:
             return
 
         # Name
         item_name = self.table_labels.item(item.row(), 1)
         label_name = item_name.text().strip() if item_name else ""
-        if not item_name:
+        if not label_name:
             return
 
         # ID

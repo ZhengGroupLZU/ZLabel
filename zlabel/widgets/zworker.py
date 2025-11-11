@@ -226,6 +226,39 @@ class ZGetImageWorker(QRunnable):
             self.emitter.fail.emit(f"Get image {self.filename} failed")
 
 
+class GetProjectsEmitter(QObject):
+    success = Signal(object)
+    fail = Signal(object)
+
+
+class GetProjectsWorker(QRunnable):
+    def __init__(
+        self,
+        api: SamApiHelper,
+        username: str | None = None,
+        password: str | None = None,
+    ) -> None:
+        super().__init__()
+
+        self.api = api
+        self.username = username
+        self.password = password
+        self.emitter = GetProjectsEmitter()
+
+    def run(self) -> None:
+        if not self.api.user_token and self.username and self.password:
+            self.api.login(self.username, self.password)
+        projects = self.api.get_projects()
+        if projects is not None:
+            try:
+                project_list = [(p["id"], p["name"]) for p in projects]
+                self.emitter.success.emit(project_list)
+            except Exception as e:
+                self.emitter.fail.emit(f"Get projects failed with {e=}")
+        else:
+            self.emitter.fail.emit("Get projects failed")
+
+
 class GetTasksEmitter(QObject):
     success = Signal(object)
     fail = Signal(object)
@@ -237,6 +270,7 @@ class ZGetTasksWorker(QRunnable):
         api: SamApiHelper,
         num: int,
         finished: int = 1,
+        project_id: int = -1,
         username: str | None = None,
         password: str | None = None,
     ) -> None:
@@ -247,12 +281,13 @@ class ZGetTasksWorker(QRunnable):
         self.password = password
         self.num = num
         self.finished = finished
+        self.project_id = project_id
         self.emitter = GetTasksEmitter()
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
-        tasks = self.api.get_tasks(self.num, self.finished)
+        tasks = self.api.get_tasks(self.project_id, self.num, self.finished)
         if tasks is not None:
             try:
                 task_list = [Task.model_validate(t) for t in tasks]

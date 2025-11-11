@@ -206,11 +206,13 @@ class Ui_DialogSettings(object):
 
         self.ledit_projname = QLineEdit(self.groupBox_4)
         self.ledit_projname.setObjectName(u"ledit_projname")
+        self.ledit_projname.setEnabled(False)
 
         self.gridLayout_3.addWidget(self.ledit_projname, 0, 1, 1, 2)
 
         self.ledit_prjdesc = QLineEdit(self.groupBox_4)
         self.ledit_prjdesc.setObjectName(u"ledit_prjdesc")
+        self.ledit_prjdesc.setEnabled(False)
 
         self.gridLayout_3.addWidget(self.ledit_prjdesc, 1, 1, 1, 2)
 

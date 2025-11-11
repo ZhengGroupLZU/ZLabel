@@ -10,7 +10,7 @@ from .ui import Ui_ZDockFileContent
 
 class ZDockFileContent(QWidget, Ui_ZDockFileContent):
     sigItemClicked = Signal(str)
-    sigFetchTasks = Signal(int, int)
+    sigFetchTasks = Signal(int, int, int)  # project_id, fetch_num, fetch_finished
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -29,6 +29,10 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
 
         self.ckbox_finished.checkStateChanged.connect(self.on_ckbox_finished_state_changed)
 
+    def set_cmbox_projects(self, list_projects: list[str]):
+        self.cmbox_project.clear()
+        self.cmbox_project.addItems(list_projects)
+
     def on_ckbox_finished_state_changed(self, state: Qt.CheckState):
         if state == Qt.CheckState.Checked:
             self.ckbox_finished.setText("Finished")
@@ -40,6 +44,9 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
             ...
 
     def on_btn_fetch_clicked(self):
+        project_id = -1
+        if self.cmbox_project.count() > 0:
+            project_id = self.cmbox_project.currentIndex()
         fetch_finished = 0
         try:
             if self.cbox_fetch_num.currentIndex() == self.cbox_fetch_num.count() - 1:
@@ -53,7 +60,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
         except Exception as e:
             num = 100
             self.logger.warning(f"fetch num error: {e}, using default: {num}")
-        self.sigFetchTasks.emit(num, fetch_finished)
+        self.sigFetchTasks.emit(project_id, num, fetch_finished)
 
     def on_ledit_jump_changed(self):
         try:

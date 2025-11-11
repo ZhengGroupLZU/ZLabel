@@ -67,7 +67,7 @@ class Canvas(pg.PlotWidget):
         self.addItem(self.image_item)
 
         self.current_item: Rectangle | Circle | Polygon | None = None
-        self.selecting_item: Rectangle | Polygon | None = None
+        self.selecting_item: Rectangle | None = None
         self.showing_items: OrderedDict[str, Rectangle | Polygon] = OrderedDict()
         # Committed polygon points added by user clicks during CREATE mode
         self.polygon_points_committed: list[pg.Point] = []
@@ -323,11 +323,6 @@ class Canvas(pg.PlotWidget):
         This method does not modify committed points; it only prepares a state
         for updating the current polygon during CREATE mode.
         """
-        # Base ROI transform stays static for polygon drawing
-        pos = pg.Point(0.0, 0.0)
-        size = pg.Point(1.0, 1.0)
-        angle = 0
-
         # Compose points: committed vertices + optional preview vertex
         points: list[pg.Point] = list(self.polygon_points_committed)
         if self.polygon_preview_point is not None:
@@ -337,14 +332,16 @@ class Canvas(pg.PlotWidget):
             return {}
 
         return {
-            "pos": pos,
-            "size": size,
-            "angle": angle,
+            "pos": pg.Point(0.0, 0.0),
+            "size": pg.Point(1.0, 1.0),
+            "angle": 0,
             "points": points,
             "closed": False,
         }
 
     def get_drawing_item_state(self) -> dict[str, Any]:
+        if self.selecting_item is not None:
+            return self.get_drawing_rectangle_state()
         match self._draw_mode:
             case DrawMode.RECTANGLE:
                 return self.get_drawing_rectangle_state()
@@ -742,10 +739,7 @@ class Canvas(pg.PlotWidget):
     def select_item(self, id_: str):
         for item in self.items():
             if isinstance(item, (Rectangle, Circle, Polygon)):
-                if item.id_ == id_:
-                    item.setSelected(True)
-                else:
-                    item.setSelected(False)
+                item.setSelected(item.id_ == id_)
         self.update()
 
     def item_at_point(self, point: QPoint | QPointF):
@@ -780,19 +774,19 @@ class Canvas(pg.PlotWidget):
             self.sigItemClicked.emit(item.id_)
 
     def on_item_state_change_started(self, item: Rectangle | Polygon):
-        if item == self.selecting_item:
+        if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
         self.sigItemStateChangeStarted.emit(item.getState())
-        # self.logger.debug("Item state change started")
+        self.logger.debug("Item state change started")
 
     def on_item_state_change_finished(self, item: Rectangle | Polygon):
-        if item == self.selecting_item:
+        if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
         self.sigItemStateChangeFinished.emit(item.getState())
         self.logger.debug("Item state change Finished")
 
     def on_item_state_changed(self, item: Rectangle | Polygon):
-        if item == self.selecting_item:
+        if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
         self.sigItemStateChanged.emit(item.getState())
         # self.logger.debug("Item state changed")
@@ -916,8 +910,7 @@ class Canvas(pg.PlotWidget):
             elif self._status_mode == StatusMode.EDIT:
                 state = self.get_drawing_item_state()
                 if self.selecting_item and state and isinstance(self.selecting_item, Rectangle):
-                    state["id"] = self.selecting_item.id_
-                    self.selecting_item.setState(state, update=False)
+                    self.selecting_item.setState(state, update=True)
                     ev.accept()
                     return
             elif self._status_mode == StatusMode.VIEW:
@@ -934,7 +927,7 @@ class Canvas(pg.PlotWidget):
                         self.stop_drawing()
                     ev.accept()
                     return
-                # POLYGON keeps drawing until double-click to close
+                # POLYGON keeps drawing until Enter/Space to close
                 ev.accept()
                 return
             elif self._status_mode == StatusMode.EDIT:
@@ -977,12 +970,6 @@ class Canvas(pg.PlotWidget):
         return super().mouseReleaseEvent(ev)
 
     def mouseDoubleClickEvent(self, ev: QMouseEvent):
-        if self._status_mode == StatusMode.CREATE:
-            # Double-click in POLYGON mode closes and finalizes the polygon
-            if self._draw_mode == DrawMode.POLYGON and self.current_item is not None:
-                self.stop_drawing()
-                ev.accept()
-                return
         super().mouseDoubleClickEvent(ev)
 
     def keyPressEvent(self, ev: QKeyEvent) -> None:
@@ -1004,8 +991,8 @@ class Canvas(pg.PlotWidget):
                 self.undo_last_polygon_point(self.last_mouse_pos_view)
                 ev.accept()
                 return
-            # Enter/Return finalizes the polygon (equivalent to double-click)
-            if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter):
+            # Enter / Return / Space finalizes the polygon
+            if ev.key() in (Qt.Key.Key_Return, Qt.Key.Key_Enter, Qt.Key.Key_Space):
                 if self._drawing and self.current_item is not None:
                     self.stop_drawing()
                     ev.accept()

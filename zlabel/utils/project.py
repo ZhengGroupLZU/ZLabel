@@ -325,7 +325,7 @@ class Project(BaseModel):
     def save_json(self, path: str | Path):
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
-        p.write_text(self.model_dump_json(ensure_ascii=False, indent=4, exclude={}))
+        p.write_text(self.model_dump_json(ensure_ascii=False, indent=2, exclude={"tasks": True}))
 
     def reset_task_key(self):
         if len(self.tasks) > 0:

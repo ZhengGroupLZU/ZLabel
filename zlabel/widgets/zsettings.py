@@ -22,9 +22,22 @@ class ZSettings(BaseModel):
     cv_enabled: bool = False
     sam_enabled: bool = False
 
+    projects: list[tuple[int, str]] = []
     project_root: str = "projects"
-    project_name: str = ""
+    project_idx: int = -1
     _project: Project = PrivateAttr()
+
+    @property
+    def project_id(self) -> int:
+        if self.project_idx < 0 or self.project_idx >= len(self.projects):
+            return -1
+        return self.projects[self.project_idx][0]
+
+    @property
+    def project_name(self) -> str:
+        if self.project_idx < 0 or self.project_idx >= len(self.projects):
+            return ""
+        return self.projects[self.project_idx][1]
 
     @property
     def project(self) -> Project:
@@ -42,7 +55,7 @@ class ZSettings(BaseModel):
     def project_anno_dir(self) -> Path:
         return self.project_dir / "annos"
 
-    def model_post_init(self, context: Any) -> None:
+    def reload_project(self):
         projs = [
             p
             for p in Path(self.project_root).glob("*")
@@ -53,9 +66,17 @@ class ZSettings(BaseModel):
             path = projs[0] / f"{self.project_name}.json"
             if path.exists() and path.is_file():
                 self._project = Project.model_validate_json(path.read_text(), strict=True)
+        else:
+            project_dir = Path(self.project_root) / self.project_name
+            project_dir.mkdir(parents=True, exist_ok=True)
+            self._project.name = self.project_name
+            self._project.save_json(project_dir / f"{self.project_name}.json")
         labels = list(self._project.labels.keys())
         if labels:
             self._project.key_label = labels[0]
+
+    def model_post_init(self, context: Any) -> None:
+        self.reload_project()
 
     @field_validator("host", mode="before")
     @classmethod

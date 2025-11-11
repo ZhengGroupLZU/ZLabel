@@ -136,6 +136,11 @@ class Ui_ZDockFileContent(object):
 
         self.gridLayout.addWidget(self.btn_fetch, 1, 2, 1, 1)
 
+        self.cmbox_project = QComboBox(ZDockFileContent)
+        self.cmbox_project.setObjectName(u"cmbox_project")
+
+        self.gridLayout.addWidget(self.cmbox_project, 1, 1, 1, 1)
+
 
         self.verticalLayout.addLayout(self.gridLayout)
 

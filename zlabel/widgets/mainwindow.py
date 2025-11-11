@@ -47,6 +47,7 @@ from zlabel.widgets import (
     ZSlider,
     ZUploadFileWorker,
 )
+from zlabel.widgets.zworker import GetProjectsWorker
 
 from .ui import Ui_MainWindow
 
@@ -63,8 +64,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         super().__init__()
         self.logger = ZLogger("MainWindow")
         self.settings_path = "zlabel.conf"
-        self.settings: ZSettings
-        self.api_predict: SamApiHelper
+        self.settings: ZSettings = ZSettings()
+        self.api_predict: SamApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
         self.dialog_processing: DialogProcessing = DialogProcessing(parent=self)
 
@@ -161,15 +162,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.set_loglevel(self.settings.log_level.name)
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
+        self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
+        self.actionSAM.setChecked(self.settings.sam_enabled)
+        self.actionOpenCV.setChecked(self.settings.cv_enabled)
+        title = "ZLabel"
+        if self.settings.project_name:
+            title += f" - {self.settings.project_name}"
+        self.setWindowTitle(title)
+
+        if len(self.proj.tasks) > 0:
+            tasks = list(self.proj.tasks.values())
+            if self.proj.key_task is None:
+                self.proj.key_task = list(self.proj.tasks.keys())[0]
+            self.dockcnt_files.set_file_list(tasks)
+            self.dockcnt_files.set_row_by_txt(self.proj.key_task)
+
+            if self.proj.crt_anno is None:
+                self.on_dock_files_item_clicked(self.proj.key_task)
+            if self.proj.crt_anno and len(self.proj.labels) > 0:
+                self.proj.key_label = list(self.proj.labels.keys())[0]
+
+        if self.proj.crt_anno and self.proj.labels:
+            self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
+            self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
+            self.canvas.create_items_by_anno(self.proj.crt_anno)
+            self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self.try_set_image()
 
     def login(self):
         # TODO: use async or worker?
+        if self.api_predict is None:
+            return
         self.login_thread = ZLoginThread(
             self.api_predict,
             self.settings.username,
             self.settings.password,
         )
         self.login_thread.login_success.connect(self.on_login_success)
+        self.login_thread.login_success.connect(lambda _: self.load_projects_remote())
+        self.login_thread.login_success.connect(lambda _: self.ui_update_settings())
         self.login_thread.login_fail.connect(self.on_login_failed)
         self.login_thread.finished.connect(self.login_thread.quit)
         self.login_thread.finished.connect(self.login_thread.deleteLater)
@@ -194,29 +225,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.dialog_settings.isVisible():
             self.dialog_settings.close()
 
-        self.actionSAM.setChecked(self.settings.sam_enabled)
-        self.actionOpenCV.setChecked(self.settings.cv_enabled)
-
-        if len(self.proj.tasks) > 0:
-            tasks = list(self.proj.tasks.values())
-            if self.proj.key_task is None:
-                self.proj.key_task = list(self.proj.tasks.keys())[0]
-            self.dockcnt_files.set_file_list(tasks)
-            self.dockcnt_files.set_row_by_txt(self.proj.key_task)
-
-            if self.proj.crt_anno is None:
-                self.on_dock_files_item_clicked(self.proj.key_task)
-            if self.proj.crt_anno and len(self.proj.labels) > 0:
-                self.proj.key_label = list(self.proj.labels.keys())[0]
-
-        if self.proj.crt_anno and self.proj.labels:
-            self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
-            self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
-            self.canvas.create_items_by_anno(self.proj.crt_anno)
-            self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
-        self.try_set_image()
-
         self.dialog_processing.close()
+
+    def load_projects_remote(self):
+        if self.api_predict is None:
+            return
+        worker = GetProjectsWorker(
+            self.api_predict,
+            self.settings.username,
+            self.settings.password,
+        )
+        worker.emitter.success.connect(self.on_get_projects_success)
+        worker.emitter.fail.connect(self.on_get_projects_failed)
+        self.threadpool.start(worker)
+
+    def on_get_projects_success(self, projects: list[tuple[int, str]]):
+        # no need to save, request everytime
+        self.settings.projects = projects
+        self.dockcnt_files.set_cmbox_projects([p[1] for p in projects])
+        self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
+
+    def on_get_projects_failed(self, msg: str):
+        QMessageBox.critical(
+            self,
+            "Error",
+            f"Get Projects Failed, {msg=}",
+            QMessageBox.StandardButton.Ok,
+        )
 
     def refresh_tasks(self, tasks: list[Task]):
         self.proj.tasks.clear()
@@ -248,10 +283,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return tasks
 
     def load_tasks_remote(self):
+        if self.api_predict is None:
+            return
         worker = ZGetTasksWorker(
             self.api_predict,
             self.settings.fetch_num,
             self.settings.fetch_type.value,
+            self.settings.project_id,
             self.settings.username,
             self.settings.password,
         )
@@ -280,7 +318,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
     def try_set_image(self, image: Image.Image | None = None):
-        if self.proj.crt_task is None:
+        if self.proj.crt_task is None or self.api_predict is None:
             return
         if image is None:
             img_name = self.proj.crt_task.filename
@@ -425,7 +463,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.proj.reset_task_key()
 
     def run_preupload_img_worker(self, image: Image.Image | None):
-        if self.proj.crt_anno is None or image is None:
+        if self.proj.crt_anno is None or image is None or self.api_predict is None:
             return
         self.preupload_worker = ZPreuploadImageWorker(
             self.api_predict,
@@ -465,7 +503,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.setLevel(level)
         if getattr(self, "canvas", None) is not None:
             self.canvas.logger.setLevel(level)
-        if getattr(self, "api_predict", None) is not None:
+        if self.api_predict is not None:
             self.api_predict.logger.setLevel(level)
 
     # def check_login(self):
@@ -522,7 +560,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.view_box.autoRange()
 
     def on_action_finish_triggered(self):
-        if self.proj.crt_task is None or self.proj.crt_anno is None:
+        if self.proj.crt_task is None or self.proj.crt_anno is None or self.api_predict is None:
             return
         self.on_action_save_triggered()
         filename = f"{self.settings.project_anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
@@ -555,7 +593,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_action_SAM_triggered(self):
         self.settings.sam_enabled = self.actionSAM.isChecked()
-        self.on_dialog_settings_changed()
+        self.settings.save_json(self.settings_path)
         msg = []
         if self.settings.sam_enabled:
             msg.append("SAM")
@@ -566,7 +604,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_action_opencv_triggered(self):
         self.settings.cv_enabled = self.actionOpenCV.isChecked()
-        self.on_dialog_settings_changed()
+        self.settings.save_json(self.settings_path)
         msg = []
         if self.settings.sam_enabled:
             msg.append("SAM")
@@ -622,6 +660,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if index < 0 or index >= len(self.annotation_types):
             return
         self.settings.annotation_type = AnnotationType(index)
+        self.settings.save_json(self.settings_path)
 
     def on_cmbox_rgb_index_changed(self, index: int):
         if index < 0 or index >= len(self.rgb_channels):
@@ -665,11 +704,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.proj.save_json(self.proj.project_path)
 
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
-        if self.proj.crt_anno:
+        if self.is_current_anno_ok():
             self.proj.key_label = item.id_
-            label = self.proj.labels[item.id_]
-            if self.proj.crt_result:
-                self.proj.crt_result.labels = [label]
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -689,10 +725,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # region DockInfo
     # DockInfo #####
     def on_dock_info_ledit_note_changed(self, s: str):
-        if self.proj.crt_result is None:
-            self.logger.warning(f"Current Result is None, {self.proj.crt_anno=}")
-            return
-        self.proj.crt_result.note = s
+        if self.proj.crt_result:
+            self.proj.crt_result.note = s
 
     def on_dock_info_btn_del_clicked(self):
         self.canvas.remove_selected_items()
@@ -735,6 +769,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.proj.key_task = task_id
         if self.proj.crt_task is None:
             self.logger.warning(f"Current task is None, {self.proj.tasks=}")
+            return
+        if self.api_predict is None:
+            self.logger.warning(f"ApiPredict is None, {self.api_predict=}")
             return
 
         # if the current anno is None:
@@ -781,9 +818,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # clear items in canvas
         self.canvas.update_by_anno(self.proj.crt_anno)
 
-    def on_dock_files_fetch_tasks(self, num: int, finished: int):
+    def on_dock_files_fetch_tasks(self, project_idx: int, num: int, finished: int):
+        if self.settings.project_idx != project_idx:
+            self.settings.reload_project()
+        self.settings.project_idx = project_idx
+        self.settings.project.name = self.settings.project_name
         self.settings.fetch_num = num
         self.settings.fetch_type = FetchType(finished)
+        self.settings.save_json(self.settings_path)
         self.load_tasks_remote()
 
     # endregion
@@ -836,6 +878,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self,
                 "Warning",
                 "Please select a task first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        if self.api_predict is None:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "ApiPredict is None, please login first!",
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -906,7 +956,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-
+        if self.api_predict is None:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                "ApiPredict is None, please login first!",
+                QMessageBox.StandardButton.Ok,
+            )
+            return
         worker = ZSamPredictWorker(
             api=self.api_predict,
             anno_id=self.proj.key_task,
@@ -968,7 +1025,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         result.rotation = state["angle"]
         if isinstance(result, PolygonResult):
             result.closed = state["closed"]
-            result.points = state["points"]
+            # Always convert live state points (pg.Point) to plain tuples to avoid
+            # shared references between items and ensure consistent data in Result
+            result.points = [(p.x(), p.y()) for p in state["points"]]
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
         self.dockcnt_info.set_info_by_result(result)
@@ -976,10 +1035,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.logger.debug(self.current_result)
 
     def on_canvas_item_state_change_finished(self, state: dict[str, Any]):
-        if self.proj.crt_result is None:
+        if self.proj.crt_anno is None:
             return
-        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
-        result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
+        assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
+        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
+        result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
         result.x = state["pos"].x()
         result.y = state["pos"].y()
         result.w = state["size"].x()
@@ -989,7 +1049,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result.points = [(p.x(), p.y()) for p in state["points"]]
         if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
-            self.add_result_undo_cmd([result], ResultUndoMode.MODIFY, [result_old])
+            self.add_result_undo_cmd([result], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
 
     def on_canvas_items_removed(self, ids: list[str]):
         if self.proj.crt_anno is None:
@@ -1101,7 +1161,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigRectangleCreated.connect(self.on_canvas_rectangle_created)
         self.canvas.sigPolygonCreated.connect(self.on_canvas_polygon_created)
         self.canvas.sigItemClicked.connect(self.on_canvas_item_clicked)
-        self.canvas.sigItemStateChanged.connect(self.on_canvas_item_state_changed)
+        # self.canvas.sigItemStateChanged.connect(self.on_canvas_item_state_changed)
         self.canvas.sigItemStateChangeFinished.connect(self.on_canvas_item_state_change_finished)
         self.canvas.sigItemsRemoved.connect(self.on_canvas_items_removed)
         self.canvas.sigMouseMoved.connect(self.on_canvas_scene_mouse_moved)
