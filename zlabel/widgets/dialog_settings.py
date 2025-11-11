@@ -52,7 +52,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_host.textEdited.connect(lambda v: self.on_settings_changed("host", v))
         self.ledit_username.textEdited.connect(lambda v: self.on_settings_changed("username", v))
         self.ledit_password.textEdited.connect(lambda v: self.on_settings_changed("password", v))
-        self.dspbox_alpha.valueChanged.connect(lambda v: self.on_settings_changed("alpha", v))
+        self.dspbox_alpha.editingFinished.connect(lambda v: self.on_settings_changed("alpha", v))
 
         self.ledit_projname.editingFinished.connect(
             lambda: self.on_settings_changed("project_name", self.ledit_projname.text().strip())
@@ -243,6 +243,8 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.table_labels.setCellWidget(idx, 3, btn_delete)
 
     def set_labels(self, labels: dict[str, Label]):
+        self.table_labels.itemChanged.disconnect(self.on_table_labels_item_changed)
         self.table_labels.setRowCount(0)
         for idx, label in enumerate(labels.values()):
             self.add_row(label, idx)
+        self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)
