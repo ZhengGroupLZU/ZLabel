@@ -49,17 +49,13 @@ class DialogSettings(QDialog, Ui_DialogSettings):
 
     def init_signals(self):
         # here the k passed to on_settings_changed is the attribute name in ZSettings
-        self.ledit_host.textEdited.connect(lambda v: self.on_settings_changed("host", v))
-        self.ledit_username.textEdited.connect(lambda v: self.on_settings_changed("username", v))
-        self.ledit_password.textEdited.connect(lambda v: self.on_settings_changed("password", v))
-        self.dspbox_alpha.editingFinished.connect(lambda v: self.on_settings_changed("alpha", v))
+        self.ledit_host.editingFinished.connect(lambda: self.on_settings_changed("host"))
+        self.ledit_username.editingFinished.connect(lambda: self.on_settings_changed("username"))
+        self.ledit_password.editingFinished.connect(lambda: self.on_settings_changed("password"))
+        self.dspbox_alpha.editingFinished.connect(lambda: self.on_settings_changed("alpha"))
 
-        self.ledit_projname.editingFinished.connect(
-            lambda: self.on_settings_changed("project_name", self.ledit_projname.text().strip())
-        )
-        self.ledit_prjdesc.editingFinished.connect(
-            lambda: self.on_settings_changed("project_desc", self.ledit_prjdesc.text().strip())
-        )
+        self.ledit_projname.editingFinished.connect(lambda: self.on_settings_changed("project_name"))
+        self.ledit_prjdesc.editingFinished.connect(lambda: self.on_settings_changed("project_desc"))
 
         # Track edits in the labels table
         self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)
@@ -73,25 +69,25 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.btn_delete_label.clicked.connect(self.on_btn_label_delete_clicked)
         self.btn_clear.clicked.connect(self.on_btn_label_clear_clicked)
 
-        self.cmbox_loglevel.currentIndexChanged.connect(lambda idx: self.on_settings_changed("log_level", idx))
+        self.cmbox_loglevel.currentIndexChanged.connect(lambda: self.on_settings_changed("log_level"))
 
-    def on_settings_changed(self, k: str, v: str | int | float):
+    def on_settings_changed(self, k: str):
         assert self.settings is not None
         if k == "host":
-            self.settings.host = str(v)
+            self.settings.host = self.ledit_host.text().strip()
         elif k == "username":
-            self.settings.username = str(v)
+            self.settings.username = self.ledit_username.text().strip()
         elif k == "password":
-            self.settings.password = str(v)
+            self.settings.password = self.ledit_password.text().strip()
         elif k == "alpha":
-            self.settings.alpha = float(v)
+            self.settings.alpha = self.dspbox_alpha.value()
         # elif k == "project_name":
         #     self.settings.project.name = str(v)
         #     self.settings.project_name = str(v)
         # elif k == "project_desc":
         #     self.settings.project.description = str(v)
         elif k == "log_level":
-            self.settings.log_level = LogLevel(int(v))
+            self.settings.log_level = LogLevel(self.cmbox_loglevel.currentIndex())
         else:
             raise ValueError(f"Unknown setting key: {k}")
         self.sigSettingsChanged.emit()

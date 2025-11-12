@@ -56,21 +56,57 @@ class ZSettings(BaseModel):
         return self.project_dir / "annos"
 
     def reload_project(self):
-        projs = [
-            p
-            for p in Path(self.project_root).glob("*")
-            if p.is_dir() and (p.name == self.project_name if self.project_name else True)
-        ]
-        self._project = Project(id=id_uuid4())
-        if projs:
-            path = projs[0] / f"{self.project_name}.json"
-            if path.exists() and path.is_file():
-                self._project = Project.model_validate_json(path.read_text(), strict=True)
+        # Handle empty project name case
+        if not self.project_name:
+            # Look for existing projects
+            projs = [p for p in Path(self.project_root).glob("*") if p.is_dir()]
+            if projs:
+                # Use the first available project
+                project_name = projs[0].name
+                self.project_idx = 0
+                self._project = Project(id=id_uuid4())
+                path = projs[0] / f"{project_name}.json"
+                if path.exists() and path.is_file():
+                    try:
+                        self._project = Project.model_validate_json(path.read_text(), strict=True)
+                        # Do NOT load tasks from local - tasks should come from remote server
+                    except Exception as e:
+                        # If project file is corrupted, create new one
+                        self._project = Project(id=id_uuid4(), name=project_name)
+                        self._project.save_json(path)
+            else:
+                # Create default project
+                project_name = "defaultProject"
+                self.project_idx = 0
+                self.projects = [(0, project_name)]
+                self._project = Project(id=id_uuid4(), name=project_name)
+                project_dir = Path(self.project_root) / project_name
+                project_dir.mkdir(parents=True, exist_ok=True)
+                self._project.save_json(project_dir / f"{project_name}.json")
         else:
-            project_dir = Path(self.project_root) / self.project_name
-            project_dir.mkdir(parents=True, exist_ok=True)
-            self._project.name = self.project_name
-            self._project.save_json(project_dir / f"{self.project_name}.json")
+            # Normal case with valid project name
+            projs = [p for p in Path(self.project_root).glob("*") if p.is_dir() and p.name == self.project_name]
+            self._project = Project(id=id_uuid4())
+            if projs:
+                path = projs[0] / f"{self.project_name}.json"
+                if path.exists() and path.is_file():
+                    try:
+                        self._project = Project.model_validate_json(path.read_text(), strict=True)
+                        # Do NOT load tasks from local - tasks should come from remote server
+                    except Exception as e:
+                        # If project file is corrupted, create new one
+                        self._project = Project(id=id_uuid4(), name=self.project_name)
+                        self._project.save_json(path)
+            else:
+                project_dir = Path(self.project_root) / self.project_name
+                project_dir.mkdir(parents=True, exist_ok=True)
+                self._project.name = self.project_name
+                self._project.save_json(project_dir / f"{self.project_name}.json")
+
+        # Ensure annotation directory exists
+        self.project_anno_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set default label if available
         labels = list(self._project.labels.keys())
         if labels:
             self._project.key_label = labels[0]

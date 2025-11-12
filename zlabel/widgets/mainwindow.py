@@ -1,7 +1,5 @@
 import copy
 import functools
-import json
-import os
 from collections import OrderedDict
 from pathlib import Path
 from typing import Any
@@ -200,7 +198,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.login_thread.login_success.connect(self.on_login_success)
         self.login_thread.login_success.connect(lambda _: self.load_projects_remote())
-        self.login_thread.login_success.connect(lambda _: self.ui_update_settings())
         self.login_thread.login_fail.connect(self.on_login_failed)
         self.login_thread.finished.connect(self.login_thread.quit)
         self.login_thread.finished.connect(self.login_thread.deleteLater)
@@ -227,6 +224,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.dialog_processing.close()
 
+        # After successful login, load projects and then tasks from remote
+        self.load_projects_remote()
+
     def load_projects_remote(self):
         if self.api_predict is None:
             return
@@ -245,6 +245,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_cmbox_projects([p[1] for p in projects])
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
 
+        # After projects are loaded, automatically load tasks from remote (silent mode for initial load)
+        self.load_tasks_remote(silent=True)
+
     def on_get_projects_failed(self, msg: str):
         QMessageBox.critical(
             self,
@@ -254,35 +257,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
     def refresh_tasks(self, tasks: list[Task]):
+        """Refresh tasks from remote server - do not save to local disk"""
         self.proj.tasks.clear()
         for task in tasks:
             self.proj.add_task(task)
         self.proj.reset_task_key()
-        self.proj.save_json(self.proj.project_path)
-        if self.user_token:
-            self.on_login_success(self.user_token)
 
-    def load_tasks(self, path: str):
-        if not os.path.exists(path):
-            QMessageBox.critical(
-                self,
-                "Error",
-                f"Tasks {path=} not exists! Import First!",
-                QMessageBox.StandardButton.Ok,
-            )
-            return
-        with open(path, "r", encoding="utf-8") as f:
-            tasks = [Task.model_validate(t) for t in json.load(f)]
-        # ^ use anno_id as key to simplify object get/set in files list
-        QMessageBox.information(
-            self,
-            "Info",
-            f"Import {len(tasks)} Tasks Success!",
-            QMessageBox.StandardButton.Ok,
-        )
-        return tasks
+        self.logger.info(f"Refreshed {len(tasks)} tasks from remote server")
 
-    def load_tasks_remote(self):
+    def load_tasks_remote(self, silent: bool = False):
+        """Load tasks from remote server
+
+        Args:
+            silent: If True, don't show success message dialog
+        """
         if self.api_predict is None:
             return
         worker = ZGetTasksWorker(
@@ -293,21 +281,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.username,
             self.settings.password,
         )
-        worker.emitter.success.connect(self.on_get_tasks_success)
+        if silent:
+            worker.emitter.success.connect(lambda tasks: self.on_get_tasks_success(tasks, silent=True))
+        else:
+            worker.emitter.success.connect(self.on_get_tasks_success)
         worker.emitter.fail.connect(self.on_get_tasks_failed)
         self.threadpool.start(worker)
 
-    def on_get_tasks_success(self, tasks: list[Task]):
+    def on_get_tasks_success(self, tasks: list[Task], silent: bool = False):
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
         self.dockcnt_files.set_row_by_txt(self.proj.key_task)
-        QMessageBox.information(
-            self,
-            "Info",
-            f"Import {len(tasks)} Tasks Success!",
-            QMessageBox.StandardButton.Ok,
-        )
+
+        # Only show message dialog if not silent
+        if not silent:
+            QMessageBox.information(
+                self,
+                "Info",
+                f"Import {len(tasks)} Tasks Success!",
+                QMessageBox.StandardButton.Ok,
+            )
+
+        # Update UI after tasks are loaded
+        self.ui_update_settings()
 
     def on_get_tasks_failed(self, msg: str):
         QMessageBox.critical(
@@ -445,6 +442,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def is_current_anno_result_ok(self):
         return self.is_current_anno_ok() and self.is_current_result_ok()
+
+    def validate_project_integrity(self) -> tuple[bool, str]:
+        """Validate project structure and return (is_valid, error_message)"""
+        try:
+            # Check if project directory exists
+            if not self.settings.project_dir.exists():
+                return False, f"Project directory does not exist: {self.settings.project_dir}"
+
+            # Check if project file exists
+            project_file = self.settings.project_dir / f"{self.proj.name}.json"
+            if not project_file.exists():
+                return False, f"Project file does not exist: {project_file}"
+
+            # Check if annotation directory exists
+            if not self.settings.project_anno_dir.exists():
+                self.logger.info(f"Creating annotation directory: {self.settings.project_anno_dir}")
+                self.settings.project_anno_dir.mkdir(parents=True, exist_ok=True)
+
+            # Check if API is available for remote operations
+            if self.api_predict is None:
+                return False, "Remote API service is not available. Please check your connection settings."
+
+            # Note: Tasks are loaded from remote server, so empty tasks is normal during initialization
+            # Only show error if we have tasks but something else is wrong
+
+            # Check if labels exist
+            if not self.proj.labels:
+                self.logger.warning("No labels defined")
+
+            return True, "Project integrity check passed"
+
+        except Exception as e:
+            return False, f"Project integrity check failed: {str(e)}"
+
+    def show_project_validation_error(self, error_msg: str):
+        """Show project validation error to user"""
+        QMessageBox.warning(self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok)
 
     def restore_annotations(self):
         # restore annotations
