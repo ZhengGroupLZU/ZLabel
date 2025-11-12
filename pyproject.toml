@@ -3,7 +3,7 @@ name = "ZLabel"
 version = "0.1.6"
 description = ""
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
-requires-python = ">=3.10,<3.11"
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = { text = "MIT" }
 dependencies = [
@@ -71,7 +71,7 @@ check_untyped_defs = true
 [tool.poe.tasks]
 run = "python ./main.py"
 build = """python ./build.py"""
-build_nuitka = """python -m nuitka --standalone --deployment --enable-plugin=pyside6 --include-qt-plugins=sensible --macos-create-app --macos-app-name=ZLabel --macos-app-icon=zlabel/resources/icons/zlabel.png --windows-console-mode=disable --windows-icon-from-ico=zlabel/resources/icons/zlabel.png --linux-icon=zlabel/resources/icons/zlabel.png --output-dir=build/nuitka zlabel.py"""
+build_nuitka = """python -m nuitka --standalone --deployment --enable-plugin=pyside6 --include-qt-plugins=sensible --macos-create-app --macos-app-name=ZLabel --macos-app-icon=zlabel/resources/icons/zlabel.png --windows-console-mode=force --windows-icon-from-ico=zlabel/resources/icons/zlabel.png --linux-icon=zlabel/resources/icons/zlabel.png --output-dir=build/nuitka zlabel.py"""
 
 designer = "pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"

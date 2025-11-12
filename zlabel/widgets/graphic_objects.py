@@ -4,9 +4,9 @@ from typing import Any
 import pyqtgraph as pg  # type: ignore
 from pyqtgraph.graphicsItems.ROI import ROI, Handle
 from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent
-from pyqtgraph.Qt.QtCore import QPointF, QRectF, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtCore import QPointF, QRectF, Qt, QTimer, Signal, QCoreApplication
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
-from pyqtgraph.Qt.QtWidgets import QGraphicsItem
+from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu
 from rich import print  # noqa: F401
 
 from zlabel.utils import ZLogger, id_uuid4
@@ -90,6 +90,36 @@ class Rectangle(pg.RectROI):
         p.setBrush(self.brush)
         p.setPen(self.hoverPen if self.isSelected() else self.currentPen)
         super().paint(p, opt, widget)
+
+    def addHandle(self, info, index=None):
+        ## If a Handle was not supplied, create it now
+        if "item" not in info or info["item"] is None:
+            h = ZHandle(
+                self.handleSize,
+                typ=info["type"],
+                pen=self.handlePen,
+                hoverPen=self.handleHoverPen,
+                parent=self,
+                antialias=self._antialias,
+            )
+            info["item"] = h
+        else:
+            h = info["item"]
+            if info["pos"] is None:
+                info["pos"] = h.pos()
+        h.setPos(info["pos"] * self.state["size"])
+
+        ## connect the handle to this ROI
+        # iid = len(self.handles)
+        h.connectROI(self)
+        if index is None:
+            self.handles.append(info)
+        else:
+            self.handles.insert(index, info)
+
+        h.setZValue(self.zValue() + 1)
+        self.stateChanged()
+        return h
 
     def removeHandles(self):
         while self.handles:
@@ -625,27 +655,31 @@ class Circle(pg.CircleROI):
         super().mouseClickEvent(ev)
 
 
-class ZHandle(Handle):
-    sigHovering = Signal(bool)
+translate = QCoreApplication.translate
 
+
+class ZHandle(Handle):
     def __init__(
         self,
-        radius: float,
-        type=None,
-        pen: QPen | None = None,
-        hoverPen: QPen | None = None,
+        radius,
+        typ=None,
+        pen=(200, 200, 220),
+        hoverPen=(255, 255, 0),
         parent=None,
-        deletable: bool = False,
+        deletable=False,
+        antialias=True,
     ):
-        super().__init__(radius, type, pen, hoverPen, parent, deletable)
+        super().__init__(radius, typ, pen, hoverPen, parent, deletable)
         self.polygon_parent = None
         self.vertex_index = None
 
+    def buildMenu(self):
+        menu = QMenu()
+        menu.setTitle(translate("ROI", "Handle"))
+        # self.removeAction = menu.addAction(translate("ROI", "Remove handle"), self.removeClicked)
+        return menu
+
     def hoverEvent(self, ev: HoverEvent):
-        if ev.isEnter():
-            self.sigHovering.emit(True)
-        elif ev.isExit():
-            self.sigHovering.emit(False)
         super().hoverEvent(ev)
 
     def paint(self, p, opt, widget):

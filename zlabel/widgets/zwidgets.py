@@ -273,9 +273,7 @@ class Toast(QWidget):
         """
         super().__init__(parent)
         self.parent_: QMainWindow | None = parent
-        self.timer = QTimer()
-        # 由于不知道动画结束的事件，所以借助QTimer来关闭窗口，动画结束就关闭窗口，所以这里的事件要和动画时间一样
-        self.timer.singleShot(timeout, self.close)  # singleShot表示timer只会启动一次
+        QTimer.singleShot(timeout, self.close)
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint | Qt.WindowType.ToolTip | Qt.WindowType.WindowStaysOnTopHint
         )

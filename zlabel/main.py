@@ -6,7 +6,7 @@ from pyqtgraph.Qt.QtWidgets import QApplication
 
 from zlabel.widgets.mainwindow import MainWindow
 
-pg.setConfigOptions(useOpenGL=True, useCupy=True, useNumba=True)
+pg.setConfigOptions(useOpenGL=True, useCupy=False, useNumba=False)
 
 
 def main():
