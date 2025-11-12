@@ -985,9 +985,33 @@ class Canvas(pg.PlotWidget):
                 return
         elif self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
             # Backspace or Ctrl+Z undo last committed vertex, keep preview
-            if ev.key() == Qt.Key.Key_Backspace or (
-                ev.key() == Qt.Key.Key_Z and (ev.modifiers() & Qt.KeyboardModifier.ControlModifier)
-            ):
+            if ev.key() in (Qt.Key.Key_Backspace, Qt.Key.Key_X):
+                self.undo_last_polygon_point(self.last_mouse_pos_view)
+                ev.accept()
+                return
+            # 'C' behaves like left-click: commit a vertex at current mouse position
+            if ev.key() == Qt.Key.Key_C:
+                pos = self.last_mouse_pos_view
+                if pos is not None:
+                    # mimic mouse-down at current cursor location
+                    self.mouse_down_pos = pos
+                    if self.current_item is None:
+                        # start polygon with first vertex
+                        self.start_drawing()
+                    else:
+                        # commit a new vertex
+                        self.polygon_points_committed.append(pg.Point(pos.x(), pos.y()))
+                        # clear preview; will update by mouse move
+                        self.polygon_preview_point = None
+                        # update polygon drawing state immediately
+                        state = self.get_drawing_polygon_state()
+                        if state:
+                            state["id"] = self.current_item.id_
+                            self.current_item.setState(state, update=False)
+                    ev.accept()
+                    return
+            # 'V' behaves like right-click: undo last vertex while keeping preview
+            if ev.key() == Qt.Key.Key_V:
                 self.undo_last_polygon_point(self.last_mouse_pos_view)
                 ev.accept()
                 return
