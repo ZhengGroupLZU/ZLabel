@@ -9,14 +9,14 @@ from PIL import Image
 from zlabel.utils.logger import ZLogger
 
 
-class SamApiHelper:
+class ZLServerApiHelper:
     def __init__(
         self,
         username: str,
         password: str,
         sam_api: str = "http://127.0.0.1:8000",
     ) -> None:
-        self.logger = ZLogger("SamApiHelper")
+        self.logger = ZLogger("ZLServerApiHelper")
         self.username = username
         self.password = password
         self.user_token = ""
@@ -117,7 +117,7 @@ class SamApiHelper:
             headers=self.headers,
         )
         try:
-            resp_json: dict = resp.json()
+            resp_json: dict[str, Any] = resp.json()
         except Exception as e:
             self.logger.error(f"Login failed, parse json error, {e=}, {resp.text=}")
             return None
@@ -146,7 +146,18 @@ class SamApiHelper:
             self.logger.error(f"Get anno failed, {resp.text=}")
             return None
 
-    def get_projects(self) -> list[dict[str, Any]] | None:
+    def get_projects(self) -> list[dict[str, int | str]] | None:
+        """
+        {
+            "message": "success",
+            "data": [
+                {
+                    "id": project.id,
+                    "name": project.name,
+                }
+            ]
+        }
+        """
         resp = requests.get(self.get_projects_api, headers=self.headers)
         if resp.status_code == 200:
             return resp.json()["data"]

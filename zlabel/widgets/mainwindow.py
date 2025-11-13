@@ -19,7 +19,7 @@ from zlabel.utils import (
     Project,
     RectangleResult,
     ResultType,
-    SamApiHelper,
+    ZLServerApiHelper,
     StatusMode,
     Task,
     User,
@@ -63,7 +63,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger = ZLogger("MainWindow")
         self.settings_path = "zlabel.conf"
         self.settings: ZSettings = ZSettings()
-        self.api_predict: SamApiHelper | None = None
+        self.api_predict: ZLServerApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
         self.dialog_processing: DialogProcessing = DialogProcessing(parent=self)
 
@@ -73,6 +73,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.undo_stack = QUndoStack(self)
         self.threadpool = QThreadPool()
+        self.login_thread: ZLoginThread | None = None
 
         self.anno_suffix = "zlabel"
         self.last_path = "."
@@ -144,7 +145,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.user.name = self.settings.username
         if self.settings.host:
-            self.api_predict = SamApiHelper(
+            self.api_predict = ZLServerApiHelper(
                 self.settings.username,
                 self.settings.password,
                 self.settings.host,
@@ -205,7 +206,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.login_thread.start()
 
     def on_login_failed(self):
-        self.dialog_processing.close()
+        if self.dialog_processing.isVisible():
+            self.dialog_processing.close()
 
         QMessageBox.critical(
             self,
@@ -222,10 +224,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.dialog_settings.isVisible():
             self.dialog_settings.close()
 
-        self.dialog_processing.close()
-
-        # After successful login, load projects and then tasks from remote
-        self.load_projects_remote()
+        if self.dialog_processing.isVisible():
+            self.dialog_processing.close()
 
     def load_projects_remote(self):
         if self.api_predict is None:
@@ -242,10 +242,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_get_projects_success(self, projects: list[tuple[int, str]]):
         # no need to save, request everytime
         self.settings.projects = projects
+        if self.settings.project_idx < 0 and len(projects) > 0:
+            self.settings.project_idx = 0
         self.dockcnt_files.set_cmbox_projects([p[1] for p in projects])
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
-
-        # After projects are loaded, automatically load tasks from remote (silent mode for initial load)
+        self.logger.debug(f"Loaded {projects=}")
         self.load_tasks_remote(silent=True)
 
     def on_get_projects_failed(self, msg: str):
@@ -271,6 +272,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Args:
             silent: If True, don't show success message dialog
         """
+        self.logger.debug(f"Loading tasks from remote server for project {self.settings.project_name}")
         if self.api_predict is None:
             return
         worker = ZGetTasksWorker(
@@ -289,6 +291,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_get_tasks_success(self, tasks: list[Task], silent: bool = False):
+        self.logger.debug(f"Loaded {tasks=}")
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -521,7 +524,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_dialog_settings_apply_clicked(self):
         if self.settings.host:
-            self.api_predict = SamApiHelper(
+            self.api_predict = ZLServerApiHelper(
                 self.settings.username,
                 self.settings.password,
                 self.settings.host,

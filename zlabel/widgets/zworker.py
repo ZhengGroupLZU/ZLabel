@@ -6,7 +6,7 @@ from PIL import Image
 from pyqtgraph.Qt.QtCore import QObject, QRunnable, Signal
 from rich import print
 
-from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult, SamApiHelper
+from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult, ZLServerApiHelper
 from zlabel.utils.project import Task
 
 
@@ -24,7 +24,7 @@ class PredictWorkerEmitter(QObject):
 class ZSamPredictWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         anno_id: str,
         image: str,
         result_labels: list[Label],
@@ -55,6 +55,7 @@ class ZSamPredictWorker(QRunnable):
         self.emitter = PredictWorkerEmitter()
 
         self.shifts = [0, 0, 0, 0]
+        self.setAutoDelete(True)
 
     def run(self):
         points = None
@@ -144,7 +145,7 @@ class PreuploadEmitter(QObject):
 class ZPreuploadImageWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         anno_id: str,
         image: Image.Image,
     ) -> None:
@@ -153,6 +154,7 @@ class ZPreuploadImageWorker(QRunnable):
         self.anno_id = anno_id
         self.image = image
         self.emitter = PreuploadEmitter()
+        self.setAutoDelete(True)
 
     def run(self):
         try:
@@ -170,7 +172,7 @@ class UploadFileEmitter(QObject):
 class ZUploadFileWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         filename: str,
         username: str | None = None,
         password: str | None = None,
@@ -182,6 +184,7 @@ class ZUploadFileWorker(QRunnable):
         self.username = username
         self.password = password
         self.emitter = UploadFileEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
@@ -202,7 +205,7 @@ class GetFileEmitter(QObject):
 class ZGetImageWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         filename: str,
         username: str | None = None,
         password: str | None = None,
@@ -214,6 +217,7 @@ class ZGetImageWorker(QRunnable):
         self.username = username
         self.password = password
         self.emitter = GetFileEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
@@ -234,7 +238,7 @@ class GetProjectsEmitter(QObject):
 class GetProjectsWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         username: str | None = None,
         password: str | None = None,
     ) -> None:
@@ -244,6 +248,7 @@ class GetProjectsWorker(QRunnable):
         self.username = username
         self.password = password
         self.emitter = GetProjectsEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
@@ -252,7 +257,10 @@ class GetProjectsWorker(QRunnable):
         if projects is not None:
             try:
                 project_list = [(p["id"], p["name"]) for p in projects]
-                self.emitter.success.emit(project_list)
+                if len(project_list) > 0:
+                    self.emitter.success.emit(project_list)
+                else:
+                    self.emitter.fail.emit("No projects found")
             except Exception as e:
                 self.emitter.fail.emit(f"Get projects failed with {e=}")
         else:
@@ -267,7 +275,7 @@ class GetTasksEmitter(QObject):
 class ZGetTasksWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         num: int,
         finished: int = 1,
         project_id: int = -1,
@@ -283,6 +291,7 @@ class ZGetTasksWorker(QRunnable):
         self.finished = finished
         self.project_id = project_id
         self.emitter = GetTasksEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:

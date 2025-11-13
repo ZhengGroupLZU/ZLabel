@@ -5,7 +5,7 @@ description = ""
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
-license = { text = "MIT" }
+license = "Apache-2.0"
 dependencies = [
     "Pillow<11.0.0,>=10.1.0",
     "pyside6<7.0.0,>=6.6.1",
@@ -29,6 +29,7 @@ dev = [
     "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
     "imageio>=2.37.0",
+    "cx-freeze>=8.4.1",
 ]
 
 [tool.pyright]
@@ -76,3 +77,13 @@ build_nuitka = """python -m nuitka --standalone --deployment --enable-plugin=pys
 designer = "pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"
+
+
+[tool.cxfreeze]
+executables = [
+    {script = "zlabel.py", base = "gui"}
+]
+
+[tool.cxfreeze.build_exe]
+excludes = ["tkinter", "unittest"]
+zip_include_packages = ["encodings", "PySide6", "shiboken6"]

@@ -10,7 +10,7 @@ from .enums import (
     LogLevel,
 )
 from .logger import ZLogger
-from .api_helper import SamApiHelper
+from .api_helper import ZLServerApiHelper
 from .project import (
     Label,
     Task,
