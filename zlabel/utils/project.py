@@ -1,17 +1,20 @@
 import hashlib
 import uuid
 from collections import OrderedDict
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, NamedTuple
+from typing import Any, NamedTuple, TypeAlias
 
 import pyqtgraph as pg
 from pydantic import BaseModel, Field
 from rich import print  # noqa: F401
 
+IncEx: TypeAlias = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
 
-def id_uuid4(length=9) -> str:
+
+def id_uuid4(length: int = 9) -> str:
     return uuid.uuid4().hex[:length]
 
 
@@ -322,11 +325,13 @@ class Project(BaseModel):
         return Path("projects") / self.name
 
     # region functions
-    def save_json(self, path: str | Path):
+    def save_json(self, path: str | Path, include: IncEx | None = None, exclude: IncEx | None = None):
         p = Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
+        if exclude is None:
+            exclude = {"tasks": True}
         # Save project metadata without tasks - tasks should come from remote server
-        p.write_text(self.model_dump_json(ensure_ascii=False, indent=2, exclude={"tasks": True}))
+        p.write_text(self.model_dump_json(ensure_ascii=False, indent=2, include=include, exclude=exclude))
 
     def reset_task_key(self):
         if len(self.tasks) > 0:

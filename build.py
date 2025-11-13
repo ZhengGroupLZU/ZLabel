@@ -36,8 +36,17 @@ def publish_to_7z(build_dir: str, version: str):
     uname = platform.uname()
     os_name = uname.system
     os_arch = uname.machine
+    if os_name == "Darwin":
+        # archived app can run due to no signature, skip this for now
+        return
+    os_ext = "app" if os_name == "Darwin" else "dist"
+    arcname = f"{__proj_name__}.app" if os_name == "Darwin" else __proj_name__
+    extra_files = [
+        "build/zlabel.conf",
+        "build/projects",
+    ]
 
-    working_dir = Path(f"{build_dir}/{__proj_name__}.dist")
+    working_dir = Path(f"{build_dir}/{__proj_name__}.{os_ext}")
     exclude_pattern = re.compile(r"qtwebengine_devtools_resources")
     for file in working_dir.glob("**/*"):
         if exclude_pattern.search(str(file)):
@@ -47,7 +56,16 @@ def publish_to_7z(build_dir: str, version: str):
     save_7z_name = f"{build_dir}/{__proj_name__}-v{version}-{os_name}-{os_arch}.7z"
     filters = [{"id": FILTER_LZMA2, "preset": PRESET_DEFAULT}]
     with SevenZipFile(save_7z_name, "w", filters=filters, mp=True) as archive:
-        archive.writeall(working_dir, arcname=f"{__proj_name__}")
+        archive.writeall(working_dir, arcname=arcname)
+        for extra_file in extra_files:
+            if os.path.exists(extra_file):
+                if os_name == "Darwin":
+                    arcname = f"{extra_file.split('/')[-1]}"
+                else:
+                    arcname = f"{arcname}/{extra_file.split('/')[-1]}"
+                archive.write(extra_file, arcname=arcname)
+            else:
+                print(f"Warning: {extra_file} not found, skip")
     print(f"Publish successfully, saved to {save_7z_name}")
 
 

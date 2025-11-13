@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QPointF, QSize, Qt, QThreadPool, Signal
 from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QComboBox, QMainWindow, QMessageBox
+from pyqtgraph.Qt.QtWidgets import QComboBox, QMainWindow, QMessageBox, QFileDialog
 
 from zlabel.utils import (
     Annotation,
@@ -163,6 +163,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)
+        self.dockcnt_files.set_file_list(list(self.proj.tasks.values()))
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
         title = "ZLabel"
@@ -691,7 +692,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_merge_triggered(self):
         self.canvas.merge_items(self.canvas.selected_items)
 
-    def on_action_import_task_triggered(self): ...
+    def on_action_import_task_triggered(self):
+        file_path = QFileDialog.getOpenFileName(
+            self,
+            "Import Task",
+            ".",
+            "JSON Files (*.json)",
+        )[0]
+        if not file_path:
+            return
+        self.logger.debug(f"import task from {file_path}")
+        proj = Project.model_validate_json(Path(file_path).read_text(), strict=True)
+        names = [n for _, n in self.settings.projects]
+        if proj.name not in names:
+            QMessageBox.warning(
+                self,
+                "Warning",
+                f"project {proj.name} not found in settings, please refresh projects first!",
+            )
+            return
+        self.settings.project_idx = names.index(proj.name)
+        self.settings.project = proj
+        self.settings.save_json(self.settings_path)
+        self.proj.save_json(self.proj.project_path)
+        self.ui_update_settings()
+        self.logger.debug(f"imported project {self.settings.project_name}")
+
+    def on_action_export_triggered(self):
+        file_path = QFileDialog.getSaveFileName(
+            self,
+            "Export Task",
+            ".",
+            "JSON Files (*.json)",
+        )[0]
+        if not file_path:
+            return
+        self.proj.save_json(file_path, include={"id", "name", "description", "labels"})
+        self.logger.debug(f"exported project {self.settings.project.name} to {file_path}")
 
     def on_cmbox_annotype_index_changed(self, index: int):
         if index < 0 or index >= len(self.annotation_types):
@@ -1158,6 +1195,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_settings.destroyed.connect(self.dialog_processing.close)
 
         # actions
+        self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
+        self.actionExport.triggered.connect(self.on_action_export_triggered)
         self.actionSettings.triggered.connect(self.dialog_settings.show)
         self.actionAbout.triggered.connect(self.dialog_about.show)
         self.actionExit.triggered.connect(self.close)
@@ -1184,8 +1223,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionZoom_in.triggered.connect(self.on_action_zoom_in_triggered)
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
         self.actionFit_wiondow.triggered.connect(self.on_action_fit_window_triggered)
-
-        self.action_import_task.triggered.connect(self.on_action_import_task_triggered)
 
         self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
         self.cmbox_rgb.currentIndexChanged.connect(self.on_cmbox_rgb_index_changed)
