@@ -4,18 +4,29 @@
 
 ![app.png](./images/app.png)
 
-## install
+## Usage
+
+TODO: add usage
+
+## Development
+
+### install
 
 ```bash
 uv sync
 ```
 
-## run
+### run
 
 ```bash
-uv run main.py
+uv run zlabel.py
 ```
 
 ## TODO
 
 - [ ] hide some labels
+- [ ] add detailed document
+
+## Citation
+
+TODO: add citation

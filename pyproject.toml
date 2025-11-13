@@ -1,6 +1,6 @@
 [project]
 name = "ZLabel"
-version = "0.1.6"
+version = "0.2.0"
 description = ""
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.10,<3.14"
@@ -18,18 +18,18 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    "PyYAML<7.0.0,>=6.0.1",
-    "black>=25.1.0",
-    "pyinstaller-versionfile>=2.1.1,<3.0.0",
+    # "PyYAML<7.0.0,>=6.0.1",
+    # "pyinstaller-versionfile>=2.1.1,<3.0.0",
     "nuitka>=2.7.2",
     "py7zr>=1.0.0",
-    "pytest>=8.4.2",
+    # "pytest>=8.4.2",
     "poethepoet>=0.37.0",
-    "typed-argument-parser>=1.11.0",
-    "pyinstaller<7.0.0,>=6.3.0",
+    # "typed-argument-parser>=1.11.0",
+    # "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
     "imageio>=2.37.0",
-    "cx-freeze>=8.4.1",
+    # "cx-freeze>=8.4.1",
+    "tomli>=2.3.0",
 ]
 
 [tool.pyright]
@@ -78,15 +78,13 @@ check_untyped_defs = true
 [tool.poe.tasks]
 run = "python ./main.py"
 build = """python ./build.py"""
-build_nuitka = """python -m nuitka --standalone --deployment --enable-plugin=pyside6 --include-qt-plugins=sensible --macos-create-app --macos-app-name=ZLabel --macos-app-icon=zlabel/resources/icons/zlabel.png --windows-console-mode=force --windows-icon-from-ico=zlabel/resources/icons/zlabel.png --linux-icon=zlabel/resources/icons/zlabel.png --output-dir=build/nuitka zlabel.py"""
 
 designer = "pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"
 
-
 [tool.cxfreeze]
-executables = [{ script = "zlabel.py", base = "console" }]
+executables = [{ script = "zlabel.py", base = "console", icon = "zlabel/resources/icons/zlabel.png" }]
 
 [tool.cxfreeze.build_exe]
 excludes = ["tkinter", "unittest"]

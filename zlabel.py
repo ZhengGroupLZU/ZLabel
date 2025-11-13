@@ -1,4 +1,4 @@
-import sys
+# import sys
 
 from zlabel.main import main
 
