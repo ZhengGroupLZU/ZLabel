@@ -56,16 +56,22 @@ select = [
     "ARG001", # unused arguments in functions
 ]
 ignore = [
-    "B008", # do not perform function calls in argument defaults
-    "W191", # indentation contains tabs
-    "B904", # Allow raising exceptions without from e, for HTTPException
+    "B008",  # do not perform function calls in argument defaults
+    "W191",  # indentation contains tabs
+    "B904",  # Allow raising exceptions without from e, for HTTPException
     "B905",
     "E712",
     "UP015",
 ]
 
 [tool.mypy]
-exclude = ["^zlabel/widgets/ui/", "^zlabel/models/", "^tests/", "^dist/", "^build/"]
+exclude = [
+    "^zlabel/widgets/ui/",
+    "^zlabel/models/",
+    "^tests/",
+    "^dist/",
+    "^build/",
+]
 disable_error_code = ["import-untyped"]
 check_untyped_defs = true
 
@@ -80,10 +86,10 @@ uic_rcc = "python ./uic_rcc.py"
 
 
 [tool.cxfreeze]
-executables = [
-    {script = "zlabel.py", base = "gui"}
-]
+executables = [{ script = "zlabel.py", base = "console" }]
 
 [tool.cxfreeze.build_exe]
 excludes = ["tkinter", "unittest"]
-zip_include_packages = ["encodings", "PySide6", "shiboken6"]
+optimize = 2
+zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
+include_files = ["build/zlabel.conf", ["build/projects", "projects"]]

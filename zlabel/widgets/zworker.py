@@ -268,8 +268,8 @@ class GetProjectsWorker(QRunnable):
 
 
 class GetTasksEmitter(QObject):
-    success = Signal(object)
-    fail = Signal(object)
+    success = Signal(object, bool)
+    fail = Signal(object, bool)
 
 
 class ZGetTasksWorker(QRunnable):
@@ -281,6 +281,7 @@ class ZGetTasksWorker(QRunnable):
         project_id: int = -1,
         username: str | None = None,
         password: str | None = None,
+        silent: bool = False,
     ) -> None:
         super().__init__()
 
@@ -290,6 +291,7 @@ class ZGetTasksWorker(QRunnable):
         self.num = num
         self.finished = finished
         self.project_id = project_id
+        self.silent = silent
         self.emitter = GetTasksEmitter()
         self.setAutoDelete(True)
 
@@ -300,11 +302,11 @@ class ZGetTasksWorker(QRunnable):
         if tasks is not None:
             try:
                 task_list = [Task.model_validate(t) for t in tasks]
-                self.emitter.success.emit(task_list)
+                self.emitter.success.emit(task_list, self.silent)
             except Exception as e:
-                self.emitter.fail.emit(f"Get tasks failed with {e=}")
+                self.emitter.fail.emit(f"Get tasks failed with {e=}", self.silent)
         else:
-            self.emitter.fail.emit("Get tasks failed")
+            self.emitter.fail.emit("Get tasks failed", self.silent)
 
 
 if __name__ == "__main__":

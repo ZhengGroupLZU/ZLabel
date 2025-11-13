@@ -156,3 +156,9 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
             return ""
         item: ZTableWidgetItem = self.table_files.item(row, 0)  # type: ignore
         return item.text()
+
+    def set_fetch_num_idx_by_value(self, num: int):
+        for i in range(self.cbox_fetch_num.count()):
+            if self.cbox_fetch_num.itemText(i) == str(num):
+                self.cbox_fetch_num.setCurrentIndex(i)
+                return

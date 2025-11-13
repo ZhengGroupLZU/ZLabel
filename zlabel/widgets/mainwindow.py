@@ -63,7 +63,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger = ZLogger("MainWindow")
         self.settings_path = "zlabel.conf"
         self.settings: ZSettings = ZSettings()
-        self.api_predict: ZLServerApiHelper | None = None
+        self.zl_server_api: ZLServerApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
         self.dialog_processing: DialogProcessing = DialogProcessing(parent=self)
 
@@ -145,7 +145,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.user.name = self.settings.username
         if self.settings.host:
-            self.api_predict = ZLServerApiHelper(
+            self.zl_server_api = ZLServerApiHelper(
                 self.settings.username,
                 self.settings.password,
                 self.settings.host,
@@ -162,6 +162,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
+        self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
         title = "ZLabel"
@@ -190,15 +191,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def login(self):
         # TODO: use async or worker?
-        if self.api_predict is None:
+        if self.zl_server_api is None:
             return
         self.login_thread = ZLoginThread(
-            self.api_predict,
+            self.zl_server_api,
             self.settings.username,
             self.settings.password,
         )
         self.login_thread.login_success.connect(self.on_login_success)
-        self.login_thread.login_success.connect(lambda _: self.load_projects_remote())
         self.login_thread.login_fail.connect(self.on_login_failed)
         self.login_thread.finished.connect(self.login_thread.quit)
         self.login_thread.finished.connect(self.login_thread.deleteLater)
@@ -221,6 +221,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_login_success(self, token: str):
         self.user_token = token
         self.logger.info(f"Login success, {self.settings.username=}")
+        self.load_projects_remote()
         if self.dialog_settings.isVisible():
             self.dialog_settings.close()
 
@@ -228,10 +229,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dialog_processing.close()
 
     def load_projects_remote(self):
-        if self.api_predict is None:
+        self.logger.debug("Loading projects from remote server...")
+        if self.zl_server_api is None:
             return
         worker = GetProjectsWorker(
-            self.api_predict,
+            self.zl_server_api,
             self.settings.username,
             self.settings.password,
         )
@@ -272,26 +274,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Args:
             silent: If True, don't show success message dialog
         """
-        self.logger.debug(f"Loading tasks from remote server for project {self.settings.project_name}")
-        if self.api_predict is None:
+        self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
+        if self.zl_server_api is None:
             return
         worker = ZGetTasksWorker(
-            self.api_predict,
+            self.zl_server_api,
             self.settings.fetch_num,
             self.settings.fetch_type.value,
             self.settings.project_id,
             self.settings.username,
             self.settings.password,
+            silent,
         )
-        if silent:
-            worker.emitter.success.connect(lambda tasks: self.on_get_tasks_success(tasks, silent=True))
-        else:
-            worker.emitter.success.connect(self.on_get_tasks_success)
+        worker.emitter.success.connect(self.on_get_tasks_success)
         worker.emitter.fail.connect(self.on_get_tasks_failed)
         self.threadpool.start(worker)
 
     def on_get_tasks_success(self, tasks: list[Task], silent: bool = False):
-        self.logger.debug(f"Loaded {tasks=}")
+        self.logger.debug(f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}")
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -318,13 +318,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
     def try_set_image(self, image: Image.Image | None = None):
-        if self.proj.crt_task is None or self.api_predict is None:
+        if self.proj.crt_task is None or self.zl_server_api is None:
             return
         if image is None:
             img_name = self.proj.crt_task.filename
             if img_name not in self._image_cache:
                 worker = ZGetImageWorker(
-                    self.api_predict,
+                    self.zl_server_api,
                     img_name,
                     self.settings.username,
                     self.settings.password,
@@ -464,7 +464,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.settings.project_anno_dir.mkdir(parents=True, exist_ok=True)
 
             # Check if API is available for remote operations
-            if self.api_predict is None:
+            if self.zl_server_api is None:
                 return False, "Remote API service is not available. Please check your connection settings."
 
             # Note: Tasks are loaded from remote server, so empty tasks is normal during initialization
@@ -500,10 +500,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.proj.reset_task_key()
 
     def run_preupload_img_worker(self, image: Image.Image | None):
-        if self.proj.crt_anno is None or image is None or self.api_predict is None:
+        if self.proj.crt_anno is None or image is None or self.zl_server_api is None:
             return
         self.preupload_worker = ZPreuploadImageWorker(
-            self.api_predict,
+            self.zl_server_api,
             self.proj.crt_anno.id,
             copy.deepcopy(image),
         )
@@ -524,7 +524,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_dialog_settings_apply_clicked(self):
         if self.settings.host:
-            self.api_predict = ZLServerApiHelper(
+            self.zl_server_api = ZLServerApiHelper(
                 self.settings.username,
                 self.settings.password,
                 self.settings.host,
@@ -540,8 +540,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.setLevel(level)
         if getattr(self, "canvas", None) is not None:
             self.canvas.logger.setLevel(level)
-        if self.api_predict is not None:
-            self.api_predict.logger.setLevel(level)
+        if self.zl_server_api is not None:
+            self.zl_server_api.logger.setLevel(level)
 
     # def check_login(self):
     #     if not self.login():
@@ -597,7 +597,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.view_box.autoRange()
 
     def on_action_finish_triggered(self):
-        if self.proj.crt_task is None or self.proj.crt_anno is None or self.api_predict is None:
+        if self.proj.crt_task is None or self.proj.crt_anno is None or self.zl_server_api is None:
             return
         self.on_action_save_triggered()
         filename = f"{self.settings.project_anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
@@ -608,7 +608,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proj.crt_task.finished = True
             self.dockcnt_files.set_item_finished(self.proj.crt_task)
             self.worker_upload = ZUploadFileWorker(
-                self.api_predict,
+                self.zl_server_api,
                 filename,
                 self.settings.username,
                 self.settings.password,
@@ -807,8 +807,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_task is None:
             self.logger.warning(f"Current task is None, {self.proj.tasks=}")
             return
-        if self.api_predict is None:
-            self.logger.warning(f"ApiPredict is None, {self.api_predict=}")
+        if self.zl_server_api is None:
+            self.logger.warning(f"ApiPredict is None, {self.zl_server_api=}")
             return
 
         # if the current anno is None:
@@ -818,7 +818,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             task = self.proj.tasks[task_id]
             try:
                 name = f"{task.anno_id}.{self.anno_suffix}"
-                anno_json = self.api_predict.get_zlabel(name=name)
+                anno_json = self.zl_server_api.get_zlabel(name=name)
                 if anno_json is None:
                     raise Exception(f"Response of {name} is None")
                 anno = Annotation.model_validate_json(anno_json, strict=True)
@@ -918,7 +918,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        if self.api_predict is None:
+        if self.zl_server_api is None:
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -927,7 +927,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
         worker = ZSamPredictWorker(
-            api=self.api_predict,
+            api=self.zl_server_api,
             anno_id=self.proj.crt_task.anno_id,
             image=self.proj.crt_anno.image_path,
             points=[(point.x(), point.y())],
@@ -993,7 +993,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        if self.api_predict is None:
+        if self.zl_server_api is None:
             QMessageBox.warning(
                 self,
                 "Warning",
@@ -1002,7 +1002,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
         worker = ZSamPredictWorker(
-            api=self.api_predict,
+            api=self.zl_server_api,
             anno_id=self.proj.key_task,
             image=self.proj.crt_anno.image_path,
             rects=[(result.x, result.y, result.w, result.h)],
