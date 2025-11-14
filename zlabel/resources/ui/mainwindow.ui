@@ -57,7 +57,7 @@
      <x>0</x>
      <y>0</y>
      <width>1034</width>
-     <height>24</height>
+     <height>33</height>
     </rect>
    </property>
    <property name="font">
@@ -275,8 +275,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>0</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
     </size>
    </property>
    <property name="maximumSize">
@@ -305,8 +305,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>0</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -326,8 +326,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>0</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
     </size>
    </property>
    <property name="floating">
@@ -345,9 +345,7 @@
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
-   <widget class="ZDockLabelContent" name="dockcnt_labels">
-    <layout class="QVBoxLayout" name="verticalLayout"/>
-   </widget>
+   <widget class="ZDockLabelContent" name="dockcnt_labels"/>
   </widget>
   <widget class="QDockWidget" name="dock_files">
    <property name="sizePolicy">
@@ -358,8 +356,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>0</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
     </size>
    </property>
    <property name="maximumSize">

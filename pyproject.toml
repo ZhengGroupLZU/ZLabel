@@ -84,7 +84,7 @@ designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"
 
 [tool.cxfreeze]
-executables = [{ script = "zlabel.py", base = "console", icon = "zlabel/resources/icons/zlabel.png" }]
+executables = [{ script = "zlabel.py", base = "gui", icon = "zlabel/resources/icons/zlabel.ico" }]
 
 [tool.cxfreeze.build_exe]
 excludes = ["tkinter", "unittest"]
