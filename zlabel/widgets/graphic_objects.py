@@ -1,10 +1,11 @@
 import math
 from typing import Any
 
+import numpy as np
 import pyqtgraph as pg  # type: ignore
 from pyqtgraph.graphicsItems.ROI import ROI, Handle
 from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent
-from pyqtgraph.Qt.QtCore import QPointF, QRectF, Qt, QTimer, Signal, QCoreApplication
+from pyqtgraph.Qt.QtCore import QCoreApplication, QPointF, QRectF, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu
 from rich import print  # noqa: F401
@@ -34,6 +35,7 @@ class Rectangle(pg.RectROI):
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
             movable=movable,
+            removable=False,
             **args,
         )
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
@@ -92,7 +94,7 @@ class Rectangle(pg.RectROI):
         super().paint(p, opt, widget)
 
     def addHandle(self, info, index=None):
-        ## If a Handle was not supplied, create it now
+        # If a Handle was not supplied, create it now
         if "item" not in info or info["item"] is None:
             h = ZHandle(
                 self.handleSize,
@@ -109,7 +111,7 @@ class Rectangle(pg.RectROI):
                 info["pos"] = h.pos()
         h.setPos(info["pos"] * self.state["size"])
 
-        ## connect the handle to this ROI
+        # connect the handle to this ROI
         # iid = len(self.handles)
         h.connectROI(self)
         if index is None:
@@ -206,6 +208,7 @@ class Polygon(pg.ROI):
             size=pg.Point([1, 1]),
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
+            removable=False,
             **args,
         )
         self.state["id_"] = self.id_
@@ -341,7 +344,7 @@ class Polygon(pg.ROI):
     def addHandle(self, info, index=None, finish=False):
         # If a Handle was not supplied, create it now
         if "item" not in info or info["item"] is None:
-            h = Handle(
+            h = ZHandle(
                 self.handleSize,
                 typ=info["type"],
                 pen=self.handlePen,
@@ -610,7 +613,20 @@ class Polygon(pg.ROI):
             self.removeHandle(0)
 
 
-class Circle(pg.CircleROI):
+class Point(ROI):
+    r"""
+    Point ROI subclass with one scale handle and one rotation handle.
+
+
+    ============== =============================================================
+    **Arguments**
+    pos            (length-2 sequence) The position of the ROI's origin.
+    size           (length-2 sequence) The size of the ROI's bounding rectangle.
+    \**args        All extra keyword arguments are passed to ROI()
+    ============== =============================================================
+
+    """
+
     def __init__(
         self,
         pos: tuple[float, float],
@@ -619,13 +635,19 @@ class Circle(pg.CircleROI):
         id_: str | None = None,
         **args,
     ):
-        super().__init__(
+        size = (radius * 2, radius * 2)
+        self.path = None
+        ROI.__init__(
+            self,
             pos,
-            radius=radius,
+            size,
+            aspectLocked=True,
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
+            removable=False,
             **args,
         )
+        self.sigRegionChanged.connect(self._clearPath)
 
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.id_ = id_ or id_uuid4()
@@ -637,25 +659,158 @@ class Circle(pg.CircleROI):
 
         self.setPos(self.center)
 
-        while self.handles:
-            self.removeHandle(0)
+    def _clearPath(self):
+        self.path = None
 
-    def paint(self, p: QPainter, opt, widget):
+    def paint(self, p, opt, widget):
+        r = self.boundingRect()
+
+        p.setRenderHint(QPainter.RenderHint.Antialiasing, self._antialias)
+        p.setPen(self.currentPen)
         p.setBrush(self.brush)
-        if self.isSelected():
-            self.currentPen = self.hoverPen
-        super().paint(p, opt, widget)
+        p.scale(r.width(), r.height())  # workaround for GL bug
+        r = QRectF(r.x() / r.width(), r.y() / r.height(), 1, 1)
+        p.drawEllipse(r)
 
-    def mouseClickEvent(self, ev: MouseClickEvent):
-        if ev.button() == Qt.MouseButton.LeftButton:
-            if not self.isSelected():
-                self.setSelected(True)
+    def getArrayRegion(self, arr: np.ndarray, img=None, axes=(0, 1), returnMappedCoords=False, **kwds):
+        """
+        Return the result of :meth:`~pyqtgraph.ROI.getArrayRegion` masked by the
+        point shape of the ROI. Regions outside the point are set to 0.
+
+        See :meth:`~pyqtgraph.ROI.getArrayRegion` for a description of the
+        arguments.
+
+        Note: ``returnMappedCoords`` is not yet supported for this ROI type.
+        """
+        # Note: we could use the same method as used by PolyLineROI, but this
+        # implementation produces a nicer mask.
+        if returnMappedCoords:
+            arr, mappedCoords = ROI.getArrayRegion(self, arr, img, axes, returnMappedCoords, **kwds)
+        else:
+            arr = ROI.getArrayRegion(self, arr, img, axes, returnMappedCoords, **kwds)
+        if arr is None or arr.shape[axes[0]] == 0 or arr.shape[axes[1]] == 0:
+            if returnMappedCoords:
+                return arr, mappedCoords
             else:
-                self.setSelected(False)
-        super().mouseClickEvent(ev)
+                return arr
+        w = arr.shape[axes[0]]
+        h = arr.shape[axes[1]]
+
+        # generate an ellipsoidal mask
+        mask = np.fromfunction(
+            lambda x, y: np.hypot(((x + 0.5) / (w / 2.0) - 1), ((y + 0.5) / (h / 2.0) - 1)) < 1, (w, h)
+        )
+
+        # reshape to match array axes
+        if axes[0] > axes[1]:
+            mask = mask.T
+        shape = [(n if i in axes else 1) for i, n in enumerate(arr.shape)]
+        mask = mask.reshape(shape)
+
+        if returnMappedCoords:
+            return arr * mask, mappedCoords
+        else:
+            return arr * mask
+
+    def shape(self):
+        if self.path is None:
+            path = QPainterPath()
+
+            # Note: Qt has a bug where very small ellipses (radius <0.001) do
+            # not correctly intersect with mouse position (upper-left and
+            # lower-right quadrants are not clickable).
+            # path.addEllipse(self.boundingRect())
+
+            # Workaround: manually draw the path.
+            br = self.boundingRect()
+            center = br.center()
+            r1 = br.width() / 2.0
+            r2 = br.height() / 2.0
+            theta = np.linspace(0, 2 * np.pi, 24)
+            x = center.x() + r1 * np.cos(theta)
+            y = center.y() + r2 * np.sin(theta)
+            path.moveTo(x[0], y[0])
+            for i in range(1, len(x)):
+                path.lineTo(x[i], y[i])
+            self.path = path
+
+        return self.path
 
 
-translate = QCoreApplication.translate
+# class Circle(pg.CircleROI):
+#     def __init__(
+#         self,
+#         pos: tuple[float, float],
+#         radius: float = 1.0,
+#         color: str = "#f47b90",
+#         id_: str | None = None,
+#         **args,
+#     ):
+#         super().__init__(
+#             pos,
+#             radius=radius,
+#             hoverPen=pg.mkPen(color="w", width=3),
+#             handlePen=pg.mkPen(color="yellow", width=2),
+#             removable=False,
+#             **args,
+#         )
+
+#         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
+#         self.id_ = id_ or id_uuid4()
+
+#         self.center = QPointF(pos[0] - radius, pos[1] - radius)
+#         self.fill_color = QColor(color)
+#         self.fill_color.setAlphaF(0.8)
+#         self.brush = QBrush(self.fill_color)
+
+#         self.setPos(self.center)
+
+#         while self.handles:
+#             self.removeHandle(0)
+
+#     def addHandle(self, info, index=None):
+#         # If a Handle was not supplied, create it now
+#         if "item" not in info or info["item"] is None:
+#             h = ZHandle(
+#                 self.handleSize,
+#                 typ=info["type"],
+#                 pen=self.handlePen,
+#                 hoverPen=self.handleHoverPen,
+#                 parent=self,
+#                 antialias=self._antialias,
+#             )
+#             info["item"] = h
+#         else:
+#             h = info["item"]
+#             if info["pos"] is None:
+#                 info["pos"] = h.pos()
+#         h.setPos(info["pos"] * self.state["size"])
+
+#         # connect the handle to this ROI
+#         # iid = len(self.handles)
+#         h.connectROI(self)
+#         if index is None:
+#             self.handles.append(info)
+#         else:
+#             self.handles.insert(index, info)
+
+#         h.setZValue(self.zValue() + 1)
+#         self.stateChanged()
+#         return h
+
+#     def paint(self, p: QPainter, opt, widget):
+#         p.setBrush(self.brush)
+#         if self.isSelected():
+#             self.currentPen = self.hoverPen
+#         super().paint(p, opt, widget)
+
+#     def mouseClickEvent(self, ev: MouseClickEvent):
+#         if ev.button() == Qt.MouseButton.LeftButton:
+#             if not self.isSelected():
+#                 self.setSelected(True)
+#             else:
+#                 self.setSelected(False)
+#         super().mouseClickEvent(ev)
 
 
 class ZHandle(Handle):
@@ -669,21 +824,29 @@ class ZHandle(Handle):
         deletable=False,
         antialias=True,
     ):
-        super().__init__(radius, typ, pen, hoverPen, parent, deletable)
-        self.polygon_parent = None
-        self.vertex_index = None
+        self.rois = []
+        self.radius = radius
+        self.typ = typ
+        self.pen = pg.mkPen(pen)
+        self.hoverPen = pg.mkPen(hoverPen)
+        self.currentPen = self.pen
+        self.isMoving = False
+        self.sides, self.startAng = self.types[typ]
+        self.buildPath()
+        self._shape = None
+        self._antialias = antialias
+        self.menu = QMenu()
+        self.removeAction = self.menu.addAction("Remove handle", self.removeClicked)
 
-    def buildMenu(self):
-        menu = QMenu()
-        menu.setTitle(translate("ROI", "Handle"))
-        # self.removeAction = menu.addAction(translate("ROI", "Remove handle"), self.removeClicked)
-        return menu
-
-    def hoverEvent(self, ev: HoverEvent):
-        super().hoverEvent(ev)
+        pg.UIGraphicsItem.__init__(self, parent=parent)
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.deletable = deletable
+        if deletable:
+            self.setAcceptedMouseButtons(Qt.MouseButton.RightButton)
+        self.setZValue(11)
 
     def paint(self, p, opt, widget):
-        p.setRenderHints(p.RenderHint.Antialiasing, True)
+        p.setRenderHints(p.RenderHint.Antialiasing, self._antialias)
         p.setPen(self.currentPen)
         fill_color = pg.mkColor(self.currentPen.color())
         fill_color.setAlphaF(0.5)

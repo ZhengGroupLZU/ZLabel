@@ -28,7 +28,7 @@ dev = [
     # "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
     "imageio>=2.37.0",
-    # "cx-freeze>=8.4.1",
+    "cx-freeze>=8.4.1",
     "tomli>=2.3.0",
 ]
 

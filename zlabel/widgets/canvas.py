@@ -13,7 +13,7 @@ from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
-from zlabel.widgets.graphic_objects import Circle, Polygon, Rectangle, ZHandle
+from zlabel.widgets.graphic_objects import Point, Polygon, Rectangle, ZHandle
 
 
 class Canvas(pg.PlotWidget):
@@ -66,7 +66,7 @@ class Canvas(pg.PlotWidget):
         self.image_item.setZValue(-10)
         self.addItem(self.image_item)
 
-        self.current_item: Rectangle | Circle | Polygon | None = None
+        self.current_item: Rectangle | Point | Polygon | None = None
         self.selecting_item: Rectangle | None = None
         self.showing_items: OrderedDict[str, Rectangle | Polygon] = OrderedDict()
         # Committed polygon points added by user clicks during CREATE mode
@@ -159,10 +159,10 @@ class Canvas(pg.PlotWidget):
         return self.image_item.height()
 
     @property
-    def selected_items(self) -> list[Rectangle | Circle | Polygon]:
+    def selected_items(self) -> list[Rectangle | Point | Polygon]:
         items_selected = list(
             filter(
-                lambda it: it.isSelected() and isinstance(it, (Rectangle, Circle, Polygon)),
+                lambda it: it.isSelected() and isinstance(it, (Rectangle, Point, Polygon)),
                 self.items(),
             )
         )
@@ -415,7 +415,7 @@ class Canvas(pg.PlotWidget):
                     movable=False,
                 )  # type: ignore
             case DrawMode.POINT:
-                self.current_item = Circle(
+                self.current_item = Point(
                     pos=self.mouse_down_pos.toTuple(),  # type: ignore
                     radius=self.point_radius,
                     color=self.default_color,
@@ -481,7 +481,7 @@ class Canvas(pg.PlotWidget):
                 case Rectangle():
                     if state["size"].x() > 1 and state["size"].y() > 1:
                         self.sigRectangleCreated.emit(state)
-                case Circle():
+                case Point():
                     self.sigPointCreated.emit(state["pos"])
                 case _:
                     ...
@@ -603,7 +603,7 @@ class Canvas(pg.PlotWidget):
     # endregion
 
     # region create
-    def create_item(self, item: Rectangle | Circle | Polygon):
+    def create_item(self, item: Rectangle | Point | Polygon):
         item.setZValue(self._z_value)
         item.sigClicked.connect(self.on_item_clicked)
         item.sigRegionChanged.connect(self.on_item_state_changed)
@@ -685,7 +685,7 @@ class Canvas(pg.PlotWidget):
 
     # endregion
     # region remove
-    def hide_item(self, item: Rectangle | Circle | Polygon | None):
+    def hide_item(self, item: Rectangle | Point | Polygon | None):
         if item is None:
             return
         item.setVisible(False)
@@ -738,7 +738,7 @@ class Canvas(pg.PlotWidget):
 
     def select_item(self, id_: str):
         for item in self.items():
-            if isinstance(item, (Rectangle, Circle, Polygon)):
+            if isinstance(item, (Rectangle, Point, Polygon)):
                 item.setSelected(item.id_ == id_)
         self.update()
 
@@ -754,7 +754,7 @@ class Canvas(pg.PlotWidget):
             match item:
                 case ZHandle() | Handle():  # return the top most handle if found
                     return item
-                case Rectangle() | Circle() | Polygon():
+                case Rectangle() | Point() | Polygon():
                     items_.append(item)
                 case _:
                     ...
@@ -848,7 +848,7 @@ class Canvas(pg.PlotWidget):
                 # if there is an item at the click position, meaning
                 # we are trying to edit it
                 if item is not None:
-                    if isinstance(item, Handle):
+                    if isinstance(item, (ZHandle | Handle)):
                         self._is_editing_handle = True
                     # elif isinstance(item, pg.ROI):
                     elif isinstance(item, (Rectangle, Polygon)):
