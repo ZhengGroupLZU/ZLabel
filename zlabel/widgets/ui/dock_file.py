@@ -150,7 +150,7 @@ class Ui_ZDockFileContent(object):
 
         self.retranslateUi(ZDockFileContent)
 
-        self.cbox_fetch_num.setCurrentIndex(4)
+        self.cbox_fetch_num.setCurrentIndex(0)
 
 
         QMetaObject.connectSlotsByName(ZDockFileContent)
