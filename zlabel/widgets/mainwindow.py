@@ -8,7 +8,7 @@ import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QPointF, QSize, Qt, QThreadPool, Signal
 from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QComboBox, QMainWindow, QMessageBox, QFileDialog
+from pyqtgraph.Qt.QtWidgets import QComboBox, QFileDialog, QMainWindow, QMessageBox
 
 from zlabel.utils import (
     Annotation,
@@ -19,11 +19,11 @@ from zlabel.utils import (
     Project,
     RectangleResult,
     ResultType,
-    ZLServerApiHelper,
     StatusMode,
     Task,
     User,
     ZLogger,
+    ZLServerApiHelper,
     id_uuid4,
 )
 from zlabel.utils.enums import AnnotationType, FetchType, RgbMode
@@ -60,8 +60,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def __init__(self):
         super().__init__()
-        self.logger = ZLogger("MainWindow")
-        self.settings_path = "zlabel.conf"
+        self.logger: ZLogger = ZLogger("MainWindow")
+        self.settings_path: str = "zlabel.conf"
         self.settings: ZSettings = ZSettings()
         self.zl_server_api: ZLServerApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
@@ -250,7 +250,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_cmbox_projects([p[1] for p in projects])
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.logger.debug(f"Loaded {projects=}")
-        self.load_tasks_remote(silent=True)
+        self.load_tasks_remote()
 
     def on_get_projects_failed(self, msg: str):
         QMessageBox.critical(
@@ -269,7 +269,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.logger.info(f"Refreshed {len(tasks)} tasks from remote server")
 
-    def load_tasks_remote(self, silent: bool = False):
+    def load_tasks_remote(self):
         """Load tasks from remote server
 
         Args:
@@ -285,27 +285,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.project_id,
             self.settings.username,
             self.settings.password,
-            silent,
         )
         worker.emitter.success.connect(self.on_get_tasks_success)
         worker.emitter.fail.connect(self.on_get_tasks_failed)
         self.threadpool.start(worker)
 
-    def on_get_tasks_success(self, tasks: list[Task], silent: bool = False):
+    def on_get_tasks_success(self, tasks: list[Task]):
         self.logger.debug(f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}")
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
         self.dockcnt_files.set_row_by_txt(self.proj.key_task)
-
-        # Only show message dialog if not silent
-        if not silent:
-            QMessageBox.information(
-                self,
-                "Info",
-                f"Import {len(tasks)} Tasks Success!",
-                QMessageBox.StandardButton.Ok,
-            )
 
         # Update UI after tasks are loaded
         self.ui_update_settings()
@@ -608,17 +598,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.sender() == self.actionFinish:
             self.proj.crt_task.finished = True
             self.dockcnt_files.set_item_finished(self.proj.crt_task)
-            self.worker_upload = ZUploadFileWorker(
+            worker_upload = ZUploadFileWorker(
                 self.zl_server_api,
                 filename,
                 self.settings.username,
                 self.settings.password,
             )
-            self.worker_upload.emitter.fail.connect(self.show_toast)
-            self.worker_upload.emitter.success.connect(self.show_toast)
-            self.threadpool.start(self.worker_upload)
+            worker_upload.emitter.fail.connect(self.show_toast)
+            worker_upload.emitter.success.connect(self.show_toast)
+            self.threadpool.start(worker_upload)
 
     def on_action_cancel_triggered(self):
+        confirm = QMessageBox.question(
+            self,
+            "Confirm",
+            "Are you sure to cancel the current annotation?",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+        )
+        if confirm == QMessageBox.StandardButton.No:
+            return
         self.canvas.clear_all_items()
         self.dockcnt_anno.listWidget.clear()
         self.dockcnt_anno.listWidget.setCurrentRow(-1)
