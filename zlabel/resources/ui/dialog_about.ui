@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>550</width>
-    <height>280</height>
+    <height>372</height>
    </rect>
   </property>
   <property name="minimumSize">
@@ -19,7 +19,7 @@
   <property name="maximumSize">
    <size>
     <width>550</width>
-    <height>280</height>
+    <height>500</height>
    </size>
   </property>
   <property name="windowTitle">
@@ -27,18 +27,21 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QLabel" name="label_2">
-     <property name="font">
-      <font>
-       <family>Arial</family>
-       <pointsize>71</pointsize>
-      </font>
+    <widget class="QTextBrowser" name="textBrowser">
+     <property name="html">
+      <string>&lt;!DOCTYPE HTML PUBLIC &quot;-//W3C//DTD HTML 4.0//EN&quot; &quot;http://www.w3.org/TR/REC-html40/strict.dtd&quot;&gt;
+&lt;html&gt;&lt;head&gt;&lt;meta name=&quot;qrichtext&quot; content=&quot;1&quot; /&gt;&lt;meta charset=&quot;utf-8&quot; /&gt;&lt;style type=&quot;text/css&quot;&gt;
+p, li { white-space: pre-wrap; }
+hr { height: 1px; border-width: 0; }
+li.unchecked::marker { content: &quot;\2610&quot;; }
+li.checked::marker { content: &quot;\2612&quot;; }
+&lt;/style&gt;&lt;/head&gt;&lt;body style=&quot; font-family:'Microsoft YaHei UI'; font-size:9pt; font-weight:400; font-style:normal;&quot;&gt;
+&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;img src=&quot;:/icon/icons/zlabel.svg&quot; height=&quot;100&quot; /&gt;&lt;/p&gt;
+&lt;p align=&quot;center&quot; dir='rtl' style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:36pt;&quot;&gt;ZLabel&lt;/span&gt;&lt;/p&gt;
+&lt;p align=&quot;center&quot; style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;&lt;span style=&quot; font-size:12pt;&quot;&gt;An image data labeling tool powered by advanced AI models.&lt;/span&gt;&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
      </property>
-     <property name="text">
-      <string>ZLabel</string>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignCenter</set>
+     <property name="openExternalLinks">
+      <bool>true</bool>
      </property>
     </widget>
    </item>
@@ -56,16 +59,16 @@
       </font>
      </property>
      <property name="layoutDirection">
-      <enum>Qt::LeftToRight</enum>
+      <enum>Qt::LayoutDirection::LeftToRight</enum>
      </property>
      <property name="styleSheet">
-      <string notr="true">color: rgb(133, 0, 0);</string>
+      <string notr="true">color: rgb(18,115,166);</string>
      </property>
      <property name="text">
-      <string>ZLabel Copyright (C) 2023 Rainyl@ZhengGroup.</string>
+      <string>ZLabel Copyright (C) 2025 Rainyl@ZhengGroup.</string>
      </property>
      <property name="alignment">
-      <set>Qt::AlignRight|Qt::AlignTrailing|Qt::AlignVCenter</set>
+      <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
      </property>
     </widget>
    </item>
