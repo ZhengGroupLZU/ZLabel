@@ -1,5 +1,7 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/logo.png</file>
+    <file>icons/logo.svg</file>
     <file>icons/zlabel.png</file>
     <file>icons/polygon.svg</file>
     <file>icons/polygon_0.svg</file>
