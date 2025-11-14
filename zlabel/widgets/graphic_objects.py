@@ -44,7 +44,6 @@ class Rectangle(pg.RectROI):
         self.fill_color: QColor = QColor(color)
         self.fill_color.setAlphaF(self.alpha)
         self._selected: bool = False
-        self._update_pending: bool = False
 
         self.brush: QBrush = QBrush(self.fill_color)
         self.hoverPen.setStyle(Qt.PenStyle.DashLine)
@@ -157,15 +156,6 @@ class Rectangle(pg.RectROI):
         self.alpha = alpha
         self.fill_color.setAlphaF(self.alpha)
         self.brush = QBrush(self.fill_color)
-        self.scheduleUpdate()
-
-    def scheduleUpdate(self):
-        if not self._update_pending:
-            self._update_pending = True
-            QTimer.singleShot(0, self._doUpdate)
-
-    def _doUpdate(self):
-        self._update_pending = False
         self.update()
 
     def setMovable(self, movable: bool):
@@ -215,7 +205,6 @@ class Polygon(pg.ROI):
 
         self.alpha: float = alpha
         self._selected: bool = False
-        self._update_pending: bool = False
 
         self.fill_color: QColor = QColor(color)
         self.fill_color.setAlphaF(self.alpha)
@@ -270,7 +259,7 @@ class Polygon(pg.ROI):
 
     def getState(self):
         if self.handles:
-            points = [pg.Point(h.pos()) for h in self.getHandles()]
+            points = [pg.Point(h['pos']) for h in self.handles]
         else:
             points = [pg.Point(p[0], p[1]) for p in self.points]
 
@@ -287,7 +276,7 @@ class Polygon(pg.ROI):
         state["id"] = self.id_
 
         if self.handles:
-            state["points"] = [tuple(h.pos()) for h in self.getHandles()]
+            state["points"] = [tuple(h['pos']) for h in self.handles]
         else:
             state["points"] = [(p[0], p[1]) for p in self.points]
 
@@ -467,15 +456,6 @@ class Polygon(pg.ROI):
         self.alpha = alpha
         self.fill_color.setAlphaF(self.alpha)
         self.brush = QBrush(self.fill_color)
-        self.scheduleUpdate()
-
-    def scheduleUpdate(self):
-        if not self._update_pending:
-            self._update_pending = True
-            QTimer.singleShot(0, self._doUpdate)
-
-    def _doUpdate(self):
-        self._update_pending = False
         self.update()
 
     def _point_to_line_distance(

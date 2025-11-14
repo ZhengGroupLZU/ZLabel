@@ -17,7 +17,7 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
         self.setupUi(self)
 
         self.items: list[str] = []
-        # self.sigItemCountChanged.connect(self.set_title)
+        self.sigItemCountChanged.connect(self.set_title)
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Delete:

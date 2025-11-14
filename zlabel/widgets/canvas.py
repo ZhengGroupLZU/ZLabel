@@ -881,6 +881,9 @@ class Canvas(pg.PlotWidget):
         self.vline.setPos(pos.x())
         self.sigMouseMoved.emit(pos)
 
+        if ev.buttons() & Qt.MouseButton.MiddleButton:
+            return super().mouseMoveEvent(ev)
+
         # Allow polygon live preview even when no mouse button is pressed
         if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON and self.current_item:
             prev = self.polygon_preview_point

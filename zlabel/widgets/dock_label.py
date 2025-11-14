@@ -13,6 +13,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
     SigBtnDecreaseClicked = Signal(str)  # label id
     sigBtnDeleteClicked = Signal(str)
     sigItemColorChanged = Signal(str, str)
+    sigItemDoubleClicked = Signal(str)  # id
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -20,6 +21,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
 
         self.btn_increase.clicked.connect(self.on_btn_increase_clicked)
         self.btn_decrease.clicked.connect(self.on_btn_decrease_clicked)
+        self.listw_labels.itemDoubleClicked.connect(self.on_item_double_clicked)
 
     def find_item_by_id(
         self,
@@ -30,6 +32,9 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
             if item.id_ == id_:
                 return row, item
         return None, None
+
+    def on_item_double_clicked(self, item: ZListWidgetItem):
+        self.sigItemDoubleClicked.emit(item.id_)
 
     def set_color(self, color: str):
         for row in range(self.listw_labels.count()):

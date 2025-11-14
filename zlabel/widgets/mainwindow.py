@@ -81,6 +81,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
 
+        self._is_modifying: bool = False
+
         self.init_ui()
         self.init_signals()
         self.load_settings()
@@ -396,6 +398,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.set_row_by_text(result.id)
         self.canvas.set_item_state_by_result(result, update=update)
+        item = self.canvas.showing_items.get(result.id, None)
+        if item is not None:
+            item.setFillColor(result.labels[0].color, self.settings.alpha)
 
     def modify_results(
         self,
@@ -406,6 +411,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         for r in results:
             self.modify_result(r, update)
+        self._is_modifying = False
 
     def add_annotation(self, anno: Annotation):
         self.proj.key_task = anno.id
@@ -792,6 +798,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.debug(f"Labels color changed: {self.proj.labels[id_]=}")
         self.proj.save_json(self.proj.project_path)
 
+    def on_dock_label_item_double_clicked(self, id_: str):
+        if not self.proj.crt_anno:
+            return
+        label = self.proj.labels.get(id_, None)
+        if label is None:
+            self.logger.debug(f"Label {id_} not found in {self.proj.labels.keys()}")
+            return
+        items = self.canvas.selected_items
+        if len(items) == 0:
+            self.logger.debug("No item selected")
+            return
+        # prevent canvas state changed signal
+        self._is_modifying = True
+
+        result_old: list[RectangleResult | PolygonResult] = []
+        result_new: list[RectangleResult | PolygonResult] = []
+        for item in items:
+            result = self.proj.crt_anno.results.get(item.id_, None)
+            if result is None:
+                self.logger.warning(f"Result {item.id_} not found in {self.proj.crt_anno.results.keys()}")
+                continue
+            result_old.append(copy.deepcopy(result))
+            r_new = copy.deepcopy(result)
+            r_new.labels = [label]
+            result_new.append(r_new)
+        self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY, result_old)
+
     # endregion
 
     # region DockInfo
@@ -1087,7 +1120,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_info.set_info_by_result(self.proj.crt_result)
 
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
-        if self.proj.crt_result is None:
+        if self.proj.crt_result is None or self._is_modifying:
             return
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
         result.x = state["pos"].x()
@@ -1107,7 +1140,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.logger.debug(self.current_result)
 
     def on_canvas_item_state_change_finished(self, state: dict[str, Any]):
-        if self.proj.crt_anno is None:
+        if self.proj.crt_anno is None or self._is_modifying:
             return
         assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
@@ -1257,6 +1290,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # )
         self.dockcnt_labels.sigBtnDeleteClicked.connect(self.on_dock_label_btn_del_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
+        self.dockcnt_labels.sigItemDoubleClicked.connect(self.on_dock_label_item_double_clicked)
 
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
