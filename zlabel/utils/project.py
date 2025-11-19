@@ -245,6 +245,7 @@ class Annotation(BaseModel):
     original_width: float
     original_height: float
     image_rotation: int = 0
+    note: str = ""
 
     results: OrderedDict[str, PolygonResult | RectangleResult] = OrderedDict()
 

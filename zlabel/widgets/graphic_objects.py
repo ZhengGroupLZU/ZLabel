@@ -3,17 +3,17 @@ from typing import Any
 
 import numpy as np
 import pyqtgraph as pg  # type: ignore
-from pyqtgraph.graphicsItems.ROI import ROI, Handle
+from pyqtgraph.graphicsItems.ROI import ROI
 from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent
-from pyqtgraph.Qt.QtCore import QCoreApplication, QPointF, QRectF, Qt, QTimer, Signal
-from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF
+from pyqtgraph.Qt.QtCore import QCoreApplication, QPoint, QPointF, QRectF, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu
 from rich import print  # noqa: F401
 
 from zlabel.utils import ZLogger, id_uuid4
 
 
-class Rectangle(pg.RectROI):
+class Rectangle(pg.ROI):
     def __init__(
         self,
         rect: QRectF,
@@ -29,8 +29,6 @@ class Rectangle(pg.RectROI):
         super().__init__(
             rect.topLeft().toTuple(),
             rect.size().toTuple(),
-            centered=centered,
-            sideScalers=sideScalers,
             antialias=False,
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
@@ -60,9 +58,6 @@ class Rectangle(pg.RectROI):
             [[1.0, 0.5], [0.0, 0.5]],
             [[1.0, 1.0], [0.0, 0.0]],
         ]
-        self.removeHandles()
-        self.restoreHandles()
-        self.hideHandles()
 
         if self.translatable:
             self.setCursor(Qt.CursorShape.PointingHandCursor)
@@ -132,14 +127,6 @@ class Rectangle(pg.RectROI):
             # if handle is not None:
             #     handle.sigHovering.connect(self.on_handle_mouse_hover)
 
-    def showHandles(self):
-        for h in self.handles:
-            h["item"].show()
-
-    def hideHandles(self):
-        for h in self.handles:
-            h["item"].hide()
-
     def setSelected(self, s: bool):
         self._selected = s
         return super().setSelected(s)
@@ -165,7 +152,7 @@ class Rectangle(pg.RectROI):
         else:
             self.setCursor(Qt.CursorShape.ArrowCursor)
 
-    def getState(self):
+    def getState(self) -> dict[str, Any]:
         return {"id": self.id_, **super().getState()}
 
     def setState(self, state: dict[str, Any], update=True):
@@ -173,9 +160,9 @@ class Rectangle(pg.RectROI):
         if state.get("id", None):
             self.id_ = state["id"]
         if self.isSelected():
-            self.showHandles()
+            self.restoreHandles()
         else:
-            self.hideHandles()
+            self.removeHandles()
 
 
 class Polygon(pg.ROI):
@@ -259,7 +246,7 @@ class Polygon(pg.ROI):
 
     def getState(self):
         if self.handles:
-            points = [pg.Point(h['pos']) for h in self.handles]
+            points = [pg.Point(h["pos"]) for h in self.handles]
         else:
             points = [pg.Point(p[0], p[1]) for p in self.points]
 
@@ -276,7 +263,7 @@ class Polygon(pg.ROI):
         state["id"] = self.id_
 
         if self.handles:
-            state["points"] = [tuple(h['pos']) for h in self.handles]
+            state["points"] = [tuple(h["pos"]) for h in self.handles]
         else:
             state["points"] = [(p[0], p[1]) for p in self.points]
 
@@ -394,7 +381,9 @@ class Polygon(pg.ROI):
 
         if len(self.handles) > 1:
             # Use actual handle item positions so the drawing reflects edits immediately
-            polygon = QPolygonF([QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles])
+            polygon = QPolygonF([
+                QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles
+            ])
         else:
             polygon = QPolygonF([QPointF(p[0], p[1]) for p in self.points])
         if self.closed:
@@ -470,16 +459,22 @@ class Polygon(pg.ROI):
         line_len_sq = line_vec.x() * line_vec.x() + line_vec.y() * line_vec.y()
 
         if line_len_sq == 0:
-            distance = math.sqrt((point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2)
+            distance = math.sqrt(
+                (point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2
+            )
             return distance, line_start
 
         t = (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y()) / line_len_sq
 
         t = max(0.0, min(1.0, t))
 
-        closest_point = QPointF(line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y())
+        closest_point = QPointF(
+            line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y()
+        )
 
-        distance = math.sqrt((point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2)
+        distance = math.sqrt(
+            (point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2
+        )
 
         return distance, closest_point
 
@@ -507,7 +502,9 @@ class Polygon(pg.ROI):
             start_point = points[i]
             end_point = points[(i + 1) % num_points]
 
-            distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
+            distance, nearest_point = self._point_to_line_distance(
+                click_pos, start_point, end_point
+            )
 
             if distance < min_distance and distance <= tolerance:
                 min_distance = distance
@@ -652,7 +649,9 @@ class Point(ROI):
         r = QRectF(r.x() / r.width(), r.y() / r.height(), 1, 1)
         p.drawEllipse(r)
 
-    def getArrayRegion(self, arr: np.ndarray, img=None, axes=(0, 1), returnMappedCoords=False, **kwds):
+    def getArrayRegion(
+        self, arr: np.ndarray, img=None, axes=(0, 1), returnMappedCoords=False, **kwds
+    ):
         """
         Return the result of :meth:`~pyqtgraph.ROI.getArrayRegion` masked by the
         point shape of the ROI. Regions outside the point are set to 0.
@@ -678,7 +677,8 @@ class Point(ROI):
 
         # generate an ellipsoidal mask
         mask = np.fromfunction(
-            lambda x, y: np.hypot(((x + 0.5) / (w / 2.0) - 1), ((y + 0.5) / (h / 2.0) - 1)) < 1, (w, h)
+            lambda x, y: np.hypot(((x + 0.5) / (w / 2.0) - 1), ((y + 0.5) / (h / 2.0) - 1)) < 1,
+            (w, h),
         )
 
         # reshape to match array axes
@@ -793,7 +793,30 @@ class Point(ROI):
 #         super().mouseClickEvent(ev)
 
 
-class ZHandle(Handle):
+class ZHandle(pg.UIGraphicsItem):
+    """
+    Handle represents a single user-interactable point attached to an ROI. They
+    are usually created by a call to one of the ROI.add___Handle() methods.
+
+    Handles are represented as a square, diamond, or circle, and are drawn with
+    fixed pixel size regardless of the scaling of the view they are displayed in.
+
+    Handles may be dragged to change the position, size, orientation, or other
+    properties of the ROI they are attached to.
+    """
+
+    types = {  ## defines number of sides, start angle for each handle type
+        "t": (4, np.pi / 4),
+        "f": (4, np.pi / 4),
+        "s": (4, 0),
+        "r": (12, 0),
+        "sr": (12, 0),
+        "rf": (12, 0),
+    }
+
+    sigClicked = Signal(object, object)  # self, event
+    sigRemoveRequested = Signal(object)  # self
+
     def __init__(
         self,
         radius,
@@ -815,8 +838,7 @@ class ZHandle(Handle):
         self.buildPath()
         self._shape = None
         self._antialias = antialias
-        self.menu = QMenu()
-        self.removeAction = self.menu.addAction("Remove handle", self.removeClicked)
+        self.menu = self.buildMenu()
 
         pg.UIGraphicsItem.__init__(self, parent=parent)
         self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
@@ -824,6 +846,131 @@ class ZHandle(Handle):
         if deletable:
             self.setAcceptedMouseButtons(Qt.MouseButton.RightButton)
         self.setZValue(11)
+
+    def connectROI(self, roi):
+        ### roi is the "parent" roi, i is the index of the handle in roi.handles
+        self.rois.append(roi)
+
+    def disconnectROI(self, roi):
+        self.rois.remove(roi)
+
+    def setDeletable(self, b):
+        self.deletable = b
+        if b:
+            self.setAcceptedMouseButtons(self.acceptedMouseButtons() | Qt.MouseButton.RightButton)
+        else:
+            self.setAcceptedMouseButtons(self.acceptedMouseButtons() & ~Qt.MouseButton.RightButton)
+
+    def removeClicked(self):
+        self.sigRemoveRequested.emit(self)
+
+    def hoverEvent(self, ev):
+        hover = False
+        if not ev.isExit():
+            if ev.acceptDrags(Qt.MouseButton.LeftButton):
+                hover = True
+            for btn in [
+                Qt.MouseButton.LeftButton,
+                Qt.MouseButton.RightButton,
+                Qt.MouseButton.MiddleButton,
+            ]:
+                if (self.acceptedMouseButtons() & btn) and ev.acceptClicks(btn):
+                    hover = True
+
+        if hover:
+            self.currentPen = self.hoverPen
+        else:
+            self.currentPen = self.pen
+        self.update()
+
+    def mouseClickEvent(self, ev):
+        ## right-click cancels drag
+        if ev.button() == Qt.MouseButton.RightButton and self.isMoving:
+            self.isMoving = False  ## prevents any further motion
+            self.movePoint(self.startPos, finish=True)
+            ev.accept()
+        elif self.acceptedMouseButtons() & ev.button():
+            ev.accept()
+            if ev.button() == Qt.MouseButton.RightButton and self.deletable:
+                self.raiseContextMenu(ev)
+            self.sigClicked.emit(self, ev)
+        else:
+            ev.ignore()
+
+    def buildMenu(self):
+        menu = QMenu()
+        menu.setTitle("ROI Handle")
+        self.removeAction = menu.addAction("ROI Remove handle"), self.removeClicked
+        return menu
+
+    def getMenu(self):
+        return self.menu
+
+    def raiseContextMenu(self, ev):
+        menu = self.scene().addParentContextMenus(self, self.getMenu(), ev)
+
+        ## Make sure it is still ok to remove this handle
+        removeAllowed = all(r.checkRemoveHandle(self) for r in self.rois)
+        self.removeAction.setEnabled(removeAllowed)
+        pos = ev.screenPos()
+        menu.popup(QPoint(int(pos.x()), int(pos.y())))
+
+    def mouseDragEvent(self, ev):
+        if ev.button() != Qt.MouseButton.LeftButton:
+            return
+        ev.accept()
+
+        ## Inform ROIs that a drag is happening
+        ##  note: the ROI is informed that the handle has moved using ROI.movePoint
+        ##  this is for other (more nefarious) purposes.
+        # for r in self.roi:
+        # r[0].pointDragEvent(r[1], ev)
+
+        if ev.isFinish():
+            if self.isMoving:
+                for r in self.rois:
+                    r.stateChangeFinished()
+            self.isMoving = False
+            self.currentPen = self.pen
+            self.update()
+        elif ev.isStart():
+            for r in self.rois:
+                r.handleMoveStarted()
+            self.isMoving = True
+            self.startPos = self.scenePos()
+            self.cursorOffset = self.scenePos() - ev.buttonDownScenePos()
+            self.currentPen = self.hoverPen
+
+        if self.isMoving:  ## note: isMoving may become False in mid-drag due to right-click.
+            pos = ev.scenePos() + self.cursorOffset
+            self.currentPen = self.hoverPen
+            self.movePoint(pos, ev.modifiers(), finish=False)
+
+    def movePoint(self, pos, modifiers=None, finish=True):
+        if modifiers is None:
+            modifiers = Qt.KeyboardModifier.NoModifier
+        for r in self.rois:
+            if not r.checkPointMove(self, pos, modifiers):
+                return
+        # print "point moved; inform %d ROIs" % len(self.roi)
+        # A handle can be used by multiple ROIs; tell each to update its handle position
+        for r in self.rois:
+            r.movePoint(self, pos, modifiers, finish=finish, coords="scene")
+
+    def buildPath(self):
+        size = self.radius
+        self.path = QPainterPath()
+        ang = self.startAng
+        dt = 2 * np.pi / self.sides
+        for i in range(0, self.sides):
+            x = size * math.cos(ang)
+            y = size * math.sin(ang)
+            ang += dt
+            if i == 0:
+                self.path.moveTo(x, y)
+            else:
+                self.path.lineTo(x, y)
+        self.path.closeSubpath()
 
     def paint(self, p, opt, widget):
         p.setRenderHints(p.RenderHint.Antialiasing, self._antialias)
@@ -834,3 +981,41 @@ class ZHandle(Handle):
         p.setBrush(brush)
 
         p.drawPath(self.shape())
+
+    def shape(self):
+        if self._shape is None:
+            s = self.generateShape()
+            if s is None:
+                return self.path
+            self._shape = s
+            # beware--this can cause the view to adjust,
+            # which would immediately invalidate the shape.
+            self.prepareGeometryChange()
+        return self._shape
+
+    def boundingRect(self):
+        s1 = self.shape()  # noqa: avoid problems with shape invalidation
+        return self.shape().boundingRect()
+
+    def generateShape(self):
+        dt = self.deviceTransform()
+
+        if dt is None:
+            self._shape = self.path
+            return None
+
+        v = dt.map(QPointF(1, 0)) - dt.map(QPointF(0, 0))
+        va = math.atan2(v.y(), v.x())
+
+        dti = pg.invertQTransform(dt)
+        devPos = dt.map(QPointF(0, 0))
+        tr = QTransform()
+        tr.translate(devPos.x(), devPos.y())
+        tr.rotateRadians(va)
+
+        return dti.map(tr.map(self.path))
+
+    def viewTransformChanged(self):
+        pg.GraphicsObject.viewTransformChanged(self)
+        self._shape = None  ## invalidate shape, recompute later if requested.
+        self.update()

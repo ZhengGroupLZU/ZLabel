@@ -492,7 +492,7 @@ class Canvas(pg.PlotWidget):
         self.mouse_up_pos = None
         self._drawing = False
 
-    def map_scene_to_view(self, point: QPoint):
+    def map_scene_to_view(self, point: QPointF):
         pos = self.view_box.mapSceneToView(point)
         return QPointF(pos.x(), pos.y())
 
@@ -802,14 +802,14 @@ class Canvas(pg.PlotWidget):
         elif ev.button() == Qt.MouseButton.RightButton:
             # Right-click undo for polygon drawing in CREATE mode
             if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
-                preview_pos = self.map_scene_to_view(ev.pos())
+                preview_pos = self.map_scene_to_view(ev.position())
                 self.undo_last_polygon_point(preview_pos)
                 ev.accept()
                 return
             # Otherwise, let base behavior handle (e.g., autorange in ViewBox)
         elif ev.button() == Qt.MouseButton.LeftButton:
             # self.logger.debug(f"ZGraphicsScene Press: {ev=}, {self._status_mode=}")
-            self.mouse_down_pos = self.map_scene_to_view(ev.pos())
+            self.mouse_down_pos = self.map_scene_to_view(ev.position())
             if self._status_mode == StatusMode.CREATE:
                 self.clear_selections_if_no_ctrl(ev)
                 # Branch by draw mode for CREATE
@@ -875,7 +875,7 @@ class Canvas(pg.PlotWidget):
         return super().mousePressEvent(ev)
 
     def mouseMoveEvent(self, ev: QMouseEvent):
-        pos: QPointF = self.map_scene_to_view(ev.pos())
+        pos: QPointF = self.map_scene_to_view(ev.position())
         self.last_mouse_pos_view = pos
         self.hline.setPos(pos.y())
         self.vline.setPos(pos.x())

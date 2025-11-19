@@ -342,6 +342,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.proj.crt_anno.original_height = image.height
         self.proj.crt_anno.original_width = image.width
+        self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
         self.canvas.update_image(np.asarray(image, dtype=np.uint8))
         self.canvas.set_rgb(self.rgb_mode)
         self.dialog_processing.close()
@@ -361,7 +362,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.proj.crt_anno.add_result(result)
         self.canvas.create_item_by_result(result)
-        self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.add_item(result.id)
         # self.logger.debug(f"Added result {result}")
 
@@ -395,7 +395,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.logger.debug(f"{result=}")
         self.proj.crt_anno.results.update({result.id: result})
-        self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.set_row_by_text(result.id)
         self.canvas.set_item_state_by_result(result, update=update)
         item = self.canvas.showing_items.get(result.id, None)
@@ -830,16 +829,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # region DockInfo
     # DockInfo #####
     def on_dock_info_ledit_note_changed(self, s: str):
-        if self.proj.crt_result:
-            self.proj.crt_result.note = s
-
-    def on_dock_info_btn_del_clicked(self):
-        self.canvas.remove_selected_items()
         if self.proj.crt_anno:
-            self.proj.crt_anno.remove_result(self.proj.crt_anno.key_result)
-        else:
-            self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
-
+            self.proj.crt_anno.note = s
     # endregion
 
     # region DockAnnotation
@@ -849,9 +840,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.select_item(item.id_)
         self.canvas.block_item_state_changed(False)
 
-        if self.proj.crt_anno:
+        if self.proj.crt_anno and item.id_ in self.proj.crt_anno.results:
             self.proj.crt_anno.key_result = item.id_
-            self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+            if self.proj.crt_result and self.proj.crt_result.labels:
+                self.proj.key_label = self.proj.crt_result.labels[0].id
+                self.dockcnt_labels.select_row_by_id(self.proj.key_label)
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -893,15 +886,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.add_annotation(anno)
                 self.logger.info(f"Got anno from remote, added {name}")
             except Exception as e:
-                labels = OrderedDict()
                 for name in task.labels:
                     label = Label(id=id_uuid4(), name=name, color=self.settings.default_color)
-                    labels[label.id] = label
+                    self.proj.labels[label.id] = label
+                img = self._image_cache.get(task.filename, None)
                 self.add_annotation(
                     Annotation(
                         image_path=task.filename,
-                        original_height=0,
-                        original_width=0,
+                        original_height=img.height if img else 0,
+                        original_width=img.width if img else 0,
                         created_by=self.user,
                         updated_by=self.user,
                         id=task.anno_id,
@@ -913,7 +906,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         # update ui
         # ^ hereafter, self.proj.crt_anno won't be None
-        self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
         self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
@@ -1117,7 +1109,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.proj.key_result = id_
         self.dockcnt_anno.set_row_by_text(id_)
-        self.dockcnt_info.set_info_by_result(self.proj.crt_result)
 
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
@@ -1135,7 +1126,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result.points = [(p.x(), p.y()) for p in state["points"]]
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
-        self.dockcnt_info.set_info_by_result(result)
         self.dockcnt_anno.set_row_by_text(result.id)
         # self.logger.debug(self.current_result)
 
@@ -1274,8 +1264,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
-        self.dockcnt_info.ledit_anno_note.textChanged.connect(self.on_dock_info_ledit_note_changed)
-        self.dockcnt_info.btn_delete_anno.clicked.connect(self.on_dock_info_btn_del_clicked)
+        self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
 
         # dock files
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)

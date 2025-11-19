@@ -92,4 +92,4 @@ executables = [
 excludes = ["tkinter", "unittest"]
 optimize = 2
 zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
-include_files = ["build/zlabel.conf", ["build/projects", "projects"]]
+include_files = ["template/zlabel.conf"]

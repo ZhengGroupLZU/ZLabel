@@ -100,10 +100,18 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         if len(labels) == 0:
             return
         selected_id = selected_id or labels[0].id
-        row = 0
+        row = -1
         for i, label in enumerate(labels):
             self.add_label(label)
             if label.id == selected_id:
                 row = i
         self.listw_labels.setCurrentRow(row)
         self.listw_labels.itemClicked.emit(self.listw_labels.currentItem())
+
+    def select_row_by_id(self, id_: str):
+        row, item = self.find_item_by_id(id_)
+        if row is not None:
+            self.listw_labels.setCurrentRow(row)
+            self.listw_labels.itemClicked.emit(item)
+        else:
+            self.listw_labels.setCurrentRow(-1)

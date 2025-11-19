@@ -268,15 +268,15 @@
   </widget>
   <widget class="QDockWidget" name="dock_infos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
      <horstretch>0</horstretch>
      <verstretch>0</verstretch>
     </sizepolicy>
    </property>
-   <property name="minimumSize">
+   <property name="maximumSize">
     <size>
-     <width>40</width>
-     <height>0</height>
+     <width>150</width>
+     <height>100</height>
     </size>
    </property>
    <property name="acceptDrops">
@@ -299,8 +299,14 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>40</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>150</width>
+     <height>524287</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -320,8 +326,14 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>40</width>
-     <height>0</height>
+     <width>81</width>
+     <height>41</height>
+    </size>
+   </property>
+   <property name="maximumSize">
+    <size>
+     <width>150</width>
+     <height>524287</height>
     </size>
    </property>
    <property name="floating">
