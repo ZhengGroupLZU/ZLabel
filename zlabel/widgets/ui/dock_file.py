@@ -28,7 +28,6 @@ class Ui_ZDockFileContent(object):
         if not ZDockFileContent.objectName():
             ZDockFileContent.setObjectName(u"ZDockFileContent")
         ZDockFileContent.resize(300, 515)
-        ZDockFileContent.setMinimumSize(QSize(60, 0))
         ZDockFileContent.setMaximumSize(QSize(300, 16777215))
         self.gridLayout_2 = QGridLayout(ZDockFileContent)
         self.gridLayout_2.setObjectName(u"gridLayout_2")

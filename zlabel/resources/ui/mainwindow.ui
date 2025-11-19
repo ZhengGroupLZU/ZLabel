@@ -275,14 +275,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>81</width>
-     <height>41</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>150</width>
-     <height>150</height>
+     <width>40</width>
+     <height>0</height>
     </size>
    </property>
    <property name="acceptDrops">
@@ -305,8 +299,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>81</width>
-     <height>41</height>
+     <width>40</width>
+     <height>0</height>
     </size>
    </property>
    <property name="windowTitle">
@@ -326,8 +320,8 @@
    </property>
    <property name="minimumSize">
     <size>
-     <width>81</width>
-     <height>41</height>
+     <width>40</width>
+     <height>0</height>
     </size>
    </property>
    <property name="floating">
