@@ -114,4 +114,4 @@ bin_excludes = [
 ]
 optimize = 2
 zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
-include_files = ["template/zlabel.conf"]
+include_files = []

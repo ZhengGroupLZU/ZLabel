@@ -1303,7 +1303,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
-        # self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
+        self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
 
         # dock files
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)

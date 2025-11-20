@@ -28,7 +28,6 @@ class ZSettings(BaseModel):
     window_state: str = ""  # base64 encoded
 
     projects: list[tuple[int, str]] = []
-    project_root: str = "projects"
     project_idx: int = -1
     _project: Project = PrivateAttr()
 
@@ -53,8 +52,12 @@ class ZSettings(BaseModel):
         self._project = value
 
     @property
+    def project_root(self) -> Path:
+        return self.root_dir / "projects"
+
+    @property
     def project_dir(self) -> Path:
-        return self.root_dir / self.project_root / self.project_name
+        return self.project_root / self.project_name
 
     @property
     def project_path(self) -> Path:
@@ -68,7 +71,7 @@ class ZSettings(BaseModel):
         # Handle empty project name case
         if not self.project_name:
             # Look for existing projects
-            projs = [p for p in Path(self.project_root).glob("*") if p.is_dir()]
+            projs = [p for p in self.project_root.glob("*") if p.is_dir()]
             if projs:
                 # Use the first available project
                 project_name = projs[0].name
@@ -82,16 +85,15 @@ class ZSettings(BaseModel):
                     except Exception as e:
                         # If project file is corrupted, create new one
                         self._project = Project(id=id_uuid4(), name=project_name)
-                        self._project.save_json(path)
+                        self._project.save_json(self.project_path)
             else:
                 # Create default project
                 project_name = "defaultProject"
                 self.project_idx = 0
                 self.projects = [(0, project_name)]
                 self._project = Project(id=id_uuid4(), name=project_name)
-                project_dir = Path(self.project_root) / project_name
-                project_dir.mkdir(parents=True, exist_ok=True)
-                self._project.save_json(project_dir / f"{project_name}.json")
+                self.project_dir.mkdir(parents=True, exist_ok=True)
+                self._project.save_json(self.project_path)
         else:
             # Normal case with valid project name
             projs = [
