@@ -1114,16 +1114,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_result is None or self._is_modifying:
             return
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_result)
-        result.x = state["pos"].x()
-        result.y = state["pos"].y()
-        result.w = state["size"].x()
-        result.h = state["size"].y()
+        result.x = state["pos"][0]
+        result.y = state["pos"][1]
+        result.w = state["size"][0]
+        result.h = state["size"][1]
         result.rotation = state["angle"]
         if isinstance(result, PolygonResult):
             result.closed = state["closed"]
             # Always convert live state points (pg.Point) to plain tuples to avoid
             # shared references between items and ensure consistent data in Result
-            result.points = [(p.x(), p.y()) for p in state["points"]]
+            result.points = [p for p in state["points"]]
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
         self.dockcnt_anno.set_row_by_text(result.id)
@@ -1135,13 +1135,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
         result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
         result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
-        result.x = state["pos"].x()
-        result.y = state["pos"].y()
-        result.w = state["size"].x()
-        result.h = state["size"].y()
+        result.x = state["pos"][0]
+        result.y = state["pos"][1]
+        result.w = state["size"][0]
+        result.h = state["size"][1]
         result.rotation = state["angle"]
         if isinstance(result, PolygonResult):
-            result.points = [(p.x(), p.y()) for p in state["points"]]
+            result.points = [p for p in state["points"]]
         if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
             self.add_result_undo_cmd([result], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])

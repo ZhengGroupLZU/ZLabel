@@ -776,19 +776,19 @@ class Canvas(pg.PlotWidget):
     def on_item_state_change_started(self, item: Rectangle | Polygon):
         if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
-        self.sigItemStateChangeStarted.emit(item.getState())
+        self.sigItemStateChangeStarted.emit(item.saveState())
         self.logger.debug("Item state change started")
 
     def on_item_state_change_finished(self, item: Rectangle | Polygon):
         if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
-        self.sigItemStateChangeFinished.emit(item.getState())
+        self.sigItemStateChangeFinished.emit(item.saveState())
         self.logger.debug("Item state change Finished")
 
     def on_item_state_changed(self, item: Rectangle | Polygon):
         if item == self.selecting_item or not isinstance(item, (Rectangle, Polygon)):
             return
-        self.sigItemStateChanged.emit(item.getState())
+        self.sigItemStateChanged.emit(item.saveState())
         # self.logger.debug("Item state changed")
 
     # endregion

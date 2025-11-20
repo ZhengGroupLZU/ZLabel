@@ -163,8 +163,8 @@ class RectangleResult(Result):
 class PolygonResult(Result):
     x: float = 0.0
     y: float = 0.0
-    w: float = 0.0
-    h: float = 0.0
+    w: float = 1.0
+    h: float = 1.0
     rotation: float = 0
     closed: bool
     points: list[tuple[float, float]] = []

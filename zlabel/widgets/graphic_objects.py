@@ -155,6 +155,9 @@ class Rectangle(pg.ROI):
     def getState(self) -> dict[str, Any]:
         return {"id": self.id_, **super().getState()}
 
+    def saveState(self) -> dict[str, Any]:
+        return {"id": self.id_, **super().saveState()}
+
     def setState(self, state: dict[str, Any], update=True):
         super().setState(state, update)
         if state.get("id", None):
@@ -258,9 +261,7 @@ class Polygon(pg.ROI):
         }
 
     def saveState(self):
-        state: dict[str, Any] = ROI.saveState(self)
-        state["closed"] = self.closed
-        state["id"] = self.id_
+        state: dict[str, Any] = {"id": self.id_, "closed": self.closed, **super().saveState()}
 
         if self.handles:
             state["points"] = [tuple(h["pos"]) for h in self.handles]
