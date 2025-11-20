@@ -1,14 +1,13 @@
 import copy
 import functools
-from collections import OrderedDict
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QPointF, QSize, Qt, QThreadPool, Signal
-from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QComboBox, QFileDialog, QMainWindow, QMessageBox
+from pyqtgraph.Qt.QtGui import QIcon, QScreen, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox
 
 from zlabel.utils import (
     Annotation,
@@ -87,6 +86,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_signals()
         self.load_settings()
         self.ui_update_settings()
+        self.center_on_screen()
+
+    def center_on_screen(self):
+        screen = QApplication.primaryScreen()
+        screen_geometry = screen.availableGeometry()
+        center_point = screen_geometry.center()
+        frame_geometry = self.frameGeometry()
+        frame_geometry.moveCenter(center_point)
+        self.move(frame_geometry.topLeft())
 
     # region properties
     @property
@@ -277,7 +285,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Args:
             silent: If True, don't show success message dialog
         """
-        self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
+        self.logger.debug(
+            f"Loading tasks from remote server for project: {self.settings.project_name}"
+        )
         if self.zl_server_api is None:
             return
         worker = ZGetTasksWorker(
@@ -293,7 +303,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_get_tasks_success(self, tasks: list[Task]):
-        self.logger.debug(f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}")
+        self.logger.debug(
+            f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}"
+        )
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -461,7 +473,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
             # Check if API is available for remote operations
             if self.zl_server_api is None:
-                return False, "Remote API service is not available. Please check your connection settings."
+                return (
+                    False,
+                    "Remote API service is not available. Please check your connection settings.",
+                )
 
             # Note: Tasks are loaded from remote server, so empty tasks is normal during initialization
             # Only show error if we have tasks but something else is wrong
@@ -477,7 +492,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_project_validation_error(self, error_msg: str):
         """Show project validation error to user"""
-        QMessageBox.warning(self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok)
+        QMessageBox.warning(
+            self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok
+        )
 
     def restore_annotations(self):
         # restore annotations
@@ -816,7 +833,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for item in items:
             result = self.proj.crt_anno.results.get(item.id_, None)
             if result is None:
-                self.logger.warning(f"Result {item.id_} not found in {self.proj.crt_anno.results.keys()}")
+                self.logger.warning(
+                    f"Result {item.id_} not found in {self.proj.crt_anno.results.keys()}"
+                )
                 continue
             result_old.append(copy.deepcopy(result))
             r_new = copy.deepcopy(result)
@@ -831,6 +850,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_info_ledit_note_changed(self, s: str):
         if self.proj.crt_anno:
             self.proj.crt_anno.note = s
+
     # endregion
 
     # region DockAnnotation
@@ -1133,8 +1153,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None or self._is_modifying:
             return
         assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
-        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
-        result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
+        result: RectangleResult | PolygonResult = copy.deepcopy(
+            self.proj.crt_anno.results[state["id"]]
+        )
+        result_old: RectangleResult | PolygonResult = copy.deepcopy(
+            self.proj.crt_anno.results[state["id"]]
+        )
         result.x = state["pos"][0]
         result.y = state["pos"][1]
         result.w = state["size"][0]
@@ -1284,7 +1308,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
-        self.dockcnt_anno.sigItemCountChanged.connect(lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)"))
+        self.dockcnt_anno.sigItemCountChanged.connect(
+            lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)")
+        )
 
     # endregion
 

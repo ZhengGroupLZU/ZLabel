@@ -38,7 +38,7 @@ class Ui_MainWindow(object):
         font.setPointSize(12)
         MainWindow.setFont(font)
         icon = QIcon()
-        icon.addFile(u":/icon/icons/zlabel.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        icon.addFile(u":/icon/icons/logo.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         MainWindow.setWindowIcon(icon)
         self.actionOpen_dir = QAction(MainWindow)
         self.actionOpen_dir.setObjectName(u"actionOpen_dir")

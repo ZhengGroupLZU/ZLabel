@@ -89,7 +89,29 @@ executables = [
 ]
 
 [tool.cxfreeze.build_exe]
-excludes = ["tkinter", "unittest"]
+excludes = [
+    "tkinter",
+    "unittest",
+    "pytest",
+    "zlabel.resources",
+    "imageio",
+    "nuitka",
+    "ordered-set",
+    "zstandard",
+    "py7zr",
+    "tqdm",
+    "typed-argument-parser",
+]
+bin_excludes = [
+    "QtTest.pyd",
+    "Qt6Test.dll",
+    "Qt6Quick.dll",
+    "Qt6QmlWorkerScript.dll",
+    "Qt6QmlModels.dll",
+    "Qt6QmlMeta.dll",
+    "Qt6Qml.dll",
+    "Qt6Pdf.dll",
+]
 optimize = 2
 zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
 include_files = ["template/zlabel.conf"]
