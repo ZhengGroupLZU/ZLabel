@@ -1,17 +1,19 @@
+import os
 from pathlib import Path
 from typing import Any
 
 from pydantic import BaseModel, PrivateAttr, field_validator
+from pyqtgraph.Qt.QtCore import QDir
 
 from zlabel.utils.enums import AnnotationType, FetchType, LogLevel
 from zlabel.utils.project import Project, id_uuid4
 
 
 class ZSettings(BaseModel):
-    root_dir: str = "."
+    root_dir: Path = Path(QDir.homePath()) / ".zlabel"
     annotation_type: AnnotationType = AnnotationType.RECTANGLE
     fetch_type: FetchType = FetchType.FINISHED
-    fetch_num: int = 100
+    fetch_num: int = 10
     host: str = ""
     log_level: LogLevel = LogLevel.INFO
     username: str = ""
@@ -23,7 +25,7 @@ class ZSettings(BaseModel):
     sam_enabled: bool = False
 
     geometry: str = ""  # base64 encoded
-    window_state: str = ""
+    window_state: str = ""  # base64 encoded
 
     projects: list[tuple[int, str]] = []
     project_root: str = "projects"
@@ -52,7 +54,11 @@ class ZSettings(BaseModel):
 
     @property
     def project_dir(self) -> Path:
-        return self._project.project_dir
+        return self.root_dir / self.project_root / self.project_name
+
+    @property
+    def project_path(self) -> Path:
+        return self.project_dir / f"{self.project_name}.json"
 
     @property
     def project_anno_dir(self) -> Path:

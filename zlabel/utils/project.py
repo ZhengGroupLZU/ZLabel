@@ -317,14 +317,6 @@ class Project(BaseModel):
     tasks: OrderedDict[str, Task] = OrderedDict()
     labels: OrderedDict[str, Label] = OrderedDict()
 
-    @property
-    def project_path(self) -> Path:
-        return Path(self.project_dir) / f"{self.name}.json"
-
-    @property
-    def project_dir(self):
-        return Path("projects") / self.name
-
     # region functions
     def save_json(self, path: str | Path, include: IncEx | None = None, exclude: IncEx | None = None):
         p = Path(path)

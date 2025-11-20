@@ -159,6 +159,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
 
     def set_fetch_num_idx_by_value(self, num: int):
         for i in range(self.cbox_fetch_num.count()):
-            if self.cbox_fetch_num.itemText(i) == str(num):
+            text = self.cbox_fetch_num.itemText(i).lower()
+            if text == str(num) or text == "all":
                 self.cbox_fetch_num.setCurrentIndex(i)
                 return

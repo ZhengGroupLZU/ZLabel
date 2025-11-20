@@ -5,8 +5,8 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QByteArray, QPointF, QSize, Qt, QThreadPool, Signal, QDir
-from pyqtgraph.Qt.QtGui import QIcon, QScreen, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, Signal
+from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox
 
 from zlabel.utils import (
@@ -417,7 +417,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def remove_result(self, id_: str, update: bool = False):
         if self.proj.crt_anno is None or id_ not in self.proj.crt_anno.results:
-            self.logger.debug(f"{id_=}, {self.current_anno.results.keys()=}")  # type: ignore
+            self.logger.debug(f"can not remove {id_=}, current annotation is None or id not in results")
             return
         self.proj.crt_anno.remove_result(id_)
         self.canvas.remove_items_by_ids([id_])
@@ -537,16 +537,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.logger.warning(f"validate {p=} failed with {e=}")
         self.proj.reset_task_key()
 
-    def run_preupload_img_worker(self, image: Image.Image | None):
-        if self.proj.crt_anno is None or image is None or self.zl_server_api is None:
-            return
-        self.preupload_worker = ZPreuploadImageWorker(
-            self.zl_server_api,
-            self.proj.crt_anno.id,
-            copy.deepcopy(image),
-        )
-        self.threadpool.start(self.preupload_worker)
-
     def show_toast(self, msg: str):
         toast = Toast(msg, timeout=1000, parent=self)
         toast.show()
@@ -557,7 +547,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dialog_settings_changed(self):
         self.settings.save_json(self.settings_path)
         if self.sender() == self.dialog_settings:
-            self.proj.save_json(self.proj.project_path)
+            self.proj.save_json(self.settings.project_path)
         self.ui_update_settings()
 
     def on_dialog_settings_apply_clicked(self):
@@ -609,7 +599,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.on_dock_files_item_clicked(item.id_)
 
     def on_action_save_triggered(self):
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
 
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
@@ -759,7 +749,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.settings.project_idx = names.index(proj.name)
         self.settings.project = proj
         self.settings.save_json(self.settings_path)
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
         self.ui_update_settings()
         self.logger.debug(f"imported project {self.settings.project_name}")
 
@@ -816,11 +806,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
         self.proj.add_label(label)
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
 
     def on_dock_label_btn_dec_clicked(self, id_: str):
         self.proj.remove_label(id_)
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
 
     def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
         if self.is_current_anno_ok():
@@ -830,14 +820,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_dock_label_btn_del_clicked(self, id_: str):
         self.proj.remove_label(id_)
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
 
     def on_dock_label_item_color_changed(self, id_: str, color: str):
         self.proj.labels[id_].color = color
         if id_ == self.proj.key_label:
             self.canvas.set_color(color, self.settings.alpha)
         self.logger.debug(f"Labels color changed: {self.proj.labels[id_]=}")
-        self.proj.save_json(self.proj.project_path)
+        self.proj.save_json(self.settings.project_path)
 
     def on_dock_label_item_double_clicked(self, id_: str):
         if not self.proj.crt_anno:
