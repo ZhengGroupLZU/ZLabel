@@ -23,12 +23,8 @@ class Ui_ZDockInfoContent(object):
     def setupUi(self, ZDockInfoContent):
         if not ZDockInfoContent.objectName():
             ZDockInfoContent.setObjectName(u"ZDockInfoContent")
-        ZDockInfoContent.resize(316, 86)
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(ZDockInfoContent.sizePolicy().hasHeightForWidth())
-        ZDockInfoContent.setSizePolicy(sizePolicy)
+        ZDockInfoContent.resize(316, 102)
+        ZDockInfoContent.setMaximumSize(QSize(16777215, 102))
         self.gridLayout = QGridLayout(ZDockInfoContent)
         self.gridLayout.setObjectName(u"gridLayout")
         self.verticalLayout = QVBoxLayout()
@@ -43,11 +39,6 @@ class Ui_ZDockInfoContent(object):
 
         self.label = QLabel(ZDockInfoContent)
         self.label.setObjectName(u"label")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
-        self.label.setSizePolicy(sizePolicy1)
         self.label.setMaximumSize(QSize(10, 16777215))
         self.label.setAlignment(Qt.AlignmentFlag.AlignCenter)
 
@@ -63,22 +54,8 @@ class Ui_ZDockInfoContent(object):
 
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
-        self.label_5 = QLabel(ZDockInfoContent)
-        self.label_5.setObjectName(u"label_5")
-        sizePolicy1.setHeightForWidth(self.label_5.sizePolicy().hasHeightForWidth())
-        self.label_5.setSizePolicy(sizePolicy1)
-
-        self.horizontalLayout_2.addWidget(self.label_5)
-
         self.ledit_anno_note = QPlainTextEdit(ZDockInfoContent)
         self.ledit_anno_note.setObjectName(u"ledit_anno_note")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.MinimumExpanding, QSizePolicy.Policy.Fixed)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.ledit_anno_note.sizePolicy().hasHeightForWidth())
-        self.ledit_anno_note.setSizePolicy(sizePolicy2)
-        self.ledit_anno_note.setMinimumSize(QSize(0, 40))
-        self.ledit_anno_note.setMaximumSize(QSize(16777215, 40))
 
         self.horizontalLayout_2.addWidget(self.ledit_anno_note)
 
@@ -99,7 +76,6 @@ class Ui_ZDockInfoContent(object):
         self.label_img_width.setText("")
         self.label.setText(QCoreApplication.translate("ZDockInfoContent", u"\u00d7", None))
         self.label_img_height.setText("")
-        self.label_5.setText(QCoreApplication.translate("ZDockInfoContent", u"Note:", None))
         self.ledit_anno_note.setPlaceholderText(QCoreApplication.translate("ZDockInfoContent", u"add extra image note here", None))
     # retranslateUi
 

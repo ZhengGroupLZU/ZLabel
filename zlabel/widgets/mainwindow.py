@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QPointF, QSize, Qt, QThreadPool, Signal
+from pyqtgraph.Qt.QtCore import QByteArray, QPointF, QSize, Qt, QThreadPool, Signal, QDir
 from pyqtgraph.Qt.QtGui import QIcon, QScreen, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox
 
@@ -60,7 +60,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.logger: ZLogger = ZLogger("MainWindow")
-        self.settings_path: str = "zlabel.conf"
+        self.settings_path: Path = Path(QDir.homePath()) / "zlabel.conf"
         self.settings: ZSettings = ZSettings()
         self.zl_server_api: ZLServerApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
@@ -86,7 +86,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.init_signals()
         self.load_settings()
         self.ui_update_settings()
-        self.center_on_screen()
+        self.restore_geometry()
 
     def center_on_screen(self):
         screen = QApplication.primaryScreen()
@@ -131,11 +131,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region functions
     def load_settings(self):
-        path = Path(self.settings_path)
-        if path.exists() and path.is_file():
+        if self.settings_path.exists() and self.settings_path.is_file():
             try:
-                self.settings = ZSettings.model_validate_json(path.read_text())
+                self.settings = ZSettings.model_validate_json(self.settings_path.read_text())
                 self.dialog_settings.load_settings(self.settings)
+                self.restore_geometry()
             except Exception as e:
                 self.logger.error(f"Load settings error: {e}")
                 self.settings = ZSettings()
@@ -145,9 +145,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.dialog_settings.show()
                 return
         else:
-            path.parent.mkdir(parents=True, exist_ok=True)
+            self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             self.settings = ZSettings()
-            path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
+            self.settings_path.write_text(
+                self.settings.model_dump_json(ensure_ascii=False, indent=4)
+            )
             self.dialog_settings.load_settings(self.settings)
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
@@ -165,6 +167,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
+
+    def save_geometry(self):
+        geometry_data: QByteArray = self.saveGeometry()
+        state_data: QByteArray = self.saveState()
+        self.settings.geometry = bytes(geometry_data.toBase64().data()).decode("utf-8")
+        self.settings.window_state = bytes(state_data.toBase64().data()).decode("utf-8")
+        self.settings.save_json(self.settings_path)
+
+    def restore_geometry(self):
+        if self.settings.geometry:
+            geometry_data: QByteArray = QByteArray.fromBase64(
+                self.settings.geometry.encode("utf-8")
+            )
+            if not geometry_data.isEmpty():
+                self.restoreGeometry(geometry_data)
+        else:
+            self.center_on_screen()
+        if self.settings.window_state:
+            state_data: QByteArray = QByteArray.fromBase64(
+                self.settings.window_state.encode("utf-8")
+            )
+            if not state_data.isEmpty():
+                self.restoreState(state_data)
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
@@ -1288,7 +1313,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
-        self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
+        # self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
 
         # dock files
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
@@ -1315,5 +1340,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region events
+
+    def closeEvent(self, event):
+        self.save_geometry()
+        event.accept()
 
     # endregion

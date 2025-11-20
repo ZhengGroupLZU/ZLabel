@@ -22,6 +22,9 @@ class ZSettings(BaseModel):
     cv_enabled: bool = False
     sam_enabled: bool = False
 
+    geometry: str = ""  # base64 encoded
+    window_state: str = ""
+
     projects: list[tuple[int, str]] = []
     project_root: str = "projects"
     project_idx: int = -1
@@ -85,7 +88,11 @@ class ZSettings(BaseModel):
                 self._project.save_json(project_dir / f"{project_name}.json")
         else:
             # Normal case with valid project name
-            projs = [p for p in Path(self.project_root).glob("*") if p.is_dir() and p.name == self.project_name]
+            projs = [
+                p
+                for p in Path(self.project_root).glob("*")
+                if p.is_dir() and p.name == self.project_name
+            ]
             self._project = Project(id=id_uuid4())
             if projs:
                 path = projs[0] / f"{self.project_name}.json"
@@ -125,7 +132,7 @@ class ZSettings(BaseModel):
             raise ValueError(f"{value} is not a http url")
         return str(value)
 
-    def save_json(self, path: str):
-        p = Path(path)
+    def save_json(self, path: str | Path):
+        p = path if isinstance(path, Path) else Path(path)
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(self.model_dump_json(ensure_ascii=False, indent=4, exclude={}))

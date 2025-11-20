@@ -268,16 +268,10 @@
   </widget>
   <widget class="QDockWidget" name="dock_infos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Minimum">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>1</verstretch>
     </sizepolicy>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>150</width>
-     <height>100</height>
-    </size>
    </property>
    <property name="acceptDrops">
     <bool>false</bool>
@@ -292,22 +286,10 @@
   </widget>
   <widget class="QDockWidget" name="dock_annos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>3</verstretch>
     </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>81</width>
-     <height>41</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>150</width>
-     <height>524287</height>
-    </size>
    </property>
    <property name="windowTitle">
     <string>Annos</string>
@@ -317,24 +299,21 @@
    </attribute>
    <widget class="ZDockAnnotationContent" name="dockcnt_anno"/>
   </widget>
+  <widget class="QDockWidget" name="dock_files">
+   <property name="windowTitle">
+    <string>Files</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="ZDockFileContent" name="dockcnt_files"/>
+  </widget>
   <widget class="QDockWidget" name="dock_labels">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Fixed">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>3</verstretch>
     </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>81</width>
-     <height>41</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>150</width>
-     <height>524287</height>
-    </size>
    </property>
    <property name="floating">
     <bool>false</bool>
@@ -352,46 +331,6 @@
     <number>2</number>
    </attribute>
    <widget class="ZDockLabelContent" name="dockcnt_labels"/>
-  </widget>
-  <widget class="QDockWidget" name="dock_files">
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>81</width>
-     <height>41</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>300</width>
-     <height>524287</height>
-    </size>
-   </property>
-   <property name="windowTitle">
-    <string>Files</string>
-   </property>
-   <attribute name="dockWidgetArea">
-    <number>1</number>
-   </attribute>
-   <widget class="ZDockFileContent" name="dockcnt_files">
-    <property name="minimumSize">
-     <size>
-      <width>60</width>
-      <height>0</height>
-     </size>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>300</width>
-      <height>16777215</height>
-     </size>
-    </property>
-   </widget>
   </widget>
   <action name="actionOpen_dir">
    <property name="enabled">
