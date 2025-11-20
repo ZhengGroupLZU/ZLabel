@@ -60,7 +60,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def __init__(self):
         super().__init__()
         self.logger: ZLogger = ZLogger("MainWindow")
-        self.settings_path: Path = Path(QDir.homePath()) / ".zlabel.conf"
+        self.settings_path: Path = Path(QDir.homePath()) / ".zlabel" / ".zlabel.conf"
         self.settings: ZSettings = ZSettings()
         self.zl_server_api: ZLServerApiHelper | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
