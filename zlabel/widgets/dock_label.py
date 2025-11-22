@@ -66,7 +66,6 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         else:
             self.listw_labels.insertItem(index, item)
         self.listw_labels.setItemWidget(item, item_widget)
-        self.listw_labels.setCurrentItem(item)
 
     def remove_label(self, row: int | str | None = None):
         if isinstance(row, str):
@@ -84,14 +83,13 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         self.listw_labels.clear()
         if len(labels) == 0:
             return
-        selected_id = selected_id or labels[0].id
         row = -1
         for i, label in enumerate(labels):
             self.add_label(label, i)
             if label.id == selected_id:
                 row = i
-        self.listw_labels.setCurrentRow(row)
         if row >= 0:
+            self.listw_labels.setCurrentRow(row)
             item = self.listw_labels.currentItem()
             if isinstance(item, ZListWidgetItem):
                 self.sigItemClicked.emit(item.id_)
@@ -100,7 +98,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         row, item = self.find_item_by_id(id_)
         if row is not None:
             self.listw_labels.setCurrentRow(row)
-            if item is not None:
+            if isinstance(item, ZListWidgetItem):
                 self.sigItemClicked.emit(item.id_)
         else:
             self.listw_labels.setCurrentRow(-1)

@@ -100,7 +100,6 @@ class Canvas(pg.PlotWidget):
         # self.showAxis("left", False)
         # self.showAxis("bottom", False)
         self.setAspectLocked(True)
-        self.setCursor(Qt.CursorShape.CrossCursor)
 
     # region helpers
     def cancel_drawing(self):
@@ -271,6 +270,10 @@ class Canvas(pg.PlotWidget):
         # guard to avoid redundant text updates
         if self._status_mode == mode:
             return
+        if mode == StatusMode.VIEW:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        else:
+            self.setCursor(Qt.CursorShape.CrossCursor)
         self._status_mode = mode
         self.set_mode_text()
 

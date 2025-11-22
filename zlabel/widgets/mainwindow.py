@@ -533,8 +533,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.logger.warning(f"validate {p=} failed with {e=}")
         self.proj.reset_task_key()
 
-    def show_toast(self, msg: str):
-        toast = Toast(msg, timeout=1000, parent=self)
+    def show_toast(self, msg: str, timeout: int = 1000):
+        toast = Toast(msg, timeout=timeout, parent=self)
         toast.show()
 
     # endregion
@@ -795,8 +795,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_label_listw_item_clicked(self, id: str):
         if self.is_current_anno_ok():
             self.proj.key_label = id
-            if self.proj.crt_label is not None:
-                self.show_toast(f"Select label [{self.proj.crt_label.name}]")
             self.logger.debug(f"Select label {self.proj.crt_label}")
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
@@ -809,6 +807,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if idx < 0 or idx >= count:
             return
         self.dockcnt_labels.select_row(idx)
+        try:
+            label = list(self.proj.labels.values())[idx]
+            self.show_toast(f"Select [{label.name}]", timeout=1500)
+        except Exception as e:
+            self.logger.error(e)
 
     def on_dock_label_item_color_changed(self, id_: str, color: str):
         self.proj.labels[id_].color = color
