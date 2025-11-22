@@ -361,6 +361,9 @@
    <property name="statusTip">
     <string>Zoom in.</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl++</string>
+   </property>
   </action>
   <action name="actionZoom_out">
    <property name="icon">
@@ -372,6 +375,9 @@
    </property>
    <property name="statusTip">
     <string>Zoom out.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
    </property>
   </action>
   <action name="actionFit_wiondow">

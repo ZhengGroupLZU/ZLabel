@@ -182,6 +182,7 @@ class Polygon(pg.ROI):
         self.id_: str = id_ or id_uuid4()
         self.closed: bool = closed
         self.points = [pg.Point(p) for p in positions]
+        self.state: dict[str, Any]
         ROI.__init__(
             self,
             pos,
@@ -222,7 +223,7 @@ class Polygon(pg.ROI):
 
         self.stateChanged(finish=update)
 
-    def clearPoints(self, finish=True):
+    def clearPoints(self, finish: bool = True):
         self.points.clear()
         self.stateChanged(finish=finish)
 
@@ -247,7 +248,7 @@ class Polygon(pg.ROI):
     def isSelected(self):
         return self._selected
 
-    def getState(self):
+    def getState(self) -> dict[str, Any]:
         if self.handles:
             points = [pg.Point(h["pos"]) for h in self.handles]
         else:
@@ -270,7 +271,7 @@ class Polygon(pg.ROI):
 
         return state
 
-    def setState(self, state, update: bool = True):
+    def setState(self, state: dict[str, Any], update: bool = True):
         self.setPos(state["pos"], update=False)
         self.setSize(state["size"], update=False)
         self.setAngle(state["angle"], update=False)
@@ -382,9 +383,7 @@ class Polygon(pg.ROI):
 
         if len(self.handles) > 1:
             # Use actual handle item positions so the drawing reflects edits immediately
-            polygon = QPolygonF([
-                QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles
-            ])
+            polygon = QPolygonF([QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles])
         else:
             polygon = QPolygonF([QPointF(p[0], p[1]) for p in self.points])
         if self.closed:
@@ -460,22 +459,16 @@ class Polygon(pg.ROI):
         line_len_sq = line_vec.x() * line_vec.x() + line_vec.y() * line_vec.y()
 
         if line_len_sq == 0:
-            distance = math.sqrt(
-                (point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2
-            )
+            distance = math.sqrt((point.x() - line_start.x()) ** 2 + (point.y() - line_start.y()) ** 2)
             return distance, line_start
 
         t = (point_vec.x() * line_vec.x() + point_vec.y() * line_vec.y()) / line_len_sq
 
         t = max(0.0, min(1.0, t))
 
-        closest_point = QPointF(
-            line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y()
-        )
+        closest_point = QPointF(line_start.x() + t * line_vec.x(), line_start.y() + t * line_vec.y())
 
-        distance = math.sqrt(
-            (point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2
-        )
+        distance = math.sqrt((point.x() - closest_point.x()) ** 2 + (point.y() - closest_point.y()) ** 2)
 
         return distance, closest_point
 
@@ -503,9 +496,7 @@ class Polygon(pg.ROI):
             start_point = points[i]
             end_point = points[(i + 1) % num_points]
 
-            distance, nearest_point = self._point_to_line_distance(
-                click_pos, start_point, end_point
-            )
+            distance, nearest_point = self._point_to_line_distance(click_pos, start_point, end_point)
 
             if distance < min_distance and distance <= tolerance:
                 min_distance = distance
@@ -650,9 +641,7 @@ class Point(ROI):
         r = QRectF(r.x() / r.width(), r.y() / r.height(), 1, 1)
         p.drawEllipse(r)
 
-    def getArrayRegion(
-        self, arr: np.ndarray, img=None, axes=(0, 1), returnMappedCoords=False, **kwds
-    ):
+    def getArrayRegion(self, arr: np.ndarray, img=None, axes=(0, 1), returnMappedCoords=False, **kwds):
         """
         Return the result of :meth:`~pyqtgraph.ROI.getArrayRegion` masked by the
         point shape of the ROI. Regions outside the point are set to 0.

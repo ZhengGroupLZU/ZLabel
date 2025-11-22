@@ -1,6 +1,7 @@
 from zlabel.widgets.dialog_about import DialogAbout
 from zlabel.widgets.dialog_processing import DialogProcessing
 from zlabel.widgets.dialog_settings import DialogSettings
+from zlabel.widgets.dialog_shortcut import DialogShortcut
 from zlabel.widgets.zsettings import ZSettings
 from zlabel.widgets.zthread import ZLoginThread
 from zlabel.widgets.zundostack import ResultUndoMode, ZResultUndoCmd
@@ -25,6 +26,7 @@ __all__ = [
     "DialogAbout",
     "DialogProcessing",
     "DialogSettings",
+    "DialogShortcut",
     "ZSettings",
     "ZLoginThread",
     "ResultUndoMode",

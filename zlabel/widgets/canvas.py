@@ -100,6 +100,7 @@ class Canvas(pg.PlotWidget):
         # self.showAxis("left", False)
         # self.showAxis("bottom", False)
         self.setAspectLocked(True)
+        self.setCursor(Qt.CursorShape.CrossCursor)
 
     # region helpers
     def cancel_drawing(self):

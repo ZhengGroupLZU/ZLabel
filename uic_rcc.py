@@ -50,24 +50,17 @@ if __name__ == "__main__":
         f"{ui_dir}/dock_file.ui,{ui_dst}/dock_file.py",
         f"{ui_dir}/dock_info.ui,{ui_dst}/dock_info.py",
         f"{ui_dir}/dock_label.ui,{ui_dst}/dock_label.py",
+        f"{ui_dir}/dialog_shortcuts.ui,{ui_dst}/dialog_shortcuts.py",
         # ignore
         # f"{ui_dir}/dialog_export.ui,{ui_dst}/dialog_export.py",
         # f"{ui_dir}/dialog_import.ui,{ui_dst}/dialog_import.py",
         # f"{ui_dir}/dialog_new_proj.ui,{ui_dst}/dialog_new_proj.py",
-        # f"{ui_dir}/dialog_shortcuts.ui,{ui_dst}/dialog_shortcuts.py",
         # f"{ui_dir}/dialog_category_choice.ui,{ui_dst}/dialog_category_choice.py",
         # f"{ui_dir}/dialog_model_manager.ui,{ui_dst}/dialog_model_manager.py",
     ]
     args = parser.parse_args([
         "--uic_path",
-        f"{ui_dir}/mainwindow.ui,{ui_dst}/mainwindow.py",
-        f"{ui_dir}/dialog_processing.ui,{ui_dst}/dialog_processing.py",
-        f"{ui_dir}/dialog_about.ui,{ui_dst}/dialog_about.py",
-        f"{ui_dir}/dialog_settings.ui,{ui_dst}/dialog_settings.py",
-        f"{ui_dir}/dock_anno.ui,{ui_dst}/dock_anno.py",
-        f"{ui_dir}/dock_file.ui,{ui_dst}/dock_file.py",
-        f"{ui_dir}/dock_info.ui,{ui_dst}/dock_info.py",
-        f"{ui_dir}/dock_label.ui,{ui_dst}/dock_label.py",
+        *uics,
         "--rcc_path",
         "zlabel/resources/icons.qrc,icons_rc.py",
     ])

@@ -6,7 +6,14 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, Signal
-from pyqtgraph.Qt.QtGui import QIcon, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtGui import (
+    QCloseEvent,
+    QIcon,
+    QKeySequence,
+    QShortcut,
+    QSurfaceFormat,
+    QUndoStack,
+)
 from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox
 
 from zlabel.utils import (
@@ -30,6 +37,7 @@ from zlabel.widgets import (
     DialogAbout,
     DialogProcessing,
     DialogSettings,
+    DialogShortcut,
     ResultUndoMode,
     SamWorkerResult,
     Toast,
@@ -37,7 +45,6 @@ from zlabel.widgets import (
     ZGetTasksWorker,
     ZListWidgetItem,
     ZLoginThread,
-    ZPreuploadImageWorker,
     ZResultUndoCmd,
     ZSamPredictWorker,
     ZSettings,
@@ -81,6 +88,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.rgb_mode = RgbMode.RGB
 
         self._is_modifying: bool = False
+        self._label_shortcuts: list[QShortcut] = []
 
         self.init_ui()
         self.init_signals()
@@ -147,9 +155,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             self.settings = ZSettings()
-            self.settings_path.write_text(
-                self.settings.model_dump_json(ensure_ascii=False, indent=4)
-            )
+            self.settings_path.write_text(self.settings.model_dump_json(ensure_ascii=False, indent=4))
             self.dialog_settings.load_settings(self.settings)
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
@@ -177,17 +183,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def restore_geometry(self):
         if self.settings.geometry:
-            geometry_data: QByteArray = QByteArray.fromBase64(
-                self.settings.geometry.encode("utf-8")
-            )
+            geometry_data: QByteArray = QByteArray.fromBase64(self.settings.geometry.encode("utf-8"))
             if not geometry_data.isEmpty():
                 self.restoreGeometry(geometry_data)
         else:
             self.center_on_screen()
         if self.settings.window_state:
-            state_data: QByteArray = QByteArray.fromBase64(
-                self.settings.window_state.encode("utf-8")
-            )
+            state_data: QByteArray = QByteArray.fromBase64(self.settings.window_state.encode("utf-8"))
             if not state_data.isEmpty():
                 self.restoreState(state_data)
 
@@ -310,9 +312,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         Args:
             silent: If True, don't show success message dialog
         """
-        self.logger.debug(
-            f"Loading tasks from remote server for project: {self.settings.project_name}"
-        )
+        self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
         if self.zl_server_api is None:
             return
         worker = ZGetTasksWorker(
@@ -328,9 +328,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_get_tasks_success(self, tasks: list[Task]):
-        self.logger.debug(
-            f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}"
-        )
+        self.logger.debug(f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}")
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -517,9 +515,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_project_validation_error(self, error_msg: str):
         """Show project validation error to user"""
-        QMessageBox.warning(
-            self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok
-        )
+        QMessageBox.warning(self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok)
 
     def restore_annotations(self):
         # restore annotations
@@ -796,31 +792,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region DockLabel
-    def on_dock_label_btn_add_clicked(self, label: Label):
-        if self.proj.crt_anno is None:
-            QMessageBox.warning(
-                self,
-                "Warning",
-                "add label failed due to no selected task or empty label name!",
-                QMessageBox.StandardButton.Ok,
-            )
-            return
-        self.proj.add_label(label)
-        self.proj.save_json(self.settings.project_path)
-
-    def on_dock_label_btn_dec_clicked(self, id_: str):
-        self.proj.remove_label(id_)
-        self.proj.save_json(self.settings.project_path)
-
-    def on_dock_label_listw_item_clicked(self, item: ZListWidgetItem):
+    def on_dock_label_listw_item_clicked(self, id: str):
         if self.is_current_anno_ok():
-            self.proj.key_label = item.id_
+            self.proj.key_label = id
+            if self.proj.crt_label is not None:
+                self.show_toast(f"Select label [{self.proj.crt_label.name}]")
+            self.logger.debug(f"Select label {self.proj.crt_label}")
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
-    def on_dock_label_btn_del_clicked(self, id_: str):
-        self.proj.remove_label(id_)
-        self.proj.save_json(self.settings.project_path)
+    def on_shortcut_select_label_number(self, number: int):
+        if number < 1 or number > 9:
+            return
+        count = self.dockcnt_labels.listw_labels.count()
+        idx = number - 1
+        if idx < 0 or idx >= count:
+            return
+        self.dockcnt_labels.select_row(idx)
 
     def on_dock_label_item_color_changed(self, id_: str, color: str):
         self.proj.labels[id_].color = color
@@ -848,9 +836,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for item in items:
             result = self.proj.crt_anno.results.get(item.id_, None)
             if result is None:
-                self.logger.warning(
-                    f"Result {item.id_} not found in {self.proj.crt_anno.results.keys()}"
-                )
+                self.logger.warning(f"Result {item.id_} not found in {self.proj.crt_anno.results.keys()}")
                 continue
             result_old.append(copy.deepcopy(result))
             r_new = copy.deepcopy(result)
@@ -889,6 +875,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
+
+    def on_dock_anno_item_count_changed(self, count: int):
+        self.dock_annos.setWindowTitle(f"Annos ({count} items)")
 
     # endregion
 
@@ -1158,7 +1147,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result.closed = state["closed"]
             # Always convert live state points (pg.Point) to plain tuples to avoid
             # shared references between items and ensure consistent data in Result
-            result.points = [p for p in state["points"]]
+            result.points = list(state["points"])
         # self.add_result_undo_cmd([result], ResultUndoMode.MODIFY)
 
         self.dockcnt_anno.set_row_by_text(result.id)
@@ -1168,19 +1157,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None or self._is_modifying:
             return
         assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
-        result: RectangleResult | PolygonResult = copy.deepcopy(
-            self.proj.crt_anno.results[state["id"]]
-        )
-        result_old: RectangleResult | PolygonResult = copy.deepcopy(
-            self.proj.crt_anno.results[state["id"]]
-        )
+        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
+        result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
         result.x = state["pos"][0]
         result.y = state["pos"][1]
         result.w = state["size"][0]
         result.h = state["size"][1]
         result.rotation = state["angle"]
         if isinstance(result, PolygonResult):
-            result.points = [p for p in state["points"]]
+            result.points = list(state["points"])
         if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
             self.add_result_undo_cmd([result], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
@@ -1204,6 +1189,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # region INIT
     def init_ui(self):
         self.dialog_about = DialogAbout(self)
+        self.dialog_shortcut = DialogShortcut(self)
 
         self.setupUi(self)
         self.action_group_edit = [
@@ -1259,6 +1245,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionExport.triggered.connect(self.on_action_export_triggered)
         self.actionSettings.triggered.connect(self.dialog_settings.show)
         self.actionAbout.triggered.connect(self.dialog_about.show)
+        self.actionShortcut.triggered.connect(self.dialog_shortcut.show)
         self.actionExit.triggered.connect(self.close)
 
         self.actionNext.triggered.connect(self.on_action_next_prev_triggered)
@@ -1310,28 +1297,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.sigFetchTasks.connect(self.on_dock_files_fetch_tasks)
 
         # dock labels
-        self.dockcnt_labels.listw_labels.itemClicked.connect(self.on_dock_label_listw_item_clicked)
-        self.dockcnt_labels.SigBtnDecreaseClicked.connect(self.on_dock_label_btn_dec_clicked)
-        self.dockcnt_labels.sigBtnIncreaseClicked.connect(self.on_dock_label_btn_add_clicked)
-        # self.dockcnt_labels.ledit_add_label.editingFinished.connect(
-        #     self.on_dock_label_btn_add_clicked
-        # )
-        self.dockcnt_labels.sigBtnDeleteClicked.connect(self.on_dock_label_btn_del_clicked)
+        self.dockcnt_labels.sigItemClicked.connect(self.on_dock_label_listw_item_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
         self.dockcnt_labels.sigItemDoubleClicked.connect(self.on_dock_label_item_double_clicked)
+
+        for n in range(1, 10):
+            sc = QShortcut(QKeySequence(str(n)), self)
+            sc.setContext(Qt.ShortcutContext.WindowShortcut)
+            sc.activated.connect(functools.partial(self.on_shortcut_select_label_number, n))
+            self._label_shortcuts.append(sc)
 
         # dock annotations
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
-        self.dockcnt_anno.sigItemCountChanged.connect(
-            lambda n: self.dock_annos.setWindowTitle(f"Annos ({n} items)")
-        )
+        self.dockcnt_anno.sigItemCountChanged.connect(self.on_dock_anno_item_count_changed)
 
     # endregion
 
     # region events
-
-    def closeEvent(self, event):
+    def closeEvent(self, event: QCloseEvent):
         self.save_geometry()
         event.accept()
 

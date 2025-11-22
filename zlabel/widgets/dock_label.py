@@ -1,35 +1,36 @@
+from functools import partial
+
 from pyqtgraph.Qt.QtCore import Signal
 from pyqtgraph.Qt.QtWidgets import QWidget
 
 from zlabel.utils import Label
-from zlabel.utils.project import id_md5
 from zlabel.widgets.zwidgets import ZLabelItemWidget, ZListWidgetItem
 
 from .ui import Ui_ZDockLabelContent
 
 
 class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
-    sigBtnIncreaseClicked = Signal(object)  # Label instance
-    SigBtnDecreaseClicked = Signal(str)  # label id
-    sigBtnDeleteClicked = Signal(str)
     sigItemColorChanged = Signal(str, str)
+    sigItemClicked = Signal(str)  # id
     sigItemDoubleClicked = Signal(str)  # id
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
         self.setupUi(self)
 
-        self.btn_increase.clicked.connect(self.on_btn_increase_clicked)
-        self.btn_decrease.clicked.connect(self.on_btn_decrease_clicked)
         self.listw_labels.itemDoubleClicked.connect(self.on_item_double_clicked)
+        self.listw_labels.itemClicked.connect(self.on_item_clicked)
+
+    def on_item_clicked(self, item: ZListWidgetItem):
+        self.sigItemClicked.emit(item.id_)
 
     def find_item_by_id(
         self,
         id_: str,
     ) -> tuple[int, ZListWidgetItem] | tuple[None, None]:
         for row in range(self.listw_labels.count()):
-            item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
-            if item.id_ == id_:
+            item = self.listw_labels.item(row)
+            if isinstance(item, ZListWidgetItem) and item.id_ == id_:
                 return row, item
         return None, None
 
@@ -38,50 +39,34 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
 
     def set_color(self, color: str):
         for row in range(self.listw_labels.count()):
-            item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
-            widget: ZLabelItemWidget = self.listw_labels.itemWidget(item)  # type: ignore
-            widget.set_label_color(color)
-
-    def on_btn_increase_clicked(self):
-        txt = self.ledit_add_label.text()
-        if not txt:
-            return
-        label = Label(id=id_md5(txt), name=txt)
-        self.add_label(label)
-        self.sigBtnIncreaseClicked.emit(label)
-
-    def on_btn_decrease_clicked(self):
-        row = self.listw_labels.currentRow()
-        self.remove_label(row)
-        item: ZListWidgetItem = self.listw_labels.item(row)  # type: ignore
-        self.SigBtnDecreaseClicked.emit(item.id_)
-
-    def on_btn_delete_clicked(self, id_: str):
-        """
-        TODO: check if the label is used
-        """
-        row, item = self.find_item_by_id(id_)
-        if row is not None:
-            self.listw_labels.takeItem(row)
-        self.sigBtnDeleteClicked.emit(id_)
+            item = self.listw_labels.item(row)
+            if not isinstance(item, ZListWidgetItem):
+                continue
+            widget = self.listw_labels.itemWidget(item)
+            if isinstance(widget, ZLabelItemWidget):
+                widget.set_label_color(color)
 
     def on_item_color_changed(self, id_: str):
         row, item = self.find_item_by_id(id_)
         if row is not None and item is not None:
-            widget: ZLabelItemWidget = self.listw_labels.itemWidget(item)  # type: ignore
-            self.sigItemColorChanged.emit(id_, widget.color)
+            widget = self.listw_labels.itemWidget(item)
+            if isinstance(widget, ZLabelItemWidget):
+                self.sigItemColorChanged.emit(id_, widget.color)
 
-    def add_label(self, label: Label | None):
+    def add_label(self, label: Label | None, index: int | None = None):
         if label is None:
             return
+        btn_text = str(index + 1) if isinstance(index, int) else ""
         item = ZListWidgetItem(label.id, "", self.listw_labels)
-        item_widget = ZLabelItemWidget(label.id, label.name, label.color)
-        item_widget.sigBtnDeleteClicked.connect(self.on_btn_delete_clicked)
+        item_widget = ZLabelItemWidget(label.id, label.name, label.color, btn_text=btn_text)
         item_widget.sigColorChanged.connect(self.on_item_color_changed)
-        self.listw_labels.addItem(item)
+        item_widget.sigSelected.connect(partial(self.select_row_by_id, label.id))
+        if index is None:
+            self.listw_labels.addItem(item)
+        else:
+            self.listw_labels.insertItem(index, item)
         self.listw_labels.setItemWidget(item, item_widget)
         self.listw_labels.setCurrentItem(item)
-        self.ledit_add_label.clear()
 
     def remove_label(self, row: int | str | None = None):
         if isinstance(row, str):
@@ -102,16 +87,28 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         selected_id = selected_id or labels[0].id
         row = -1
         for i, label in enumerate(labels):
-            self.add_label(label)
+            self.add_label(label, i)
             if label.id == selected_id:
                 row = i
         self.listw_labels.setCurrentRow(row)
-        self.listw_labels.itemClicked.emit(self.listw_labels.currentItem())
+        if row >= 0:
+            item = self.listw_labels.currentItem()
+            if isinstance(item, ZListWidgetItem):
+                self.sigItemClicked.emit(item.id_)
 
     def select_row_by_id(self, id_: str):
         row, item = self.find_item_by_id(id_)
         if row is not None:
             self.listw_labels.setCurrentRow(row)
-            self.listw_labels.itemClicked.emit(item)
+            if item is not None:
+                self.sigItemClicked.emit(item.id_)
         else:
             self.listw_labels.setCurrentRow(-1)
+
+    def select_row(self, row: int):
+        if row < 0 or row >= self.listw_labels.count():
+            return
+        self.listw_labels.setCurrentRow(row)
+        item = self.listw_labels.item(row)
+        if isinstance(item, ZListWidgetItem):
+            self.sigItemClicked.emit(item.id_)

@@ -34,6 +34,13 @@ dev = [
 
 [tool.pyright]
 defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
+reportUnannotatedClassAttribute = false
+reportUnusedCallResult = false
+reportUnknownMemberType = false
+reportImplicitOverride = false
+reportUnknownLambdaType = false
+reportImportCycles = false
+reportExplicitAny = false
 
 [[tool.uv.index]]
 name = "tsinghua"
