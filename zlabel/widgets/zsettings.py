@@ -19,8 +19,9 @@ class ZSettings(BaseModel):
     username: str = ""
     password: str = ""
     default_color: str = "#000000"
-    alpha: float = 0.5
+    alpha: float = 0.1
     random_select: bool = True
+    enable_catmull_rom: bool = False
 
     cv_enabled: bool = False
     sam_enabled: bool = False
@@ -83,7 +84,7 @@ class ZSettings(BaseModel):
                     try:
                         self._project = Project.model_validate_json(path.read_text(), strict=True)
                         # Do NOT load tasks from local - tasks should come from remote server
-                    except Exception as e:
+                    except Exception:
                         # If project file is corrupted, create new one
                         self._project = Project(id=id_uuid4(), name=project_name)
                         self._project.save_json(self.project_path)
@@ -109,7 +110,7 @@ class ZSettings(BaseModel):
                     try:
                         self._project = Project.model_validate_json(path.read_text(), strict=True)
                         # Do NOT load tasks from local - tasks should come from remote server
-                    except Exception as e:
+                    except Exception:
                         # If project file is corrupted, create new one
                         self._project = Project(id=id_uuid4(), name=self.project_name)
                         self._project.save_json(path)

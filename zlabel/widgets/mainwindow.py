@@ -198,6 +198,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
         self.set_loglevel(self.settings.log_level.name)
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
+        self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)
@@ -687,38 +688,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionMove)
 
-        self.canvas.setStatusMode(StatusMode.VIEW)
+        self.canvas.set_status_mode(StatusMode.VIEW)
         self.show_toast("Move Mode")
 
     def on_action_edit_triggered(self):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionEdit)
 
-        self.canvas.setStatusMode(StatusMode.EDIT)
+        self.canvas.set_status_mode(StatusMode.EDIT)
         self.show_toast(msg="Edit Mode")
 
     def on_action_rectangle_triggered(self):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionRectangle)
 
-        self.canvas.setStatusMode(StatusMode.CREATE)
-        self.canvas.setDrawMode(DrawMode.RECTANGLE)
+        self.canvas.set_status_mode(StatusMode.CREATE)
+        self.canvas.set_draw_mode(DrawMode.RECTANGLE)
         self.show_toast("Draw Rectangle")
 
     def on_action_point_triggered(self):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionPoint)
 
-        self.canvas.setStatusMode(StatusMode.CREATE)
-        self.canvas.setDrawMode(DrawMode.POINT)
+        self.canvas.set_status_mode(StatusMode.CREATE)
+        self.canvas.set_draw_mode(DrawMode.POINT)
         self.show_toast("Draw Point")
 
     def on_action_polygon_triggered(self):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionPolygon)
 
-        self.canvas.setStatusMode(StatusMode.CREATE)
-        self.canvas.setDrawMode(DrawMode.POLYGON)
+        self.canvas.set_status_mode(StatusMode.CREATE)
+        self.canvas.set_draw_mode(DrawMode.POLYGON)
         self.show_toast("Draw Polygon")
 
     def on_action_merge_triggered(self):

@@ -41,6 +41,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_password.setText(str(self.settings.password))
         self.dspbox_alpha.setValue(self.settings.alpha)
         self.ckbox_random.setChecked(self.settings.random_select)
+        self.ckbox_catmull_rom.setChecked(self.settings.enable_catmull_rom)
 
         self.cmbox_loglevel.setCurrentIndex(self.settings.log_level.value)
 
@@ -55,6 +56,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_password.editingFinished.connect(lambda: self.on_settings_changed("password"))
         self.dspbox_alpha.editingFinished.connect(lambda: self.on_settings_changed("alpha"))
         self.ckbox_random.checkStateChanged.connect(lambda: self.on_settings_changed("random_select"))
+        self.ckbox_catmull_rom.checkStateChanged.connect(lambda: self.on_settings_changed("enable_catmull_rom"))
 
         self.ledit_projname.editingFinished.connect(lambda: self.on_settings_changed("project_name"))
         self.ledit_prjdesc.editingFinished.connect(lambda: self.on_settings_changed("project_desc"))
@@ -85,6 +87,8 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.alpha = self.dspbox_alpha.value()
         elif k == "random_select":
             self.settings.random_select = self.ckbox_random.isChecked()
+        elif k == "enable_catmull_rom":
+            self.settings.enable_catmull_rom = self.ckbox_catmull_rom.isChecked()
         # elif k == "project_name":
         #     self.settings.project.name = str(v)
         #     self.settings.project_name = str(v)

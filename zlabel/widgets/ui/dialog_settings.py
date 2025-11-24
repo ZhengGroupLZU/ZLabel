@@ -82,43 +82,6 @@ class Ui_DialogSettings(object):
         self.gridLayout_2.setContentsMargins(5, 5, 5, 5)
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
-        self.label_6 = QLabel(self.groupBox)
-        self.label_6.setObjectName(u"label_6")
-        self.label_6.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_6, 3, 0, 1, 1)
-
-        self.cmbox_loglevel = QComboBox(self.groupBox)
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.setObjectName(u"cmbox_loglevel")
-
-        self.gridLayout_4.addWidget(self.cmbox_loglevel, 5, 1, 1, 1)
-
-        self.label = QLabel(self.groupBox)
-        self.label.setObjectName(u"label")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
-
-        self.ledit_username = QLineEdit(self.groupBox)
-        self.ledit_username.setObjectName(u"ledit_username")
-
-        self.gridLayout_4.addWidget(self.ledit_username, 1, 1, 1, 1)
-
-        self.ledit_password = QLineEdit(self.groupBox)
-        self.ledit_password.setObjectName(u"ledit_password")
-
-        self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
-
-        self.label_11 = QLabel(self.groupBox)
-        self.label_11.setObjectName(u"label_11")
-        self.label_11.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_11, 5, 0, 1, 1)
-
         self.dspbox_alpha = QDoubleSpinBox(self.groupBox)
         self.dspbox_alpha.setObjectName(u"dspbox_alpha")
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
@@ -133,11 +96,10 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.dspbox_alpha, 3, 1, 1, 1)
 
-        self.ledit_host = QLineEdit(self.groupBox)
-        self.ledit_host.setObjectName(u"ledit_host")
-        self.ledit_host.setEnabled(True)
+        self.ledit_username = QLineEdit(self.groupBox)
+        self.ledit_username.setObjectName(u"ledit_username")
 
-        self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.ledit_username, 1, 1, 1, 1)
 
         self.label_4 = QLabel(self.groupBox)
         self.label_4.setObjectName(u"label_4")
@@ -145,11 +107,55 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.label_4, 1, 0, 1, 1)
 
+        self.label_6 = QLabel(self.groupBox)
+        self.label_6.setObjectName(u"label_6")
+        self.label_6.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_4.addWidget(self.label_6, 3, 0, 1, 1)
+
+        self.ledit_password = QLineEdit(self.groupBox)
+        self.ledit_password.setObjectName(u"ledit_password")
+
+        self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
+
+        self.ledit_host = QLineEdit(self.groupBox)
+        self.ledit_host.setObjectName(u"ledit_host")
+        self.ledit_host.setEnabled(True)
+
+        self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
+
+        self.label_11 = QLabel(self.groupBox)
+        self.label_11.setObjectName(u"label_11")
+        self.label_11.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_4.addWidget(self.label_11, 6, 0, 1, 1)
+
         self.label_5 = QLabel(self.groupBox)
         self.label_5.setObjectName(u"label_5")
         self.label_5.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.gridLayout_4.addWidget(self.label_5, 2, 0, 1, 1)
+
+        self.label = QLabel(self.groupBox)
+        self.label.setObjectName(u"label")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
+
+        self.cmbox_loglevel = QComboBox(self.groupBox)
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.setObjectName(u"cmbox_loglevel")
+
+        self.gridLayout_4.addWidget(self.cmbox_loglevel, 6, 1, 1, 1)
+
+        self.ckbox_random = QCheckBox(self.groupBox)
+        self.ckbox_random.setObjectName(u"ckbox_random")
+        self.ckbox_random.setChecked(True)
+
+        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
 
         self.label_2 = QLabel(self.groupBox)
         self.label_2.setObjectName(u"label_2")
@@ -157,11 +163,17 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.label_2, 4, 0, 1, 1)
 
-        self.ckbox_random = QCheckBox(self.groupBox)
-        self.ckbox_random.setObjectName(u"ckbox_random")
-        self.ckbox_random.setChecked(True)
+        self.label_3 = QLabel(self.groupBox)
+        self.label_3.setObjectName(u"label_3")
+        self.label_3.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
-        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.label_3, 5, 0, 1, 1)
+
+        self.ckbox_catmull_rom = QCheckBox(self.groupBox)
+        self.ckbox_catmull_rom.setObjectName(u"ckbox_catmull_rom")
+        self.ckbox_catmull_rom.setChecked(False)
+
+        self.gridLayout_4.addWidget(self.ckbox_catmull_rom, 5, 1, 1, 1)
 
 
         self.gridLayout_2.addLayout(self.gridLayout_4, 0, 0, 1, 1)
@@ -303,18 +315,20 @@ class Ui_DialogSettings(object):
         self.btn_cancel.setText(QCoreApplication.translate("DialogSettings", u"Cancel", None))
         self.btn_apply.setText(QCoreApplication.translate("DialogSettings", u"Apply", None))
         self.groupBox.setTitle(QCoreApplication.translate("DialogSettings", u"API", None))
+        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
         self.label_6.setText(QCoreApplication.translate("DialogSettings", u"Alpha:", None))
+        self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
+        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
+        self.label.setText(QCoreApplication.translate("DialogSettings", u"Server Host:", None))
         self.cmbox_loglevel.setItemText(0, QCoreApplication.translate("DialogSettings", u"DEBUG", None))
         self.cmbox_loglevel.setItemText(1, QCoreApplication.translate("DialogSettings", u"INFO", None))
         self.cmbox_loglevel.setItemText(2, QCoreApplication.translate("DialogSettings", u"WARNING", None))
         self.cmbox_loglevel.setItemText(3, QCoreApplication.translate("DialogSettings", u"ERROR", None))
 
-        self.label.setText(QCoreApplication.translate("DialogSettings", u"Server Host:", None))
-        self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
-        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
-        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
+        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enable Random Tasks", None))
         self.label_2.setText(QCoreApplication.translate("DialogSettings", u"Random:", None))
-        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enabled", None))
+        self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Catmull-Rom:", None))
+        self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
         self.groupBox_5.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
         self.label_14.setText(QCoreApplication.translate("DialogSettings", u"Labels:", None))

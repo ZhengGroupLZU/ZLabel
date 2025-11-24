@@ -84,8 +84,6 @@ class Rectangle(ZROI):
         self,
         rect: QRectF,
         color: str = "#f47b90",
-        centered: bool = False,
-        sideScalers: bool = False,
         id_: str | None = None,
         movable: bool = True,
         alpha: float = 0.3,
@@ -245,6 +243,7 @@ class Polygon(ZROI):
         color: str = "#f47b90",
         id_: str | None = None,
         alpha: float = 0.3,
+        use_catmull_rom_path: bool = True,
         **args,
     ):
         self.id_: str = id_ or id_uuid4()
@@ -261,11 +260,48 @@ class Polygon(ZROI):
         self.state["id_"] = self.id_
 
         self.alpha: float = alpha
+        self.use_catmull_rom_path: bool = use_catmull_rom_path
         self._selected: bool = False
 
         self.fill_color: QColor = QColor(color)
         self.fill_color.setAlphaF(self.alpha)
         self.brush: QBrush = QBrush(self.fill_color)
+
+    def catmull_rom_path(self, points: list[QPointF], closed: bool = True, alpha: float = 1.0):
+        n = len(points)
+        path = QPainterPath()
+        if n == 0:
+            return path
+        if n == 1:
+            path.moveTo(points[0])
+            return path
+        if n == 2:
+            path.moveTo(points[0])
+            path.lineTo(points[1])
+            return path
+        factor = alpha / 6.0
+        if closed:
+            path.moveTo(points[0])
+            for i in range(n):
+                p0 = points[(i - 1) % n]
+                p1 = points[i]
+                p2 = points[(i + 1) % n]
+                p3 = points[(i + 2) % n]
+                c1 = QPointF(p1.x() + (p2.x() - p0.x()) * factor, p1.y() + (p2.y() - p0.y()) * factor)
+                c2 = QPointF(p2.x() - (p3.x() - p1.x()) * factor, p2.y() - (p3.y() - p1.y()) * factor)
+                path.cubicTo(c1, c2, p2)
+            path.closeSubpath()
+        else:
+            path.moveTo(points[0])
+            for i in range(n - 1):
+                p0 = points[i - 1] if i > 0 else points[i]
+                p1 = points[i]
+                p2 = points[i + 1]
+                p3 = points[i + 2] if i + 2 < n else points[i + 1]
+                c1 = QPointF(p1.x() + (p2.x() - p0.x()) * factor, p1.y() + (p2.y() - p0.y()) * factor)
+                c2 = QPointF(p2.x() - (p3.x() - p1.x()) * factor, p2.y() - (p3.y() - p1.y()) * factor)
+                path.cubicTo(c1, c2, p2)
+        return path
 
     def setPoints(self, points: list[tuple[float, float]], closed: bool | None = None, update: bool = True):
         """
@@ -445,16 +481,23 @@ class Polygon(ZROI):
         p.translate(r.left(), r.top())
         p.scale(r.width(), r.height())
 
+        # Use actual handle item positions so the drawing reflects edits immediately
+        points: list[QPointF]
         if len(self.handles) > 1:
-            # Use actual handle item positions so the drawing reflects edits immediately
-            polygon = QPolygonF([QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles])
+            points = [QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles]
         else:
-            polygon = QPolygonF([QPointF(p[0], p[1]) for p in self.points])
+            points = [QPointF(p.x(), p.y()) for p in self.points]
 
-        if self.closed:
-            p.drawPolygon(polygon, fillRule=Qt.FillRule.WindingFill)
+        if self.use_catmull_rom_path:
+            path = self.catmull_rom_path(points)
+            p.drawPath(path)
         else:
-            p.drawPolyline(polygon)
+            polygon = QPolygonF(points)
+
+            if self.closed:
+                p.drawPolygon(polygon, fillRule=Qt.FillRule.WindingFill)
+            else:
+                p.drawPolyline(polygon)
 
     def boundingRect(self):
         return self.shape().boundingRect()

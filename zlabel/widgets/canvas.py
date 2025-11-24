@@ -37,6 +37,7 @@ class Canvas(pg.PlotWidget):
         parent=None,
         background="k",
         status_mode: StatusMode = StatusMode.VIEW,
+        enable_catmull_rom: bool = False,
     ):
         self.logger = ZLogger("Canvas")
         self.view_box: pg.ViewBox = ZViewBox()
@@ -49,6 +50,7 @@ class Canvas(pg.PlotWidget):
 
         self._status_mode = status_mode
         self._draw_mode = DrawMode.RECTANGLE
+        self._polygon_enable_catmull_rom = enable_catmull_rom
         self._point_radius: float = 1.5
         self._default_color = "#000000"
         self._alpha: float = 0.5
@@ -266,7 +268,7 @@ class Canvas(pg.PlotWidget):
             im_new = np.sum(im_new, 2)
         self.image_item.updateImage(im_new)
 
-    def setStatusMode(self, mode: StatusMode):
+    def set_status_mode(self, mode: StatusMode):
         # guard to avoid redundant text updates
         if self._status_mode == mode:
             return
@@ -277,7 +279,12 @@ class Canvas(pg.PlotWidget):
         self._status_mode = mode
         self.set_mode_text()
 
-    def setDrawMode(self, mode: DrawMode):
+    def set_enable_catmull_rom(self, enable: bool):
+        if self._polygon_enable_catmull_rom == enable:
+            return
+        self._polygon_enable_catmull_rom = enable
+
+    def set_draw_mode(self, mode: DrawMode):
         # guard to avoid redundant text updates
         if self._draw_mode == mode:
             return
@@ -406,6 +413,7 @@ class Canvas(pg.PlotWidget):
             movable=movable,
             id_=id_,
             antialias=False,
+            use_catmull_rom_path=self._polygon_enable_catmull_rom,
         )
         # self.logger.debug(f"Created polygon {id_=}")
         return polygon
@@ -438,6 +446,7 @@ class Canvas(pg.PlotWidget):
                     closed=False,
                     color=self.default_color,
                     movable=False,
+                    use_catmull_rom_path=self._polygon_enable_catmull_rom,
                 )
             case _:
                 self.current_item = None
