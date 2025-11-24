@@ -305,7 +305,9 @@ class Polygon(ZROI):
         elif s and self.handles_created:
             self.showHandles()
         elif not s and self.handles_created:
-            self.removeHandles()
+            self.hideHandles()
+        else:
+            ...
 
     def isSelected(self):
         return self._selected
@@ -327,7 +329,7 @@ class Polygon(ZROI):
         state: dict[str, Any] = {"id": self.id_, "closed": self.closed, **super().saveState()}
 
         if self.handles:
-            state["points"] = [tuple(h["pos"]) for h in self.handles]
+            state["points"] = [(h["pos"].x(), h["pos"].y()) for h in self.handles]
         else:
             state["points"] = [(p[0], p[1]) for p in self.points]
 
@@ -448,8 +450,9 @@ class Polygon(ZROI):
             polygon = QPolygonF([QPointF(h["item"].pos().x(), h["item"].pos().y()) for h in self.handles])
         else:
             polygon = QPolygonF([QPointF(p[0], p[1]) for p in self.points])
+
         if self.closed:
-            p.drawPolygon(polygon)
+            p.drawPolygon(polygon, fillRule=Qt.FillRule.WindingFill)
         else:
             p.drawPolyline(polygon)
 

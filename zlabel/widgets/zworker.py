@@ -23,17 +23,17 @@ class PredictWorkerEmitter(QObject):
 
 class ZSamPredictWorker(QRunnable):
     def __init__(
-        self,
-        api: ZLServerApiHelper,
-        anno_id: str,
-        image: str,
-        result_labels: list[Label],
-        points: list[tuple[float, float]] | None = None,
-        labels: list[float] | None = None,
-        rects: list[tuple[float, float, float, float]] | None = None,
-        threshold: int = 100,
-        mode: AutoMode = AutoMode.SAM,
-        return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
+            self,
+            api: ZLServerApiHelper,
+            anno_id: str,
+            image: str,
+            result_labels: list[Label],
+            points: list[tuple[float, float]] | None = None,
+            labels: list[float] | None = None,
+            rects: list[tuple[float, float, float, float]] | None = None,
+            threshold: int = 100,
+            mode: AutoMode = AutoMode.SAM,
+            return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
     ) -> None:
         """
         points: [(x, y), (x1, y1)]
@@ -105,10 +105,10 @@ class ZSamPredictWorker(QRunnable):
         self.emitter.sigFinished.emit(results)
 
     def rects_to_results(
-        self,
-        rects: list[tuple[int, int, int, int]],
-        x0: int = 0,
-        y0: int = 0,
+            self,
+            rects: list[tuple[int, int, int, int]],
+            x0: int = 0,
+            y0: int = 0,
     ) -> list[SamWorkerResult]:
         results: list[SamWorkerResult] = []
         for x, y, w, h in rects:
@@ -144,10 +144,10 @@ class PreuploadEmitter(QObject):
 
 class ZPreuploadImageWorker(QRunnable):
     def __init__(
-        self,
-        api: ZLServerApiHelper,
-        anno_id: str,
-        image: Image.Image,
+            self,
+            api: ZLServerApiHelper,
+            anno_id: str,
+            image: Image.Image,
     ) -> None:
         super().__init__()
         self.api = api
@@ -171,11 +171,11 @@ class UploadFileEmitter(QObject):
 
 class ZUploadFileWorker(QRunnable):
     def __init__(
-        self,
-        api: ZLServerApiHelper,
-        filename: str,
-        username: str | None = None,
-        password: str | None = None,
+            self,
+            api: ZLServerApiHelper,
+            filename: str,
+            username: str | None = None,
+            password: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -204,11 +204,11 @@ class GetFileEmitter(QObject):
 
 class ZGetImageWorker(QRunnable):
     def __init__(
-        self,
-        api: ZLServerApiHelper,
-        filename: str,
-        username: str | None = None,
-        password: str | None = None,
+            self,
+            api: ZLServerApiHelper,
+            filename: str,
+            username: str | None = None,
+            password: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -237,10 +237,10 @@ class GetProjectsEmitter(QObject):
 
 class GetProjectsWorker(QRunnable):
     def __init__(
-        self,
-        api: ZLServerApiHelper,
-        username: str | None = None,
-        password: str | None = None,
+            self,
+            api: ZLServerApiHelper,
+            username: str | None = None,
+            password: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -281,12 +281,14 @@ class ZGetTasksWorker(QRunnable):
         project_id: int = -1,
         username: str | None = None,
         password: str | None = None,
+        random_select: bool = True,
     ) -> None:
         super().__init__()
 
         self.api = api
         self.username = username
         self.password = password
+        self.random_select = random_select
         self.num = num
         self.finished = finished
         self.project_id = project_id
@@ -296,7 +298,7 @@ class ZGetTasksWorker(QRunnable):
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
-        tasks = self.api.get_tasks(self.project_id, self.num, self.finished)
+        tasks = self.api.get_tasks(self.project_id, self.num, self.finished, self.random_select)
         if tasks is not None:
             try:
                 task_list = [Task.model_validate(t) for t in tasks]

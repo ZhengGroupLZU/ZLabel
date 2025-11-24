@@ -165,13 +165,13 @@ class ZLServerApiHelper:
             self.logger.error(f"Get projects failed, {resp.text=}")
             return None
 
-    def get_tasks(self, project_id: int = -1, num: int = 50, finished: int = 1):
+    def get_tasks(self, project_id: int = -1, num: int = 50, finished: int = 1, random_select: bool = True):
         """
         finished: -1: all, 0: unfinished, 1: finished
         """
         resp = requests.get(
             self.get_tasks_api,
-            params={"project_id": project_id, "num": num, "finished": finished},
+            params={"project_id": project_id, "num": num, "finished": finished, "random": random_select},
             headers=self.headers,
         )
         if resp.status_code == 200:

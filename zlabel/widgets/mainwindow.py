@@ -308,10 +308,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.info(f"Refreshed {len(tasks)} tasks from remote server")
 
     def load_tasks_remote(self):
-        """Load tasks from remote server
-
-        Args:
-            silent: If True, don't show success message dialog
+        """
+            Load tasks from remote server
         """
         self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
         if self.zl_server_api is None:
@@ -323,6 +321,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.project_id,
             self.settings.username,
             self.settings.password,
+            self.settings.random_select,
         )
         worker.emitter.success.connect(self.on_get_tasks_success)
         worker.emitter.fail.connect(self.on_get_tasks_failed)

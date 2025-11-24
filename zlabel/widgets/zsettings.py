@@ -20,6 +20,7 @@ class ZSettings(BaseModel):
     password: str = ""
     default_color: str = "#000000"
     alpha: float = 0.5
+    random_select: bool = True
 
     cv_enabled: bool = False
     sam_enabled: bool = False

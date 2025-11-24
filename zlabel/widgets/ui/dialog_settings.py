@@ -15,18 +15,18 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QApplication, QComboBox, QDialog, QDoubleSpinBox,
-    QGridLayout, QGroupBox, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QPushButton, QScrollArea,
-    QSizePolicy, QSpacerItem, QTabWidget, QTableWidget,
-    QTableWidgetItem, QVBoxLayout, QWidget)
+from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
+    QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout,
+    QHeaderView, QLabel, QLineEdit, QPushButton,
+    QScrollArea, QSizePolicy, QSpacerItem, QTabWidget,
+    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
 import icons_rc
 
 class Ui_DialogSettings(object):
     def setupUi(self, DialogSettings):
         if not DialogSettings.objectName():
             DialogSettings.setObjectName(u"DialogSettings")
-        DialogSettings.resize(644, 473)
+        DialogSettings.resize(657, 587)
         font = QFont()
         font.setFamilies([u"Times New Roman"])
         font.setPointSize(12)
@@ -36,9 +36,9 @@ class Ui_DialogSettings(object):
         self.gridLayout_5.setContentsMargins(5, 5, 5, 5)
         self.horizontalLayout_4 = QHBoxLayout()
         self.horizontalLayout_4.setObjectName(u"horizontalLayout_4")
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.horizontalLayout_4.addItem(self.horizontalSpacer_2)
+        self.horizontalLayout_4.addItem(self.horizontalSpacer)
 
         self.btn_cancel = QPushButton(DialogSettings)
         self.btn_cancel.setObjectName(u"btn_cancel")
@@ -71,7 +71,7 @@ class Ui_DialogSettings(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 601, 692))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 629, 501))
         self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(3, 3, 3, 3)
@@ -82,20 +82,42 @@ class Ui_DialogSettings(object):
         self.gridLayout_2.setContentsMargins(5, 5, 5, 5)
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
-        self.label_5 = QLabel(self.groupBox)
-        self.label_5.setObjectName(u"label_5")
+        self.label_6 = QLabel(self.groupBox)
+        self.label_6.setObjectName(u"label_6")
+        self.label_6.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
-        self.gridLayout_4.addWidget(self.label_5, 2, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.label_6, 3, 0, 1, 1)
+
+        self.cmbox_loglevel = QComboBox(self.groupBox)
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.addItem("")
+        self.cmbox_loglevel.setObjectName(u"cmbox_loglevel")
+
+        self.gridLayout_4.addWidget(self.cmbox_loglevel, 5, 1, 1, 1)
+
+        self.label = QLabel(self.groupBox)
+        self.label.setObjectName(u"label")
+        self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
 
         self.ledit_username = QLineEdit(self.groupBox)
         self.ledit_username.setObjectName(u"ledit_username")
 
         self.gridLayout_4.addWidget(self.ledit_username, 1, 1, 1, 1)
 
-        self.label_6 = QLabel(self.groupBox)
-        self.label_6.setObjectName(u"label_6")
+        self.ledit_password = QLineEdit(self.groupBox)
+        self.ledit_password.setObjectName(u"ledit_password")
 
-        self.gridLayout_4.addWidget(self.label_6, 3, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
+
+        self.label_11 = QLabel(self.groupBox)
+        self.label_11.setObjectName(u"label_11")
+        self.label_11.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_4.addWidget(self.label_11, 5, 0, 1, 1)
 
         self.dspbox_alpha = QDoubleSpinBox(self.groupBox)
         self.dspbox_alpha.setObjectName(u"dspbox_alpha")
@@ -107,14 +129,9 @@ class Ui_DialogSettings(object):
         self.dspbox_alpha.setMinimumSize(QSize(63, 0))
         self.dspbox_alpha.setMaximum(1.000000000000000)
         self.dspbox_alpha.setSingleStep(0.100000000000000)
-        self.dspbox_alpha.setValue(0.500000000000000)
+        self.dspbox_alpha.setValue(0.100000000000000)
 
         self.gridLayout_4.addWidget(self.dspbox_alpha, 3, 1, 1, 1)
-
-        self.ledit_password = QLineEdit(self.groupBox)
-        self.ledit_password.setObjectName(u"ledit_password")
-
-        self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
 
         self.ledit_host = QLineEdit(self.groupBox)
         self.ledit_host.setObjectName(u"ledit_host")
@@ -122,29 +139,29 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
 
-        self.label = QLabel(self.groupBox)
-        self.label.setObjectName(u"label")
-
-        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
-
         self.label_4 = QLabel(self.groupBox)
         self.label_4.setObjectName(u"label_4")
+        self.label_4.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.gridLayout_4.addWidget(self.label_4, 1, 0, 1, 1)
 
-        self.label_11 = QLabel(self.groupBox)
-        self.label_11.setObjectName(u"label_11")
+        self.label_5 = QLabel(self.groupBox)
+        self.label_5.setObjectName(u"label_5")
+        self.label_5.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
-        self.gridLayout_4.addWidget(self.label_11, 4, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.label_5, 2, 0, 1, 1)
 
-        self.cmbox_loglevel = QComboBox(self.groupBox)
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.addItem("")
-        self.cmbox_loglevel.setObjectName(u"cmbox_loglevel")
+        self.label_2 = QLabel(self.groupBox)
+        self.label_2.setObjectName(u"label_2")
+        self.label_2.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
-        self.gridLayout_4.addWidget(self.cmbox_loglevel, 4, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.label_2, 4, 0, 1, 1)
+
+        self.ckbox_random = QCheckBox(self.groupBox)
+        self.ckbox_random.setObjectName(u"ckbox_random")
+        self.ckbox_random.setChecked(True)
+
+        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
 
 
         self.gridLayout_2.addLayout(self.gridLayout_4, 0, 0, 1, 1)
@@ -152,71 +169,93 @@ class Ui_DialogSettings(object):
 
         self.gridLayout.addWidget(self.groupBox, 0, 0, 1, 1)
 
-        self.groupBox_4 = QGroupBox(self.scrollAreaWidgetContents)
-        self.groupBox_4.setObjectName(u"groupBox_4")
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout.addItem(self.verticalSpacer, 1, 0, 1, 1)
+
+        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+
+        self.gridLayout_7.addWidget(self.scrollArea, 0, 0, 1, 1)
+
+        self.tabWidget.addTab(self.tab_global, "")
+        self.tab = QWidget()
+        self.tab.setObjectName(u"tab")
+        self.gridLayout_13 = QGridLayout(self.tab)
+        self.gridLayout_13.setObjectName(u"gridLayout_13")
+        self.scrollArea_2 = QScrollArea(self.tab)
+        self.scrollArea_2.setObjectName(u"scrollArea_2")
+        self.scrollArea_2.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_2 = QWidget()
+        self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 609, 506))
+        self.gridLayout_8 = QGridLayout(self.scrollAreaWidgetContents_2)
+        self.gridLayout_8.setObjectName(u"gridLayout_8")
+        self.gridLayout_8.setContentsMargins(3, 3, 3, 3)
+        self.groupBox_5 = QGroupBox(self.scrollAreaWidgetContents_2)
+        self.groupBox_5.setObjectName(u"groupBox_5")
         sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.groupBox_4.sizePolicy().hasHeightForWidth())
-        self.groupBox_4.setSizePolicy(sizePolicy1)
-        self.groupBox_4.setMinimumSize(QSize(0, 500))
-        self.gridLayout_6 = QGridLayout(self.groupBox_4)
-        self.gridLayout_6.setObjectName(u"gridLayout_6")
-        self.gridLayout_6.setContentsMargins(5, 5, 5, 5)
-        self.gridLayout_3 = QGridLayout()
-        self.gridLayout_3.setObjectName(u"gridLayout_3")
-        self.label_3 = QLabel(self.groupBox_4)
-        self.label_3.setObjectName(u"label_3")
+        sizePolicy1.setHeightForWidth(self.groupBox_5.sizePolicy().hasHeightForWidth())
+        self.groupBox_5.setSizePolicy(sizePolicy1)
+        self.groupBox_5.setMinimumSize(QSize(0, 500))
+        self.gridLayout_11 = QGridLayout(self.groupBox_5)
+        self.gridLayout_11.setObjectName(u"gridLayout_11")
+        self.gridLayout_11.setContentsMargins(5, 5, 5, 5)
+        self.gridLayout_12 = QGridLayout()
+        self.gridLayout_12.setObjectName(u"gridLayout_12")
+        self.label_14 = QLabel(self.groupBox_5)
+        self.label_14.setObjectName(u"label_14")
 
-        self.gridLayout_3.addWidget(self.label_3, 2, 0, 1, 1)
+        self.gridLayout_12.addWidget(self.label_14, 2, 0, 1, 1)
 
-        self.label_10 = QLabel(self.groupBox_4)
-        self.label_10.setObjectName(u"label_10")
+        self.label_15 = QLabel(self.groupBox_5)
+        self.label_15.setObjectName(u"label_15")
 
-        self.gridLayout_3.addWidget(self.label_10, 1, 0, 1, 1)
+        self.gridLayout_12.addWidget(self.label_15, 1, 0, 1, 1)
 
-        self.label_9 = QLabel(self.groupBox_4)
-        self.label_9.setObjectName(u"label_9")
+        self.label_16 = QLabel(self.groupBox_5)
+        self.label_16.setObjectName(u"label_16")
 
-        self.gridLayout_3.addWidget(self.label_9, 0, 0, 1, 1)
+        self.gridLayout_12.addWidget(self.label_16, 0, 0, 1, 1)
 
-        self.verticalLayout = QVBoxLayout()
-        self.verticalLayout.setObjectName(u"verticalLayout")
-        self.btn_add_label = QPushButton(self.groupBox_4)
+        self.verticalLayout_2 = QVBoxLayout()
+        self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.btn_add_label = QPushButton(self.groupBox_5)
         self.btn_add_label.setObjectName(u"btn_add_label")
 
-        self.verticalLayout.addWidget(self.btn_add_label)
+        self.verticalLayout_2.addWidget(self.btn_add_label)
 
-        self.btn_delete_label = QPushButton(self.groupBox_4)
+        self.btn_delete_label = QPushButton(self.groupBox_5)
         self.btn_delete_label.setObjectName(u"btn_delete_label")
 
-        self.verticalLayout.addWidget(self.btn_delete_label)
+        self.verticalLayout_2.addWidget(self.btn_delete_label)
 
-        self.btn_clear = QPushButton(self.groupBox_4)
+        self.btn_clear = QPushButton(self.groupBox_5)
         self.btn_clear.setObjectName(u"btn_clear")
 
-        self.verticalLayout.addWidget(self.btn_clear)
+        self.verticalLayout_2.addWidget(self.btn_clear)
 
-        self.verticalSpacer = QSpacerItem(20, 110, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.verticalSpacer_2 = QSpacerItem(20, 110, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.verticalLayout.addItem(self.verticalSpacer)
+        self.verticalLayout_2.addItem(self.verticalSpacer_2)
 
 
-        self.gridLayout_3.addLayout(self.verticalLayout, 2, 2, 1, 1)
+        self.gridLayout_12.addLayout(self.verticalLayout_2, 2, 2, 1, 1)
 
-        self.ledit_projname = QLineEdit(self.groupBox_4)
+        self.ledit_projname = QLineEdit(self.groupBox_5)
         self.ledit_projname.setObjectName(u"ledit_projname")
         self.ledit_projname.setEnabled(False)
 
-        self.gridLayout_3.addWidget(self.ledit_projname, 0, 1, 1, 2)
+        self.gridLayout_12.addWidget(self.ledit_projname, 0, 1, 1, 2)
 
-        self.ledit_prjdesc = QLineEdit(self.groupBox_4)
+        self.ledit_prjdesc = QLineEdit(self.groupBox_5)
         self.ledit_prjdesc.setObjectName(u"ledit_prjdesc")
         self.ledit_prjdesc.setEnabled(False)
 
-        self.gridLayout_3.addWidget(self.ledit_prjdesc, 1, 1, 1, 2)
+        self.gridLayout_12.addWidget(self.ledit_prjdesc, 1, 1, 1, 2)
 
-        self.table_labels = QTableWidget(self.groupBox_4)
+        self.table_labels = QTableWidget(self.groupBox_5)
         if (self.table_labels.columnCount() < 4):
             self.table_labels.setColumnCount(4)
         __qtablewidgetitem = QTableWidgetItem()
@@ -234,19 +273,19 @@ class Ui_DialogSettings(object):
         sizePolicy2.setHeightForWidth(self.table_labels.sizePolicy().hasHeightForWidth())
         self.table_labels.setSizePolicy(sizePolicy2)
 
-        self.gridLayout_3.addWidget(self.table_labels, 2, 1, 1, 1)
+        self.gridLayout_12.addWidget(self.table_labels, 2, 1, 1, 1)
 
 
-        self.gridLayout_6.addLayout(self.gridLayout_3, 0, 0, 1, 1)
+        self.gridLayout_11.addLayout(self.gridLayout_12, 0, 0, 1, 1)
 
 
-        self.gridLayout.addWidget(self.groupBox_4, 1, 0, 1, 1)
+        self.gridLayout_8.addWidget(self.groupBox_5, 0, 0, 1, 1)
 
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+        self.scrollArea_2.setWidget(self.scrollAreaWidgetContents_2)
 
-        self.gridLayout_7.addWidget(self.scrollArea, 0, 0, 1, 1)
+        self.gridLayout_13.addWidget(self.scrollArea_2, 0, 0, 1, 1)
 
-        self.tabWidget.addTab(self.tab_global, "")
+        self.tabWidget.addTab(self.tab, "")
 
         self.gridLayout_5.addWidget(self.tabWidget, 0, 0, 1, 1)
 
@@ -264,20 +303,23 @@ class Ui_DialogSettings(object):
         self.btn_cancel.setText(QCoreApplication.translate("DialogSettings", u"Cancel", None))
         self.btn_apply.setText(QCoreApplication.translate("DialogSettings", u"Apply", None))
         self.groupBox.setTitle(QCoreApplication.translate("DialogSettings", u"API", None))
-        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
         self.label_6.setText(QCoreApplication.translate("DialogSettings", u"Alpha:", None))
-        self.label.setText(QCoreApplication.translate("DialogSettings", u"Server Host:", None))
-        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
-        self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
         self.cmbox_loglevel.setItemText(0, QCoreApplication.translate("DialogSettings", u"DEBUG", None))
         self.cmbox_loglevel.setItemText(1, QCoreApplication.translate("DialogSettings", u"INFO", None))
         self.cmbox_loglevel.setItemText(2, QCoreApplication.translate("DialogSettings", u"WARNING", None))
         self.cmbox_loglevel.setItemText(3, QCoreApplication.translate("DialogSettings", u"ERROR", None))
 
-        self.groupBox_4.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
-        self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Labels:", None))
-        self.label_10.setText(QCoreApplication.translate("DialogSettings", u"Description:", None))
-        self.label_9.setText(QCoreApplication.translate("DialogSettings", u"Name:", None))
+        self.label.setText(QCoreApplication.translate("DialogSettings", u"Server Host:", None))
+        self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
+        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
+        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
+        self.label_2.setText(QCoreApplication.translate("DialogSettings", u"Random:", None))
+        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enabled", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
+        self.groupBox_5.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
+        self.label_14.setText(QCoreApplication.translate("DialogSettings", u"Labels:", None))
+        self.label_15.setText(QCoreApplication.translate("DialogSettings", u"Description:", None))
+        self.label_16.setText(QCoreApplication.translate("DialogSettings", u"Name:", None))
         self.btn_add_label.setText(QCoreApplication.translate("DialogSettings", u"Add", None))
         self.btn_delete_label.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
         self.btn_clear.setText(QCoreApplication.translate("DialogSettings", u"Clear", None))
@@ -289,6 +331,6 @@ class Ui_DialogSettings(object):
         ___qtablewidgetitem2.setText(QCoreApplication.translate("DialogSettings", u"Color", None));
         ___qtablewidgetitem3 = self.table_labels.horizontalHeaderItem(3)
         ___qtablewidgetitem3.setText(QCoreApplication.translate("DialogSettings", u"Delete", None));
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("DialogSettings", u"Project", None))
     # retranslateUi
 

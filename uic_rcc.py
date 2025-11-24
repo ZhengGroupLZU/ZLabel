@@ -1,8 +1,12 @@
 import os
+import warnings
 from typing import Literal
 
 from tap import Tap
 from tqdm.rich import tqdm  # type: ignore
+from tqdm.std import TqdmExperimentalWarning
+
+warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 
 
 class SrcDst:
