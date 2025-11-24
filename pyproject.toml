@@ -12,7 +12,7 @@ dependencies = [
     "rich<14.0.0,>=13.7.0",
     "pydantic<3.0.0,>=2.5.2",
     "requests<3.0.0,>=2.31.0",
-    "pyqtgraph<1.0.0,>=0.13.3",
+    "pyqtgraph<1.0.0,>=0.14.0",
     "numpy>=2.2.6",
 ]
 
@@ -31,16 +31,6 @@ dev = [
     "cx-freeze>=8.4.1",
     "tomli>=2.3.0",
 ]
-
-[tool.pyright]
-defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
-reportUnannotatedClassAttribute = false
-reportUnusedCallResult = false
-reportUnknownMemberType = false
-reportImplicitOverride = false
-reportUnknownLambdaType = false
-reportImportCycles = false
-reportExplicitAny = false
 
 [[tool.uv.index]]
 name = "tsinghua"
@@ -69,7 +59,20 @@ ignore = [
     "B905",
     "E712",
     "UP015",
+    "F401",
 ]
+
+[tool.pyright]
+defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
+reportUnannotatedClassAttribute = false
+reportUnusedCallResult = false
+reportUnknownMemberType = false
+reportImplicitOverride = false
+reportUnknownLambdaType = false
+reportImportCycles = false
+reportExplicitAny = false
+reportUnusedImport = false
+reportMissingTypeStubs = false
 
 [tool.mypy]
 exclude = [
@@ -108,6 +111,10 @@ excludes = [
     "py7zr",
     "tqdm",
     "typed-argument-parser",
+]
+includes = [
+    "PySide6.QtOpenGL",
+    "PySide6.QtOpenGLWidgets",
 ]
 bin_excludes = [
     "QtTest.pyd",

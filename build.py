@@ -112,7 +112,7 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
     print("Building with Nuitka...")
 
     nuitka_build_dir = "build/debug" if enable_debug else "build/release"
-    icon_png = "zlabel/resources/icons/zlabel.png"
+    icon_png = "zlabel/resources/icons/logo.png"
     # convert_png_ico(icon_png)
 
     # Base Nuitka command based on pyproject.toml configuration
@@ -121,6 +121,8 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
         "--standalone",
         "--enable-plugin=pyside6",
         "--include-qt-plugins=sensible",
+        "--include-module=PySide6.QtOpenGL",
+        "--include-module=PySide6.QtOpenGLWidgets",
         "--macos-create-app ",
         f"--macos-app-icon={icon_png}",
         f"--windows-icon-from-ico={icon_png}",
@@ -132,8 +134,6 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
         '--file-description="ZhengGroup ZLabel"',
         '--copyright="Copyright © 2025 ZhengGroup. All rights reserved."',
         '--trademarks="ZhengGroup ZLabel."',
-        "--include-data-files=build/zlabel.conf=zlabel.conf",
-        "--include-data-dir=build/projects=projects",
         f"-j {jobs}",
     ]
 

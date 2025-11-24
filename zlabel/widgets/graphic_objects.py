@@ -1,19 +1,85 @@
 import math
+from collections.abc import Sequence
 from typing import Any
 
 import numpy as np
-import pyqtgraph as pg  # type: ignore
-from pyqtgraph.graphicsItems.ROI import ROI
-from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent
+import pyqtgraph as pg
+from pyqtgraph.graphicsItems.ROI import Handle
+from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent, MouseDragEvent
 from pyqtgraph.Qt.QtCore import QCoreApplication, QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF, QTransform
-from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu
+from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu, QStyleOptionGraphicsItem, QWidget
 from rich import print  # noqa: F401
 
 from zlabel.utils import ZLogger, id_uuid4
 
 
-class Rectangle(pg.ROI):
+class ZROI(pg.ROI):
+    def __init__(
+        self,
+        pos: Sequence[float],
+        size: pg.Point | tuple[float, float] | Sequence[float] | None = None,
+        angle: float = 0.0,
+        invertible: bool = False,
+        maxBounds: QRectF | None = None,
+        snapSize: float = 1.0,
+        scaleSnap: bool = False,
+        translateSnap: bool = False,
+        rotateSnap: bool = False,
+        parent: QGraphicsItem | None = None,
+        pen: QPen | None = None,
+        hoverPen: QPen | None = None,
+        handlePen: QPen | None = None,
+        handleHoverPen: QPen | None = None,
+        movable: bool = True,
+        rotatable: bool = True,
+        resizable: bool = True,
+        removable: bool = False,
+        aspectLocked: bool = False,
+        antialias: bool = True,
+    ):
+        self.handles: list[dict[str, Any]]
+        super().__init__(
+            pos,
+            size or pg.Point(1, 1),
+            angle,
+            invertible,
+            maxBounds,
+            snapSize,
+            scaleSnap,
+            translateSnap,
+            rotateSnap,
+            parent,
+            pen,
+            hoverPen,
+            handlePen,
+            handleHoverPen,
+            movable,
+            rotatable,
+            resizable,
+            removable,
+            aspectLocked,
+            antialias,
+        )
+
+    @property
+    def handles_created(self):
+        return len(self.handles) > 0
+
+    def indexOfHandle(self, handle: "Handle | ZHandle | int") -> int:
+        """
+        Return the index of *handle* in the list of this ROI's handles.
+        """
+        assert isinstance(handle, (Handle, ZHandle, int))
+        if isinstance(handle, int):
+            return handle
+        for i, info in enumerate(self.handles):
+            if info["item"] is handle:
+                return i
+        raise Exception("Cannot return handle index; not attached to this ROI")
+
+
+class Rectangle(ZROI):
     def __init__(
         self,
         rect: QRectF,
@@ -23,7 +89,6 @@ class Rectangle(pg.ROI):
         id_: str | None = None,
         movable: bool = True,
         alpha: float = 0.3,
-        **args,
     ):
         self.id_: str = id_ or id_uuid4()
         super().__init__(
@@ -34,7 +99,6 @@ class Rectangle(pg.ROI):
             handlePen=pg.mkPen(color="yellow", width=2),
             movable=movable,
             removable=False,
-            **args,
         )
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.logger: ZLogger = ZLogger(__name__)
@@ -76,18 +140,18 @@ class Rectangle(pg.ROI):
                 return
         super().mouseClickEvent(ev)
 
-    def mouseDragEvent(self, ev):
+    def mouseDragEvent(self, ev: MouseDragEvent):
         if self.translatable:
             super().mouseDragEvent(ev)
         else:
             ev.ignore()
 
-    def paint(self, p: QPainter, opt, widget):
+    def paint(self, p: QPainter, opt: QStyleOptionGraphicsItem, widget: QWidget | None = None):
         p.setBrush(self.brush)
         p.setPen(self.hoverPen if self.isSelected() else self.currentPen)
         super().paint(p, opt, widget)
 
-    def addHandle(self, info, index=None):
+    def addHandle(self, info: dict[str, Any], index: int | None = None):
         # If a Handle was not supplied, create it now
         if "item" not in info or info["item"] is None:
             h = ZHandle(
@@ -129,12 +193,16 @@ class Rectangle(pg.ROI):
 
     def setSelected(self, s: bool):
         self._selected = s
+        if self.isSelected():
+            self.restoreHandles()
+        else:
+            self.removeHandles()
         return super().setSelected(s)
 
     def isSelected(self):
         return self._selected
 
-    def area(self):
+    def area(self) -> float:
         state = self.getState()
         return state["size"].x() * state["size"].y()
 
@@ -158,7 +226,7 @@ class Rectangle(pg.ROI):
     def saveState(self) -> dict[str, Any]:
         return {"id": self.id_, **super().saveState()}
 
-    def setState(self, state: dict[str, Any], update=True):
+    def setState(self, state: dict[str, Any], update: bool = True):
         super().setState(state, update)
         if state.get("id", None):
             self.id_ = state["id"]
@@ -168,7 +236,7 @@ class Rectangle(pg.ROI):
             self.removeHandles()
 
 
-class Polygon(pg.ROI):
+class Polygon(ZROI):
     def __init__(
         self,
         positions: list[tuple[float, float]],
@@ -183,10 +251,8 @@ class Polygon(pg.ROI):
         self.closed: bool = closed
         self.points = [pg.Point(p) for p in positions]
         self.state: dict[str, Any]
-        ROI.__init__(
-            self,
+        super().__init__(
             pos,
-            size=pg.Point([1, 1]),
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
             removable=False,
@@ -201,11 +267,7 @@ class Polygon(pg.ROI):
         self.fill_color.setAlphaF(self.alpha)
         self.brush: QBrush = QBrush(self.fill_color)
 
-    @property
-    def handles_created(self):
-        return len(self.handles) > 0
-
-    def setPoints(self, points, closed: bool | None = None, update=True):
+    def setPoints(self, points: list[tuple[float, float]], closed: bool | None = None, update: bool = True):
         """
         Set the complete sequence of points displayed by this ROI.
 
@@ -239,11 +301,11 @@ class Polygon(pg.ROI):
         super().setSelected(s)
 
         if s and not self.handles_created:
-            self._createHandles()
+            self.createHandles()
         elif s and self.handles_created:
             self.showHandles()
         elif not s and self.handles_created:
-            self._removeHandles()
+            self.removeHandles()
 
     def isSelected(self):
         return self._selected
@@ -255,7 +317,7 @@ class Polygon(pg.ROI):
             points = [pg.Point(p[0], p[1]) for p in self.points]
 
         return {
-            **ROI.getState(self),
+            **super().getState(),
             "id": self.id_,
             "points": points,
             "closed": self.closed,
@@ -277,13 +339,13 @@ class Polygon(pg.ROI):
         self.setAngle(state["angle"], update=False)
         self.setPoints(state["points"], closed=state["closed"], update=False)
         if self.isSelected():
-            self._createHandles()
+            self.createHandles()
         else:
-            self._removeHandles()
+            self.removeHandles()
         self.stateChanged(finish=update)
 
     def setMouseHover(self, hover):
-        ROI.setMouseHover(self, hover)
+        super().setMouseHover(hover)
 
     def addFreeHandle(
         self,
@@ -434,11 +496,8 @@ class Polygon(pg.ROI):
 
         return abs(area) / 2.0
 
-    def getArrayRegion(self, *args, **kwds):
-        return self._getArrayRegionForArbitraryShape(*args, **kwds)
-
-    def setPen(self, *args, **kwds):
-        ROI.setPen(self, *args, **kwds)
+    def getArrayRegion(self, data, img, axes=(0, 1), returnMappedCoords=False, **kwds):
+        return self._getArrayRegionForArbitraryShape(data, img, axes, returnMappedCoords, **kwds)
 
     def setFillColor(self, color: str, alpha: float = 0.3):
         self.fill_color = QColor(color)
@@ -537,7 +596,7 @@ class Polygon(pg.ROI):
                 if edge_info:
                     edge_index, insert_point = edge_info
                     if not self.handles_created:
-                        self._createHandles()
+                        self.createHandles()
                     self._insert_point_at_edge(edge_index, insert_point)
                     self.stateChangeFinished()
                     ev.accept()
@@ -555,24 +614,24 @@ class Polygon(pg.ROI):
 
         super().mouseClickEvent(ev)
 
-    def mouseDragEvent(self, ev):
+    def mouseDragEvent(self, ev: MouseDragEvent):
         if self.translatable:
             return super().mouseDragEvent(ev)
         else:
             ev.ignore()
             return super().mouseDragEvent(ev)
 
-    def _createHandles(self):
+    def createHandles(self):
         if self.handles_created:
             return
 
         if self.handles:
-            self._removeHandles()
+            self.removeHandles()
         for p in self.points:
             self.addFreeHandle(p, finish=False)
         self.stateChanged(finish=False)
 
-    def _removeHandles(self):
+    def removeHandles(self):
         if not self.handles_created:
             return
 
@@ -582,7 +641,7 @@ class Polygon(pg.ROI):
             self.removeHandle(0)
 
 
-class Point(ROI):
+class Point(ZROI):
     r"""
     Point ROI subclass with one scale handle and one rotation handle.
 
@@ -602,19 +661,15 @@ class Point(ROI):
         radius: float = 1.0,
         color: str = "#f47b90",
         id_: str | None = None,
-        **args,
     ):
-        size = (radius * 2, radius * 2)
         self.path = None
-        ROI.__init__(
-            self,
+        super().__init__(
             pos,
-            size,
+            (radius * 2, radius * 2),
             aspectLocked=True,
             hoverPen=pg.mkPen(color="w", width=3),
             handlePen=pg.mkPen(color="yellow", width=2),
             removable=False,
-            **args,
         )
         self.sigRegionChanged.connect(self._clearPath)
 
@@ -654,9 +709,9 @@ class Point(ROI):
         # Note: we could use the same method as used by PolyLineROI, but this
         # implementation produces a nicer mask.
         if returnMappedCoords:
-            arr, mappedCoords = ROI.getArrayRegion(self, arr, img, axes, returnMappedCoords, **kwds)
+            arr, mappedCoords = super().getArrayRegion(arr, img, axes, returnMappedCoords, **kwds)
         else:
-            arr = ROI.getArrayRegion(self, arr, img, axes, returnMappedCoords, **kwds)
+            arr = super().getArrayRegion(arr, img, axes, returnMappedCoords, **kwds)
         if arr is None or arr.shape[axes[0]] == 0 or arr.shape[axes[1]] == 0:
             if returnMappedCoords:
                 return arr, mappedCoords
@@ -795,7 +850,8 @@ class ZHandle(pg.UIGraphicsItem):
     properties of the ROI they are attached to.
     """
 
-    types = {  ## defines number of sides, start angle for each handle type
+    # defines number of sides, start angle for each handle type
+    types = {
         "t": (4, np.pi / 4),
         "f": (4, np.pi / 4),
         "s": (4, 0),
@@ -809,15 +865,15 @@ class ZHandle(pg.UIGraphicsItem):
 
     def __init__(
         self,
-        radius,
-        typ=None,
-        pen=(200, 200, 220),
-        hoverPen=(255, 255, 0),
-        parent=None,
-        deletable=False,
-        antialias=True,
+        radius: float,
+        typ: str,
+        pen: tuple[int, int, int] = (200, 200, 220),
+        hoverPen: tuple[int, int, int] = (255, 255, 0),
+        parent: QGraphicsItem | None = None,
+        deletable: bool = False,
+        antialias: bool = True,
     ):
-        self.rois = []
+        self.rois: list[ZROI] = []
         self.radius = radius
         self.typ = typ
         self.pen = pg.mkPen(pen)
@@ -837,14 +893,14 @@ class ZHandle(pg.UIGraphicsItem):
             self.setAcceptedMouseButtons(Qt.MouseButton.RightButton)
         self.setZValue(11)
 
-    def connectROI(self, roi):
-        ### roi is the "parent" roi, i is the index of the handle in roi.handles
+    def connectROI(self, roi: ZROI):
+        # roi is the "parent" roi, i is the index of the handle in roi.handles
         self.rois.append(roi)
 
-    def disconnectROI(self, roi):
+    def disconnectROI(self, roi: ZROI):
         self.rois.remove(roi)
 
-    def setDeletable(self, b):
+    def setDeletable(self, b: bool):
         self.deletable = b
         if b:
             self.setAcceptedMouseButtons(self.acceptedMouseButtons() | Qt.MouseButton.RightButton)
@@ -854,7 +910,7 @@ class ZHandle(pg.UIGraphicsItem):
     def removeClicked(self):
         self.sigRemoveRequested.emit(self)
 
-    def hoverEvent(self, ev):
+    def hoverEvent(self, ev: HoverEvent):
         hover = False
         if not ev.isExit():
             if ev.acceptDrags(Qt.MouseButton.LeftButton):
@@ -873,10 +929,10 @@ class ZHandle(pg.UIGraphicsItem):
             self.currentPen = self.pen
         self.update()
 
-    def mouseClickEvent(self, ev):
-        ## right-click cancels drag
+    def mouseClickEvent(self, ev: MouseClickEvent):
+        # right-click cancels drag
         if ev.button() == Qt.MouseButton.RightButton and self.isMoving:
-            self.isMoving = False  ## prevents any further motion
+            self.isMoving = False  # prevents any further motion
             self.movePoint(self.startPos, finish=True)
             ev.accept()
         elif self.acceptedMouseButtons() & ev.button():
@@ -899,7 +955,7 @@ class ZHandle(pg.UIGraphicsItem):
     def raiseContextMenu(self, ev):
         menu = self.scene().addParentContextMenus(self, self.getMenu(), ev)
 
-        ## Make sure it is still ok to remove this handle
+        # Make sure it is still ok to remove this handle
         removeAllowed = all(r.checkRemoveHandle(self) for r in self.rois)
         self.removeAction.setEnabled(removeAllowed)
         pos = ev.screenPos()
@@ -910,9 +966,9 @@ class ZHandle(pg.UIGraphicsItem):
             return
         ev.accept()
 
-        ## Inform ROIs that a drag is happening
-        ##  note: the ROI is informed that the handle has moved using ROI.movePoint
-        ##  this is for other (more nefarious) purposes.
+        # Inform ROIs that a drag is happening
+        #  note: the ROI is informed that the handle has moved using ROI.movePoint
+        #  this is for other (more nefarious) purposes.
         # for r in self.roi:
         # r[0].pointDragEvent(r[1], ev)
 
@@ -931,12 +987,12 @@ class ZHandle(pg.UIGraphicsItem):
             self.cursorOffset = self.scenePos() - ev.buttonDownScenePos()
             self.currentPen = self.hoverPen
 
-        if self.isMoving:  ## note: isMoving may become False in mid-drag due to right-click.
+        if self.isMoving:  # note: isMoving may become False in mid-drag due to right-click.
             pos = ev.scenePos() + self.cursorOffset
             self.currentPen = self.hoverPen
             self.movePoint(pos, ev.modifiers(), finish=False)
 
-    def movePoint(self, pos, modifiers=None, finish=True):
+    def movePoint(self, pos: pg.Point, modifiers: Qt.KeyboardModifier | None = None, finish: bool = True):
         if modifiers is None:
             modifiers = Qt.KeyboardModifier.NoModifier
         for r in self.rois:
@@ -988,7 +1044,7 @@ class ZHandle(pg.UIGraphicsItem):
         return self.shape().boundingRect()
 
     def generateShape(self):
-        dt = self.deviceTransform()
+        dt = self.deviceTransform_()
 
         if dt is None:
             self._shape = self.path
@@ -997,7 +1053,7 @@ class ZHandle(pg.UIGraphicsItem):
         v = dt.map(QPointF(1, 0)) - dt.map(QPointF(0, 0))
         va = math.atan2(v.y(), v.x())
 
-        dti = pg.invertQTransform(dt)
+        dti: QTransform = pg.invertQTransform(dt)
         devPos = dt.map(QPointF(0, 0))
         tr = QTransform()
         tr.translate(devPos.x(), devPos.y())
@@ -1007,5 +1063,5 @@ class ZHandle(pg.UIGraphicsItem):
 
     def viewTransformChanged(self):
         pg.GraphicsObject.viewTransformChanged(self)
-        self._shape = None  ## invalidate shape, recompute later if requested.
+        self._shape = None  # invalidate shape, recompute later if requested.
         self.update()

@@ -86,6 +86,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._image_cache: dict[str, Image.Image] = {}
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
+        self.canvas_items_visible = True
 
         self._is_modifying: bool = False
         self._label_shortcuts: list[QShortcut] = []
@@ -606,8 +607,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.undo_stack.redo()
 
     def on_action_visible_triggered(self):
-        if self.actionVisible.isChecked():
-            self.canvas.create_items_by_anno(self.proj.crt_anno)
+        self.canvas_items_visible = self.actionVisible.isChecked()
+        if self.canvas_items_visible:
+            self.canvas.update_by_anno(self.proj.crt_anno)
         else:
             self.canvas.clear_all_items()
 
@@ -940,7 +942,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.dockcnt_labels.set_color(self.settings.default_color)
 
         # clear items in canvas
-        self.canvas.update_by_anno(self.proj.crt_anno)
+        if self.canvas_items_visible:
+            self.canvas.update_by_anno(self.proj.crt_anno)
 
     def on_dock_files_fetch_tasks(self, project_idx: int, num: int, finished: int):
         if self.settings.project_idx != project_idx:
