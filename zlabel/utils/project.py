@@ -1,18 +1,20 @@
+import hashlib
+import uuid
+from collections import OrderedDict
+from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
-from functools import cached_property
-import hashlib
 from pathlib import Path
-from typing import Any, ClassVar, Dict, List, Optional, NamedTuple, Tuple
-from collections import OrderedDict
-from typing_extensions import Literal
-from uuid import uuid4
-import uuid
-from pydantic import BaseModel, Field, PrivateAttr
-from rich import print
+from typing import Any, NamedTuple, TypeAlias
+
+import pyqtgraph as pg
+from pydantic import BaseModel, Field
+from rich import print  # noqa: F401
+
+IncEx: TypeAlias = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
 
 
-def id_uuid4(length=9) -> str:
+def id_uuid4(length: int = 9) -> str:
     return uuid.uuid4().hex[:length]
 
 
@@ -76,39 +78,124 @@ class Result(BaseModel):
     origin: str = "manual"
     score: float = 0
     note: str = ""
-    x: float = 0.0
-    y: float = 0.0
-    w: float = 0.0
-    h: float = 0.0
-    rotation: float = 0
-    labels: List[Label]
-    points: List[Tuple[float, float]] = []
+    labels: list[Label]
 
     @staticmethod
     def new(
         type_id: ResultType,
-        labels: List[Label],
-        x: float = 0,
-        y: float = 0,
-        w: float = 0,
-        h: float = 0,
+        labels: list[Label],
         origin: str = "manual",
         score: float = 0,
-        rotation: float = 0,
         id_=None,
-        points: List[Tuple[float, float]] | None = None,
     ):
         r = Result(
             id=id_ or id_uuid4(),
             type_id=type_id,
             labels=labels,
+            origin=origin,
+            score=score,
+        )
+
+        return r
+
+    def getState(self) -> dict[str, Any]:
+        raise NotImplementedError
+
+
+class RectangleResult(Result):
+    x: float = 0.0
+    y: float = 0.0
+    w: float = 0.0
+    h: float = 0.0
+    rotation: float = 0
+
+    @staticmethod
+    def new(
+        type_id: ResultType = ResultType.RECTANGLE,
+        labels: list[Label] | None = None,
+        origin: str = "manual",
+        score: float = 0,
+        id_=None,
+        x: float = 0.0,
+        y: float = 0.0,
+        w: float = 0.0,
+        h: float = 0.0,
+        rotation: float = 0,
+    ):
+        r = RectangleResult(
+            id=id_ or id_uuid4(),
+            type_id=type_id,
+            labels=labels or [],
+            origin=origin,
+            score=score,
             x=x,
             y=y,
             w=w,
             h=h,
+            rotation=rotation,
+        )
+
+        return r
+
+    def equal_v(self, r: "Result"):
+        return (
+            isinstance(r, RectangleResult)
+            and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.x == r.x
+            and self.y == r.y
+            and self.w == r.w
+            and self.h == r.h
+            and self.rotation == r.rotation
+        )
+
+    def getState(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "pos": pg.Point(self.x, self.y),
+            "size": pg.Point(self.w, self.h),
+            "angle": self.rotation,
+        }
+
+
+class PolygonResult(Result):
+    x: float = 0.0
+    y: float = 0.0
+    w: float = 1.0
+    h: float = 1.0
+    rotation: float = 0
+    closed: bool
+    points: list[tuple[float, float]] = []
+
+    @staticmethod
+    def new(
+        type_id: ResultType = ResultType.POLYGON,
+        labels: list[Label] | None = None,
+        origin: str = "manual",
+        score: float = 0,
+        id_=None,
+        x: float = 0.0,
+        y: float = 0.0,
+        w: float = 1.0,
+        h: float = 1.0,
+        rotation: float = 0,
+        closed: bool = True,
+        points: list[tuple[float, float]] | None = None,
+    ):
+        r = PolygonResult(
+            id=id_ or id_uuid4(),
+            type_id=type_id,
+            labels=labels or [],
             origin=origin,
             score=score,
+            x=x,
+            y=y,
+            w=w,
+            h=h,
             rotation=rotation,
+            closed=closed,
             points=points or [],
         )
 
@@ -116,34 +203,53 @@ class Result(BaseModel):
 
     def equal_v(self, r: "Result"):
         return (
-            self.x == r.x
+            isinstance(r, PolygonResult)
+            and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.x == r.x
             and self.y == r.y
             and self.w == r.w
             and self.h == r.h
             and self.rotation == r.rotation
             and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.closed == r.closed
+            and self.points == r.points
         )
+
+    def getState(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "pos": pg.Point(self.x, self.y),
+            "size": pg.Point(self.w, self.h),
+            "angle": self.rotation,
+            "points": self.points,
+            "closed": self.closed,
+        }
 
 
 class Annotation(BaseModel):
     id: str
     created_by: User | None = None
     updated_by: User | None = None
-    created_at: datetime
-    updated_at: datetime
+    created_at: datetime = Field(default_factory=datetime.now)
+    updated_at: datetime = Field(default_factory=datetime.now)
 
     image_path: str
-    ground_truth: Optional[bool] = False
+    ground_truth: bool = False
 
     original_width: float
     original_height: float
-    image_rotation: Optional[int] = 0
+    image_rotation: int = 0
+    note: str = ""
 
-    results: OrderedDict[str, Result] = OrderedDict()
-    labels: OrderedDict[str, Label] = OrderedDict()
+    results: OrderedDict[str, PolygonResult | RectangleResult] = OrderedDict()
 
     key_result: str | None = None
-    key_label: str | None = None
 
     def save_json(self, path: str):
         p = Path(path)
@@ -167,7 +273,7 @@ class Annotation(BaseModel):
             return None
         return self.results.get(self.key_result, None)
 
-    def add_result(self, result: Result):
+    def add_result(self, result: RectangleResult | PolygonResult):
         self.results[result.id] = result
         self.key_result = result.id
 
@@ -187,11 +293,52 @@ class Annotation(BaseModel):
         self.results.clear()
         self.key_result = None
 
-    @property
-    def crt_label(self) -> Label | None:
-        if self.key_label is None:
-            return None
-        return self.labels.get(self.key_label, None)
+
+class Task(BaseModel):
+    id: int
+    anno_id: str
+    filename: str
+    labels: list[str]
+    finished: bool = False
+
+    anno: Annotation | None = Field(None, exclude=True)
+
+
+# 1
+class Project(BaseModel):
+    id: str
+    name: str = "defaultProject"
+    description: str | None = "New Project"
+
+    key_task: str | None = None
+    key_label: str | None = None
+
+    draft: Annotation | None = None
+    tasks: OrderedDict[str, Task] = OrderedDict()
+    labels: OrderedDict[str, Label] = OrderedDict()
+
+    # region functions
+    def save_json(self, path: str | Path, include: IncEx | None = None, exclude: IncEx | None = None):
+        p = Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        if exclude is None:
+            exclude = {"tasks": True}
+        # Save project metadata without tasks - tasks should come from remote server
+        p.write_text(self.model_dump_json(ensure_ascii=False, indent=2, include=include, exclude=exclude))
+
+    def reset_task_key(self):
+        if len(self.tasks) > 0:
+            self.key_task = list(self.tasks.keys())[0]
+        else:
+            self.key_task = None
+
+    def add_task(self, task: Task):
+        self.tasks[task.anno_id] = task
+        self.key_task = task.anno_id
+
+    def add_annotation(self, anno: Annotation):
+        self.tasks[anno.id].anno = anno
+        self.key_task = anno.id
 
     def add_label(self, label: Label):
         self.labels[label.id] = label
@@ -208,91 +355,6 @@ class Annotation(BaseModel):
         self.labels.pop(id_)
         self.key_label = new_key
         return True
-
-    def set_color(self, color: str):
-        for k in self.results:
-            for label in self.results[k].labels:
-                label.color = color
-
-    @staticmethod
-    def new(
-        image_path: str,
-        width: float,
-        height: float,
-        create_user: User | None,
-        id_: str,
-        labels: OrderedDict[str, Label],
-    ) -> "Annotation":
-        anno = Annotation(
-            id=id_,
-            created_by=create_user,
-            updated_by=create_user,
-            created_at=datetime.now(),
-            updated_at=datetime.now(),
-            image_path=image_path,
-            original_width=width,
-            original_height=height,
-            labels=labels,
-        )
-        return anno
-
-
-class Task(BaseModel):
-    id: int
-    anno_id: str
-    filename: str
-    labels: List[str]
-    finished: bool = False
-
-    anno: Annotation | None = Field(None, exclude=True)
-
-
-# 1
-class Project(BaseModel):
-    id: str
-    name: str
-    description: Optional[str] = "New Project"
-
-    key_task: str | None = None
-
-    draft: Annotation | None = None
-    tasks: OrderedDict[str, Task] = OrderedDict()
-
-    # region functions
-    @staticmethod
-    def new(
-        name: str = "New Project",
-        description: str = "New Project",
-        tasks: OrderedDict[str, Task] = OrderedDict(),
-        draft: Annotation | None = None,
-        id: str | None = None,
-    ):
-        proj = Project(
-            id=id or id_uuid4(),
-            name=name,
-            description=description,
-            tasks=tasks,
-            draft=draft,
-        )
-        return proj
-
-    def save_json(self, path: str):
-        with open(path, "w", encoding="utf-8") as f:
-            f.write(self.model_dump_json(indent=4, exclude={}))
-
-    def reset_task_key(self):
-        if len(self.tasks) > 0:
-            self.key_task = list(self.tasks.keys())[0]
-        else:
-            self.key_task = None
-
-    def add_task(self, task: Task):
-        self.tasks[task.anno_id] = task
-        self.key_task = task.anno_id
-
-    def add_annotation(self, anno: Annotation):
-        self.tasks[anno.id].anno = anno
-        self.key_task = anno.id
 
     # endregion
 
@@ -320,28 +382,10 @@ class Project(BaseModel):
         return self.crt_task.anno
 
     @property
-    def label_id(self):
-        if self.crt_anno is None:
-            return None
-        return self.crt_anno.key_label
-
-    @label_id.setter
-    def label_id(self, id_: str):
-        if self.crt_anno is None:
-            return
-        self.crt_anno.key_label = id_
-
-    @property
-    def labels(self):
-        if self.crt_anno:
-            return list(self.crt_anno.labels.values())
-        return []
-
-    @property
     def crt_label(self) -> Label | None:
-        if self.crt_anno is None:
+        if self.key_label is None:
             return None
-        return self.crt_anno.crt_label
+        return self.labels.get(self.key_label, None)
 
     @property
     def key_result(self):

@@ -1,145 +1,254 @@
-# -*- coding: utf-8 -*-
-import os
+from pyqtgraph.Qt.QtCore import Qt, Signal
+from pyqtgraph.Qt.QtGui import QIcon
+from pyqtgraph.Qt.QtWidgets import QColorDialog, QDialog, QPushButton, QTableWidgetItem
 
-from qtpy.QtCore import QSettings, QSize, Qt, Signal
-from qtpy.QtWidgets import QDialog, QFileDialog, QColorDialog
-from qtpy.QtGui import QColor
-from zlabel.utils import SettingsKey
+from zlabel.utils import id_md5
+from zlabel.utils.enums import LogLevel
+from zlabel.utils.project import Label
+from zlabel.widgets.zsettings import ZSettings
 
 from .ui import Ui_DialogSettings
 
 
 class DialogSettings(QDialog, Ui_DialogSettings):
-    sigSettingsChanged = Signal(QSettings)
+    sigSettingsChanged = Signal()
     sigApplyClicked = Signal()
     sigCancelClicked = Signal()
-    sigLoglevelChanged = Signal(str)
-    sigColorChanged = Signal(str)
 
-    def __init__(self, path: str = "zlabel.conf", parent=None):
-        super(DialogSettings, self).__init__(parent)
+    def __init__(
+        self,
+        settings: ZSettings | None = None,
+        parent=None,
+    ):
+        super().__init__(parent)
         self.setupUi(self)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
-        self.path = path
-        self.format = QSettings.Format.IniFormat
-        self.settings = QSettings(path, self.format)
-        if not os.path.exists(path):
-            self.init_settings()
-        else:
-            self.load_settings()
+        self.settings: ZSettings | None = settings
+        self.table_labels.setHorizontalHeaderLabels(["ID", "Name", "Color", "Delete"])
+        self.table_labels.setRowCount(0)
 
+        if self.settings:
+            self.load_settings()
         self.init_signals()
 
-    def init_settings(self):
-        self.settings.setValue(SettingsKey.HOST.value, "")
-        self.settings.setValue(SettingsKey.URL_PREFIX.value, "")
-        self.settings.setValue(SettingsKey.USER_NAME.value, "DefaultUser")
-        self.settings.setValue(SettingsKey.USER_PWD.value, "")
-        self.settings.setValue(SettingsKey.ENCODER.value, "")
-        self.settings.setValue(SettingsKey.DECODER.value, "")
-        self.settings.setValue(SettingsKey.MODEL_API.value, "")
-        self.settings.setValue(SettingsKey.LOGLEVEL.value, "INFO")
-        self.settings.setValue(SettingsKey.COLOR.value, "#000000")
+    def load_settings(self, settings: ZSettings | None = None):
+        self.settings = settings or self.settings
+        assert self.settings is not None
 
-        self.settings.setValue(SettingsKey.PROJ_NAME.value, "defaultProject")
-        self.settings.setValue(SettingsKey.PROJ_DESCRIP.value, "defaultProject")
+        self.ledit_host.setText(str(self.settings.host))
+        self.ledit_username.setText(str(self.settings.username))
+        self.ledit_password.setText(str(self.settings.password))
+        self.dspbox_alpha.setValue(self.settings.alpha)
+        self.ckbox_random.setChecked(self.settings.random_select)
+        self.ckbox_catmull_rom.setChecked(self.settings.enable_catmull_rom)
 
-    def load_settings(self, path: str | None = None):
-        path = path or self.path
-        self.settings = QSettings(path, self.format)
-        self.ledit_host.setText(str(self.settings.value(SettingsKey.HOST.value, "")))
-        self.ledit_urlprefix.setText(str(self.settings.value(SettingsKey.URL_PREFIX.value, "")))
-        self.ledit_username.setText(str(self.settings.value(SettingsKey.USER_NAME.value, "")))
-        self.ledit_password.setText(str(self.settings.value(SettingsKey.USER_PWD.value, "")))
-        self.ledit_encoder.setText(str(self.settings.value(SettingsKey.ENCODER.value, "")))
-        self.ledit_decoder.setText(str(self.settings.value(SettingsKey.DECODER.value, "")))
-        self.ledit_model_api.setText(str(self.settings.value(SettingsKey.MODEL_API.value, "")))
+        self.cmbox_loglevel.setCurrentIndex(self.settings.log_level.value)
 
-        self.ledit_projname.setText(str(self.settings.value(SettingsKey.PROJ_NAME.value, "")))
-        self.ledit_prjdescrip.setText(str(self.settings.value(SettingsKey.PROJ_DESCRIP.value, "")))
-
-        self.cmbox_loglevel.setCurrentText(
-            self.settings.value(SettingsKey.LOGLEVEL.value, type=str)  # type: ignore
-        )
-        self.set_btn_select_color(str(self.settings.value(SettingsKey.COLOR.value)))
-
-    def apply(self):
-        self.sigSettingsChanged.emit(self.settings)
-        self.sigApplyClicked.emit()
-
-    def on_settings_changed(self, k: str, v: str | int | float):
-        self.settings.setValue(k, v)
-        if self.sender() == self.cmbox_loglevel:
-            # os.environ["ZLABEL_LOGLEVEL"] = str(v)
-            self.sigLoglevelChanged.emit(str(v))
-        self.sigSettingsChanged.emit(self.settings)
-
-    def on_btn_encoder_clicked(self):
-        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
-        if os.path.exists(path):
-            self.ledit_encoder.setText(path)
-            self.on_settings_changed(SettingsKey.ENCODER.value, path)
-
-    def on_btn_decoder_clicked(self):
-        path = QFileDialog.getOpenFileName(self, "Select one File", ".", "ONNX Models (*.onnx)")[0]
-        if os.path.exists(path):
-            self.ledit_decoder.setText(path)
-            self.on_settings_changed(SettingsKey.DECODER.value, path)
-
-    def set_btn_select_color(self, color: str):
-        self.btn_select_color.setStyleSheet(
-            f"QPushButton {{margin: 3px; background-color : {color};}}"
-        )
-
-    def on_btn_select_color_clicked(self):
-        _color = str(self.settings.value(SettingsKey.COLOR.value))
-        color = QColorDialog.getColor(QColor(_color), self)
-        self.on_settings_changed(SettingsKey.COLOR.value, color.name())
-
-        self.set_btn_select_color(color.name())
-        self.sigColorChanged.emit(color.name())
+        self.set_labels(self.settings.project.labels)
+        self.ledit_projname.setText(str(self.settings.project.name))
+        self.ledit_prjdesc.setText(str(self.settings.project.description))
 
     def init_signals(self):
-        self.ledit_host.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.HOST.value, v)
-        )
-        self.ledit_urlprefix.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.URL_PREFIX.value, v)
-        )
-        self.ledit_username.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.USER_NAME.value, v)
-        )
-        self.ledit_password.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.USER_PWD.value, v)
-        )
-        self.ledit_encoder.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.ENCODER.value, v)
-        )
-        self.ledit_decoder.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.DECODER.value, v)
-        )
-        self.ledit_model_api.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.MODEL_API.value, v)
-        )
+        # here the k passed to on_settings_changed is the attribute name in ZSettings
+        self.ledit_host.editingFinished.connect(lambda: self.on_settings_changed("host"))
+        self.ledit_username.editingFinished.connect(lambda: self.on_settings_changed("username"))
+        self.ledit_password.editingFinished.connect(lambda: self.on_settings_changed("password"))
+        self.dspbox_alpha.editingFinished.connect(lambda: self.on_settings_changed("alpha"))
+        self.ckbox_random.checkStateChanged.connect(lambda: self.on_settings_changed("random_select"))
+        self.ckbox_catmull_rom.checkStateChanged.connect(lambda: self.on_settings_changed("enable_catmull_rom"))
 
-        self.ledit_projname.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.PROJ_NAME.value, v)
-        )
-        self.ledit_prjdescrip.textEdited.connect(
-            lambda v: self.on_settings_changed(SettingsKey.PROJ_DESCRIP.value, v)
-        )
+        self.ledit_projname.editingFinished.connect(lambda: self.on_settings_changed("project_name"))
+        self.ledit_prjdesc.editingFinished.connect(lambda: self.on_settings_changed("project_desc"))
 
-        self.btn_encoder.clicked.connect(self.on_btn_encoder_clicked)
-        self.btn_decoder.clicked.connect(self.on_btn_decoder_clicked)
-        self.btn_select_color.clicked.connect(self.on_btn_select_color_clicked)
+        # Track edits in the labels table
+        self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)
 
-        self.btn_apply.clicked.connect(self.apply)
+        self.btn_apply.clicked.connect(self.sigSettingsChanged.emit)
+        self.btn_apply.clicked.connect(self.sigApplyClicked.emit)
         self.btn_cancel.clicked.connect(self.close)
         self.btn_cancel.clicked.connect(self.sigCancelClicked.emit)
 
-        self.cmbox_loglevel.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed(
-                SettingsKey.LOGLEVEL.value, self.cmbox_loglevel.currentText()
-            )
-        )
+        self.btn_add_label.clicked.connect(self.on_btn_label_add_clicked)
+        self.btn_delete_label.clicked.connect(self.on_btn_label_delete_clicked)
+        self.btn_clear.clicked.connect(self.on_btn_label_clear_clicked)
+
+        self.cmbox_loglevel.currentIndexChanged.connect(lambda: self.on_settings_changed("log_level"))
+
+    def on_settings_changed(self, k: str):
+        assert self.settings is not None
+        if k == "host":
+            self.settings.host = self.ledit_host.text().strip()
+        elif k == "username":
+            self.settings.username = self.ledit_username.text().strip()
+        elif k == "password":
+            self.settings.password = self.ledit_password.text().strip()
+        elif k == "alpha":
+            self.settings.alpha = self.dspbox_alpha.value()
+        elif k == "random_select":
+            self.settings.random_select = self.ckbox_random.isChecked()
+        elif k == "enable_catmull_rom":
+            self.settings.enable_catmull_rom = self.ckbox_catmull_rom.isChecked()
+        # elif k == "project_name":
+        #     self.settings.project.name = str(v)
+        #     self.settings.project_name = str(v)
+        # elif k == "project_desc":
+        #     self.settings.project.description = str(v)
+        elif k == "log_level":
+            self.settings.log_level = LogLevel(self.cmbox_loglevel.currentIndex())
+        else:
+            raise ValueError(f"Unknown setting key: {k}")
+        self.sigSettingsChanged.emit()
+
+    def on_table_labels_item_changed(self, item: QTableWidgetItem):
+        if self.settings is None or self.sender() != self.table_labels or item.column() == 0:
+            return
+
+        # Name
+        item_name = self.table_labels.item(item.row(), 1)
+        label_name = item_name.text().strip() if item_name else ""
+        if not label_name:
+            return
+
+        # ID
+        label_id = id_md5(label_name)
+        item_id = self.table_labels.item(item.row(), 0)
+        prev_id = item_id.text().strip() if item_id else ""
+        if item_id:
+            item_id.setText(label_id)
+        else:
+            self.table_labels.setItem(item.row(), 0, QTableWidgetItem(label_id))
+        # Determine current color from the row's color button (if present)
+        color_btn = self.table_labels.cellWidget(item.row(), 2)
+        color_text = "#000000"
+        if isinstance(color_btn, QPushButton):
+            t = color_btn.text().strip()
+            if t:
+                color_text = t.lower()
+        # If the ID changed due to a name edit, drop the old entry
+        if prev_id and prev_id != label_id:
+            self.settings.project.labels.pop(prev_id, None)
+
+        if label_id in self.settings.project.labels:
+            self.settings.project.labels[label_id].name = label_name
+            self.settings.project.labels[label_id].color = color_text
+        else:
+            self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color_text)
+
+        # Only handle name edits here; color is managed by the button widget
+        self.sigSettingsChanged.emit()
+
+    def on_btn_label_add_clicked(self):
+        self.add_row(Label(id="", name=""))
+
+    def on_btn_label_delete_clicked(self):
+        if self.settings is None:
+            return
+
+        selected_items = self.table_labels.selectedItems()
+        selected_rows = list({item.row() for item in selected_items})
+        selected_rows.sort(reverse=True)
+        for row in selected_rows:
+            label_item = self.table_labels.item(row, 0)
+            if label_item:
+                label_id = label_item.text().strip()
+                self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(row)
+        self.sigSettingsChanged.emit()
+
+    def on_btn_label_clear_clicked(self):
+        if self.settings is None:
+            return
+
+        self.settings.project.labels.clear()
+        self.table_labels.setRowCount(0)
+
+    def add_row(self, label: Label, row: int | None = None):
+        idx = row if row is not None else self.table_labels.rowCount()
+        self.table_labels.insertRow(idx)
+
+        # ID
+        item = QTableWidgetItem("")
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        if label.id:
+            item.setText(label.id)
+        self.table_labels.setItem(idx, 0, item)
+
+        # name
+        item = QTableWidgetItem("")
+        if label.name:
+            item.setText(label.name)
+        self.table_labels.setItem(idx, 1, item)
+
+        def btn_item_select_color_clicked(btn: QPushButton):
+            color = QColorDialog.getColor()
+            if not color.isValid():
+                return
+            btn.setStyleSheet(f"background-color: {color.name()}")
+            btn.setText(color.name().upper())
+            # Update settings with the selected color based on current row/name
+            if self.settings is None:
+                return
+            # find the row of this button
+            row_idx = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 2) is btn:
+                    row_idx = r
+                    break
+            if row_idx < 0:
+                return
+            item_name = self.table_labels.item(row_idx, 1)
+            label_name = item_name.text().strip() if item_name else ""
+            if not label_name:
+                # No name yet; just update button UI, wait for name input
+                return
+            label_id = id_md5(label_name)
+            item_id = self.table_labels.item(row_idx, 0)
+            if item_id:
+                item_id.setText(label_id)
+            else:
+                self.table_labels.setItem(row_idx, 0, QTableWidgetItem(label_id))
+            if label_id in self.settings.project.labels:
+                self.settings.project.labels[label_id].color = color.name()
+                self.settings.project.labels[label_id].name = label_name
+            else:
+                self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color.name())
+            self.sigSettingsChanged.emit()
+
+        def btn_item_delete_clicked(btn: QPushButton):
+            if self.settings is None:
+                return
+            # Identify the row from the clicked button
+            target_row = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 3) is btn:
+                    target_row = r
+                    break
+            if target_row < 0:
+                return
+            label_item_id = self.table_labels.item(target_row, 0)
+            label_id = label_item_id.text().strip() if label_item_id else ""
+            if label_id:
+                self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(target_row)
+            self.sigSettingsChanged.emit()
+
+        # color
+        btn_select_color = QPushButton("Select Color")
+        btn_select_color.setStyleSheet(f"background-color: {label.color}")
+        btn_select_color.setText(label.color.upper())
+        btn_select_color.clicked.connect(lambda: btn_item_select_color_clicked(btn_select_color))
+        self.table_labels.setCellWidget(idx, 2, btn_select_color)
+
+        # delete
+        btn_delete = QPushButton("Delete")
+        btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
+        btn_delete.clicked.connect(lambda: btn_item_delete_clicked(btn_delete))
+        self.table_labels.setCellWidget(idx, 3, btn_delete)
+
+    def set_labels(self, labels: dict[str, Label]):
+        self.table_labels.itemChanged.disconnect(self.on_table_labels_item_changed)
+        self.table_labels.setRowCount(0)
+        for idx, label in enumerate(labels.values()):
+            self.add_row(label, idx)
+        self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)

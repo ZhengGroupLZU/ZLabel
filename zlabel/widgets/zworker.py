@@ -1,21 +1,19 @@
-from dataclasses import dataclass
-import json
 import os
 import time
-from typing import Dict, List, Optional, Sequence, Tuple
+from dataclasses import dataclass
 
 from PIL import Image
-from qtpy.QtCore import QObject, QThread, Signal, QRunnable
+from pyqtgraph.Qt.QtCore import QObject, QRunnable, Signal
 from rich import print
 
-from zlabel.utils import SamApiHelper, AutoMode, Label, Result, ResultType
+from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult, ZLServerApiHelper
 from zlabel.utils.project import Task
 
 
 @dataclass
-class SamWorkerResult(object):
+class SamWorkerResult:
     anno_id: str
-    result: Result
+    result: RectangleResult | PolygonResult
 
 
 class PredictWorkerEmitter(QObject):
@@ -25,16 +23,17 @@ class PredictWorkerEmitter(QObject):
 
 class ZSamPredictWorker(QRunnable):
     def __init__(
-        self,
-        api: SamApiHelper,
-        anno_id: str,
-        image: str,
-        result_labels: List[Label],
-        points: List[Tuple[float, float]] | None = None,
-        labels: List[float] | None = None,
-        rects: List[Tuple[float, float, float, float]] | None = None,
-        threshold: int = 100,
-        mode: AutoMode = AutoMode.SAM,
+            self,
+            api: ZLServerApiHelper,
+            anno_id: str,
+            image: str,
+            result_labels: list[Label],
+            points: list[tuple[float, float]] | None = None,
+            labels: list[float] | None = None,
+            rects: list[tuple[float, float, float, float]] | None = None,
+            threshold: int = 100,
+            mode: AutoMode = AutoMode.SAM,
+            return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
     ) -> None:
         """
         points: [(x, y), (x1, y1)]
@@ -51,10 +50,12 @@ class ZSamPredictWorker(QRunnable):
         self.threshold = threshold
         self.mode = mode
         self.result_labels = result_labels
+        self.return_type = return_type
 
         self.emitter = PredictWorkerEmitter()
 
         self.shifts = [0, 0, 0, 0]
+        self.setAutoDelete(True)
 
     def run(self):
         points = None
@@ -85,36 +86,53 @@ class ZSamPredictWorker(QRunnable):
             rects=rects,
             threshold=self.threshold,
             mode=self.mode.value,
+            return_type=self.return_type,
         )
         if not resp["status"]:
             self.emitter.sigFailed.emit()
             print(f"Predict Failed, {resp=}")
             return
-        _rects: List[Dict[str, float]] = resp["rects"]
-        rects = [[r["x"], r["y"], r["w"], r["h"]] for r in _rects]  # type: ignore
-        results = self.rects_to_results(rects, points=[(p["x"], p["y"]) for p in points])  # type: ignore
+
+        results: list[SamWorkerResult] = []
+        if self.return_type == 1:  # RECT
+            rects = [(r["x"], r["y"], r["w"], r["h"]) for r in resp["data"]]  # type: ignore
+            results.extend(self.rects_to_results(rects))  # type: ignore
+        elif self.return_type == 2:  # POLYGON
+            polys = [[(p["x"], p["y"]) for p in poly["points"]] for poly in resp["data"]]  # type: ignore
+            results.extend(self.polys_to_results(polys))  # type: ignore
+        elif self.return_type == 3:  # RLE
+            ...
         self.emitter.sigFinished.emit(results)
 
     def rects_to_results(
-        self,
-        rects: List[Sequence[int]],
-        x0: int = 0,
-        y0: int = 0,
-        points: List[Tuple[float, float]] | None = None
-    ) -> List[SamWorkerResult]:
-        results: List[SamWorkerResult] = []
+            self,
+            rects: list[tuple[int, int, int, int]],
+            x0: int = 0,
+            y0: int = 0,
+    ) -> list[SamWorkerResult]:
+        results: list[SamWorkerResult] = []
         for x, y, w, h in rects:
-            r = Result.new(
-                ResultType.RECTANGLE,
-                self.result_labels,
-                x + x0 + self.shifts[0],
-                y + y0 + self.shifts[1],
-                w + self.shifts[2],
-                h + self.shifts[3],
+            r = RectangleResult.new(
+                labels=self.result_labels,
+                x=x + x0 + self.shifts[0],
+                y=y + y0 + self.shifts[1],
+                w=w + self.shifts[2],
+                h=h + self.shifts[3],
                 origin=self.mode.name,  # type: ignore
                 score=1.0,
                 rotation=0,
-                points=points,
+            )
+            results.append(SamWorkerResult(anno_id=self.anno_id, result=r))
+        return results
+
+    def polys_to_results(self, polys: list[list[tuple[float, float]]]) -> list[SamWorkerResult]:
+        results: list[SamWorkerResult] = []
+        for poly in polys:
+            r = PolygonResult.new(
+                labels=self.result_labels,
+                origin=self.mode.name,  # type: ignore
+                score=1.0,
+                points=poly,
             )
             results.append(SamWorkerResult(anno_id=self.anno_id, result=r))
         return results
@@ -126,16 +144,17 @@ class PreuploadEmitter(QObject):
 
 class ZPreuploadImageWorker(QRunnable):
     def __init__(
-        self,
-        api: SamApiHelper,
-        anno_id: str,
-        image: Image.Image,
+            self,
+            api: ZLServerApiHelper,
+            anno_id: str,
+            image: Image.Image,
     ) -> None:
         super().__init__()
         self.api = api
         self.anno_id = anno_id
         self.image = image
         self.emitter = PreuploadEmitter()
+        self.setAutoDelete(True)
 
     def run(self):
         try:
@@ -152,11 +171,11 @@ class UploadFileEmitter(QObject):
 
 class ZUploadFileWorker(QRunnable):
     def __init__(
-        self,
-        api: SamApiHelper,
-        filename: str,
-        username: str | None = None,
-        password: str | None = None,
+            self,
+            api: ZLServerApiHelper,
+            filename: str,
+            username: str | None = None,
+            password: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -165,6 +184,7 @@ class ZUploadFileWorker(QRunnable):
         self.username = username
         self.password = password
         self.emitter = UploadFileEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
@@ -184,11 +204,11 @@ class GetFileEmitter(QObject):
 
 class ZGetImageWorker(QRunnable):
     def __init__(
-        self,
-        api: SamApiHelper,
-        filename: str,
-        username: str | None = None,
-        password: str | None = None,
+            self,
+            api: ZLServerApiHelper,
+            filename: str,
+            username: str | None = None,
+            password: str | None = None,
     ) -> None:
         super().__init__()
 
@@ -197,6 +217,7 @@ class ZGetImageWorker(QRunnable):
         self.username = username
         self.password = password
         self.emitter = GetFileEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
@@ -209,6 +230,43 @@ class ZGetImageWorker(QRunnable):
             self.emitter.fail.emit(f"Get image {self.filename} failed")
 
 
+class GetProjectsEmitter(QObject):
+    success = Signal(object)
+    fail = Signal(object)
+
+
+class GetProjectsWorker(QRunnable):
+    def __init__(
+            self,
+            api: ZLServerApiHelper,
+            username: str | None = None,
+            password: str | None = None,
+    ) -> None:
+        super().__init__()
+
+        self.api = api
+        self.username = username
+        self.password = password
+        self.emitter = GetProjectsEmitter()
+        self.setAutoDelete(True)
+
+    def run(self) -> None:
+        if not self.api.user_token and self.username and self.password:
+            self.api.login(self.username, self.password)
+        projects = self.api.get_projects()
+        if projects is not None:
+            try:
+                project_list = [(p["id"], p["name"]) for p in projects]
+                if len(project_list) > 0:
+                    self.emitter.success.emit(project_list)
+                else:
+                    self.emitter.fail.emit("No projects found")
+            except Exception as e:
+                self.emitter.fail.emit(f"Get projects failed with {e=}")
+        else:
+            self.emitter.fail.emit("Get projects failed")
+
+
 class GetTasksEmitter(QObject):
     success = Signal(object)
     fail = Signal(object)
@@ -217,25 +275,30 @@ class GetTasksEmitter(QObject):
 class ZGetTasksWorker(QRunnable):
     def __init__(
         self,
-        api: SamApiHelper,
+        api: ZLServerApiHelper,
         num: int,
         finished: int = 1,
+        project_id: int = -1,
         username: str | None = None,
         password: str | None = None,
+        random_select: bool = True,
     ) -> None:
         super().__init__()
 
         self.api = api
         self.username = username
         self.password = password
+        self.random_select = random_select
         self.num = num
         self.finished = finished
+        self.project_id = project_id
         self.emitter = GetTasksEmitter()
+        self.setAutoDelete(True)
 
     def run(self) -> None:
         if not self.api.user_token and self.username and self.password:
             self.api.login(self.username, self.password)
-        tasks = self.api.get_tasks(self.num, self.finished)
+        tasks = self.api.get_tasks(self.project_id, self.num, self.finished, self.random_select)
         if tasks is not None:
             try:
                 task_list = [Task.model_validate(t) for t in tasks]

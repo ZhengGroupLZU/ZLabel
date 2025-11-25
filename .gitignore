@@ -17,6 +17,9 @@ projects/
 deployment/
 .pdm-python
 .VSCodeCounter/
+.DS_Store
+.idea/
+template/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

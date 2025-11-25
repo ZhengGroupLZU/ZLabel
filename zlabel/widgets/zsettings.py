@@ -1,74 +1,148 @@
-from qtpy.QtCore import QSettings
-from zlabel.utils import SettingsKey
+import os
+from pathlib import Path
+from typing import Any
+
+from pydantic import BaseModel, PrivateAttr, field_validator
+from pyqtgraph.Qt.QtCore import QDir
+
+from zlabel.utils.enums import AnnotationType, FetchType, LogLevel
+from zlabel.utils.project import Project, id_uuid4
 
 
-class ZSettings(QSettings):
-    def __init__(self, path: str, format_=QSettings.Format.IniFormat):
-        super().__init__(path, format_)
-        self.root_dir = "."
+class ZSettings(BaseModel):
+    root_dir: Path = Path(QDir.homePath()) / ".zlabel"
+    annotation_type: AnnotationType = AnnotationType.RECTANGLE
+    fetch_type: FetchType = FetchType.FINISHED
+    fetch_num: int = 10
+    host: str = ""
+    log_level: LogLevel = LogLevel.INFO
+    username: str = ""
+    password: str = ""
+    default_color: str = "#000000"
+    alpha: float = 0.1
+    random_select: bool = True
+    enable_catmull_rom: bool = False
 
-    @property
-    def host(self):
-        return str(self.value(SettingsKey.HOST.value, type=str))
+    cv_enabled: bool = False
+    sam_enabled: bool = False
 
-    @property
-    def url_prefix(self):
-        return str(self.value(SettingsKey.URL_PREFIX.value, type=str))
+    geometry: str = ""  # base64 encoded
+    window_state: str = ""  # base64 encoded
 
-    @property
-    def model_api(self):
-        return str(self.value(SettingsKey.MODEL_API.value, type=str))
-
-    @property
-    def username(self) -> str:
-        return self.value(SettingsKey.USER_NAME.value, type=str)  # type: ignore
-
-    @property
-    def password(self) -> str:
-        return self.value(SettingsKey.USER_PWD.value, type=str)  # type: ignore
-
-    @property
-    def project_description(self):
-        return str(self.value(SettingsKey.PROJ_DESCRIP.value, type=str))
-
-    @property
-    def project_name(self):
-        return str(self.value(SettingsKey.PROJ_NAME.value, type=str))
+    projects: list[tuple[int, str]] = []
+    project_idx: int = -1
+    _project: Project = PrivateAttr()
 
     @property
-    def project_path(self):
-        return f"{self.project_dir}/{self.project_name}.zproj"
+    def project_id(self) -> int:
+        if self.project_idx < 0 or self.project_idx >= len(self.projects):
+            return -1
+        return self.projects[self.project_idx][0]
 
     @property
-    def project_dir(self):
-        return f"{self.root_dir}/projects/{self.project_name}"
+    def project_name(self) -> str:
+        if self.project_idx < 0 or self.project_idx >= len(self.projects):
+            return ""
+        return self.projects[self.project_idx][1]
 
     @property
-    def log_level(self):
-        return str(self.value(SettingsKey.LOGLEVEL.value, "INFO", type=str))
+    def project(self) -> Project:
+        return self._project
+
+    @project.setter
+    def project(self, value: Project):
+        self._project = value
 
     @property
-    def color(self):
-        return str(self.value(SettingsKey.COLOR.value, "#000000", type=str))
+    def project_root(self) -> Path:
+        return self.root_dir / "projects"
 
     @property
-    def fetch_num(self):
-        return int(self.value(SettingsKey.FETCH_NUM.value, 100, type=int))  # type: ignore
-
-    @fetch_num.setter
-    def fetch_num(self, value: int):
-        self.setValue(SettingsKey.FETCH_NUM.value, value)
+    def project_dir(self) -> Path:
+        return self.project_root / self.project_name
 
     @property
-    def fetch_finished(self):
-        return int(self.value(SettingsKey.FETCH_FINISHED.value, 0, type=int))  # type: ignore
+    def project_path(self) -> Path:
+        return self.project_dir / f"{self.project_name}.json"
 
-    @fetch_finished.setter
-    def fetch_finished(self, value: int):
-        self.setValue(SettingsKey.FETCH_FINISHED.value, value)
+    @property
+    def project_anno_dir(self) -> Path:
+        return self.project_dir / "annos"
 
-    def validate(self) -> bool:
-        passed = True
-        if not self.model_api.startswith("http") or self.username == "":
-            passed = False
-        return passed
+    def reload_project(self):
+        # Handle empty project name case
+        if not self.project_name:
+            # Look for existing projects
+            projs = [p for p in self.project_root.glob("*") if p.is_dir()]
+            if projs:
+                # Use the first available project
+                project_name = projs[0].name
+                self.project_idx = 0
+                self._project = Project(id=id_uuid4())
+                path = projs[0] / f"{project_name}.json"
+                if path.exists() and path.is_file():
+                    try:
+                        self._project = Project.model_validate_json(path.read_text(), strict=True)
+                        # Do NOT load tasks from local - tasks should come from remote server
+                    except Exception:
+                        # If project file is corrupted, create new one
+                        self._project = Project(id=id_uuid4(), name=project_name)
+                        self._project.save_json(self.project_path)
+            else:
+                # Create default project
+                project_name = "defaultProject"
+                self.project_idx = 0
+                self.projects = [(0, project_name)]
+                self._project = Project(id=id_uuid4(), name=project_name)
+                self.project_dir.mkdir(parents=True, exist_ok=True)
+                self._project.save_json(self.project_path)
+        else:
+            # Normal case with valid project name
+            projs = [
+                p
+                for p in Path(self.project_root).glob("*")
+                if p.is_dir() and p.name == self.project_name
+            ]
+            self._project = Project(id=id_uuid4())
+            if projs:
+                path = projs[0] / f"{self.project_name}.json"
+                if path.exists() and path.is_file():
+                    try:
+                        self._project = Project.model_validate_json(path.read_text(), strict=True)
+                        # Do NOT load tasks from local - tasks should come from remote server
+                    except Exception:
+                        # If project file is corrupted, create new one
+                        self._project = Project(id=id_uuid4(), name=self.project_name)
+                        self._project.save_json(path)
+            else:
+                project_dir = Path(self.project_root) / self.project_name
+                project_dir.mkdir(parents=True, exist_ok=True)
+                self._project.name = self.project_name
+                self._project.save_json(project_dir / f"{self.project_name}.json")
+
+        # Ensure annotation directory exists
+        self.project_anno_dir.mkdir(parents=True, exist_ok=True)
+
+        # Set default label if available
+        labels = list(self._project.labels.keys())
+        if labels:
+            self._project.key_label = labels[0]
+
+    def model_post_init(self, context: Any) -> None:
+        self.reload_project()
+
+    @field_validator("host", mode="before")
+    @classmethod
+    def is_http(cls, value: str) -> str:
+        # Allow empty host so users can configure it later in Settings.
+        # When non-empty, it must be a valid http(s) URL.
+        if not value:
+            return value
+        if not str(value).startswith("http"):
+            raise ValueError(f"{value} is not a http url")
+        return str(value)
+
+    def save_json(self, path: str | Path):
+        p = path if isinstance(path, Path) else Path(path)
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(self.model_dump_json(ensure_ascii=False, indent=4, exclude={}))

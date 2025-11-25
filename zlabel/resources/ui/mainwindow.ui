@@ -27,7 +27,7 @@
   </property>
   <property name="windowIcon">
    <iconset resource="../icons.qrc">
-    <normaloff>:/icon/icons/zlabel.svg</normaloff>:/icon/icons/zlabel.svg</iconset>
+    <normaloff>:/icon/icons/logo.svg</normaloff>:/icon/icons/logo.svg</iconset>
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
@@ -57,7 +57,7 @@
      <x>0</x>
      <y>0</y>
      <width>1034</width>
-     <height>24</height>
+     <height>33</height>
     </rect>
    </property>
    <property name="font">
@@ -178,6 +178,15 @@
     <property name="title">
      <string>Edit</string>
     </property>
+    <widget class="QMenu" name="menuAnno_Type">
+     <property name="title">
+      <string>Anno Type</string>
+     </property>
+     <addaction name="actionAnnoTypeRectangle"/>
+     <addaction name="actionAnnoTypePolygon"/>
+     <addaction name="actionAnnoTypeRLEMask"/>
+    </widget>
+    <addaction name="menuAnno_Type"/>
     <addaction name="actionSAM"/>
     <addaction name="actionOpenCV"/>
     <addaction name="actionMove"/>
@@ -202,7 +211,7 @@
   </widget>
   <widget class="QStatusBar" name="statusbar">
    <property name="layoutDirection">
-    <enum>Qt::LeftToRight</enum>
+    <enum>Qt::LayoutDirection::LeftToRight</enum>
    </property>
   </widget>
   <widget class="QToolBar" name="toolBar">
@@ -222,7 +231,7 @@
     </size>
    </property>
    <property name="toolButtonStyle">
-    <enum>Qt::ToolButtonIconOnly</enum>
+    <enum>Qt::ToolButtonStyle::ToolButtonIconOnly</enum>
    </property>
    <property name="floatable">
     <bool>false</bool>
@@ -238,11 +247,13 @@
    <addaction name="separator"/>
    <addaction name="actionSAM"/>
    <addaction name="actionOpenCV"/>
+   <addaction name="separator"/>
    <addaction name="actionMove"/>
    <addaction name="actionEdit"/>
    <addaction name="actionRectangle"/>
    <addaction name="actionPoint"/>
    <addaction name="actionPolygon"/>
+   <addaction name="separator"/>
    <addaction name="actionMerge"/>
    <addaction name="separator"/>
    <addaction name="actionFinish"/>
@@ -254,28 +265,16 @@
    <addaction name="actionFit_wiondow"/>
    <addaction name="actionVisible"/>
    <addaction name="separator"/>
-   <addaction name="actionSave_dir"/>
-   <addaction name="actionOpen_dir"/>
-   <addaction name="separator"/>
-   <addaction name="actionGray"/>
-   <addaction name="actionR"/>
-   <addaction name="actionG"/>
-   <addaction name="actionB"/>
-   <addaction name="actionRGB"/>
-   <addaction name="separator"/>
   </widget>
   <widget class="QDockWidget" name="dock_infos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Minimum" vsizetype="Minimum">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>1</verstretch>
     </sizepolicy>
    </property>
-   <property name="maximumSize">
-    <size>
-     <width>524287</width>
-     <height>150</height>
-    </size>
+   <property name="acceptDrops">
+    <bool>false</bool>
    </property>
    <property name="windowTitle">
     <string>Info</string>
@@ -287,16 +286,10 @@
   </widget>
   <widget class="QDockWidget" name="dock_annos">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>3</verstretch>
     </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>85</width>
-     <height>43</height>
-    </size>
    </property>
    <property name="windowTitle">
     <string>Annos</string>
@@ -306,21 +299,30 @@
    </attribute>
    <widget class="ZDockAnnotationContent" name="dockcnt_anno"/>
   </widget>
+  <widget class="QDockWidget" name="dock_files">
+   <property name="windowTitle">
+    <string>Files</string>
+   </property>
+   <attribute name="dockWidgetArea">
+    <number>1</number>
+   </attribute>
+   <widget class="ZDockFileContent" name="dockcnt_files"/>
+  </widget>
   <widget class="QDockWidget" name="dock_labels">
    <property name="sizePolicy">
-    <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+    <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
+     <verstretch>3</verstretch>
     </sizepolicy>
    </property>
    <property name="floating">
     <bool>false</bool>
    </property>
    <property name="features">
-    <set>QDockWidget::DockWidgetClosable|QDockWidget::DockWidgetFloatable|QDockWidget::DockWidgetMovable</set>
+    <set>QDockWidget::DockWidgetFeature::DockWidgetClosable|QDockWidget::DockWidgetFeature::DockWidgetFloatable|QDockWidget::DockWidgetFeature::DockWidgetMovable</set>
    </property>
    <property name="allowedAreas">
-    <set>Qt::AllDockWidgetAreas</set>
+    <set>Qt::DockWidgetArea::AllDockWidgetAreas</set>
    </property>
    <property name="windowTitle">
     <string>Labels</string>
@@ -328,49 +330,7 @@
    <attribute name="dockWidgetArea">
     <number>2</number>
    </attribute>
-   <widget class="ZDockLabelContent" name="dockcnt_labels">
-    <layout class="QVBoxLayout" name="verticalLayout"/>
-   </widget>
-  </widget>
-  <widget class="QDockWidget" name="dock_files">
-   <property name="sizePolicy">
-    <sizepolicy hsizetype="MinimumExpanding" vsizetype="Expanding">
-     <horstretch>0</horstretch>
-     <verstretch>0</verstretch>
-    </sizepolicy>
-   </property>
-   <property name="minimumSize">
-    <size>
-     <width>81</width>
-     <height>41</height>
-    </size>
-   </property>
-   <property name="maximumSize">
-    <size>
-     <width>300</width>
-     <height>524287</height>
-    </size>
-   </property>
-   <property name="windowTitle">
-    <string>Files</string>
-   </property>
-   <attribute name="dockWidgetArea">
-    <number>1</number>
-   </attribute>
-   <widget class="ZDockFileContent" name="dockcnt_files">
-    <property name="minimumSize">
-     <size>
-      <width>60</width>
-      <height>0</height>
-     </size>
-    </property>
-    <property name="maximumSize">
-     <size>
-      <width>300</width>
-      <height>16777215</height>
-     </size>
-    </property>
-   </widget>
+   <widget class="ZDockLabelContent" name="dockcnt_labels"/>
   </widget>
   <action name="actionOpen_dir">
    <property name="enabled">
@@ -401,6 +361,9 @@
    <property name="statusTip">
     <string>Zoom in.</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl++</string>
+   </property>
   </action>
   <action name="actionZoom_out">
    <property name="icon">
@@ -413,10 +376,13 @@
    <property name="statusTip">
     <string>Zoom out.</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
+   </property>
   </action>
   <action name="actionFit_wiondow">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
@@ -519,10 +485,10 @@
     <string>A</string>
    </property>
    <property name="menuRole">
-    <enum>QAction::TextHeuristicRole</enum>
+    <enum>QAction::MenuRole::TextHeuristicRole</enum>
    </property>
    <property name="priority">
-    <enum>QAction::NormalPriority</enum>
+    <enum>QAction::Priority::NormalPriority</enum>
    </property>
   </action>
   <action name="actionNext">
@@ -765,20 +731,20 @@
   </action>
   <action name="actionPolygon">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/anchor.svg</normaloff>:/icon/icons/anchor.svg</iconset>
+     <normaloff>:/icon/icons/polygon.svg</normaloff>:/icon/icons/polygon.svg</iconset>
    </property>
    <property name="text">
     <string>Polygon</string>
    </property>
    <property name="toolTip">
-    <string>Draw polygon</string>
+    <string>Draw polygon (O)</string>
    </property>
    <property name="statusTip">
-    <string>Accurately annotate by drawing polygon. </string>
+    <string>Accurately annotate by drawing polygon.  (O)</string>
    </property>
    <property name="shortcut">
     <string>O</string>
@@ -1055,6 +1021,9 @@
    <property name="checked">
     <bool>false</bool>
    </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/channel_r.svg</normaloff>:/icon/icons/channel_r.svg</iconset>
@@ -1067,6 +1036,9 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/channel_g.svg</normaloff>:/icon/icons/channel_g.svg</iconset>
@@ -1078,6 +1050,9 @@
   <action name="actionB">
    <property name="checkable">
     <bool>true</bool>
+   </property>
+   <property name="enabled">
+    <bool>false</bool>
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
@@ -1106,6 +1081,9 @@
    <property name="checkable">
     <bool>true</bool>
    </property>
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
      <normaloff>:/icon/icons/channel_gray.svg</normaloff>:/icon/icons/channel_gray.svg</iconset>
@@ -1125,8 +1103,26 @@
    <property name="toolTip">
     <string>Merge (G)</string>
    </property>
+   <property name="statusTip">
+    <string>Merge multiple shapes (G)</string>
+   </property>
    <property name="shortcut">
     <string>G</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypeRectangle">
+   <property name="text">
+    <string>Rectangle</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypePolygon">
+   <property name="text">
+    <string>Polygon</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypeRLEMask">
+   <property name="text">
+    <string>RLE Mask</string>
    </property>
   </action>
  </widget>
