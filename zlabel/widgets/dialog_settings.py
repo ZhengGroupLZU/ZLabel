@@ -234,14 +234,14 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.sigSettingsChanged.emit()
 
         # color
-        btn_select_color = QPushButton("Select Color")
+        btn_select_color = QPushButton(self.tr("Select Color"))
         btn_select_color.setStyleSheet(f"background-color: {label.color}")
         btn_select_color.setText(label.color.upper())
         btn_select_color.clicked.connect(lambda: btn_item_select_color_clicked(btn_select_color))
         self.table_labels.setCellWidget(idx, 2, btn_select_color)
 
         # delete
-        btn_delete = QPushButton("Delete")
+        btn_delete = QPushButton(self.tr("Delete"))
         btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
         btn_delete.clicked.connect(lambda: btn_item_delete_clicked(btn_delete))
         self.table_labels.setCellWidget(idx, 3, btn_delete)

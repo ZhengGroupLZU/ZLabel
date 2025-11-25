@@ -22,6 +22,7 @@ class ZSettings(BaseModel):
     alpha: float = 0.1
     random_select: bool = True
     enable_catmull_rom: bool = False
+    language: str = "en"  # en or zh_CN
 
     cv_enabled: bool = False
     sam_enabled: bool = False
@@ -98,11 +99,7 @@ class ZSettings(BaseModel):
                 self._project.save_json(self.project_path)
         else:
             # Normal case with valid project name
-            projs = [
-                p
-                for p in Path(self.project_root).glob("*")
-                if p.is_dir() and p.name == self.project_name
-            ]
+            projs = [p for p in Path(self.project_root).glob("*") if p.is_dir() and p.name == self.project_name]
             self._project = Project(id=id_uuid4())
             if projs:
                 path = projs[0] / f"{self.project_name}.json"

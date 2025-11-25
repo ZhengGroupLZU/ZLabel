@@ -79,4 +79,4 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
 
     def set_title(self):
         count = self.listWidget.count()
-        self.setWindowTitle(f"Annos ({count} items)")
+        self.setWindowTitle(self.tr(f"Annos ({count} items)"))

@@ -5,7 +5,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, Signal
+from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
 from pyqtgraph.Qt.QtGui import (
     QCloseEvent,
     QIcon,
@@ -18,13 +18,17 @@ from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWi
 
 from zlabel.utils import (
     Annotation,
+    AnnotationType,
     AutoMode,
     DrawMode,
+    FetchType,
     Label,
+    Language,
     PolygonResult,
     Project,
     RectangleResult,
     ResultType,
+    RgbMode,
     StatusMode,
     Task,
     User,
@@ -32,7 +36,6 @@ from zlabel.utils import (
     ZLServerApiHelper,
     id_uuid4,
 )
-from zlabel.utils.enums import AnnotationType, FetchType, RgbMode
 from zlabel.widgets import (
     DialogAbout,
     DialogProcessing,
@@ -90,12 +93,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self._is_modifying: bool = False
         self._label_shortcuts: list[QShortcut] = []
+        self._translator: QTranslator | None = None
+        self._is_initing: bool = True
 
         self.init_ui()
         self.init_signals()
         self.load_settings()
-        self.ui_update_settings()
-        self.restore_geometry()
+        # self.ui_update_settings()
+        # self.restore_geometry()
 
     def center_on_screen(self):
         screen = QApplication.primaryScreen()
@@ -143,7 +148,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.settings_path.exists() and self.settings_path.is_file():
             try:
                 self.settings = ZSettings.model_validate_json(self.settings_path.read_text())
+                self.set_language(Language(self.settings.language))
                 self.dialog_settings.load_settings(self.settings)
+                self.ui_update_settings()
                 self.restore_geometry()
             except Exception as e:
                 self.logger.error(f"Load settings error: {e}")
@@ -153,6 +160,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.dialog_processing.close()
                 self.dialog_settings.show()
                 return
+            finally:
+                self._is_initing = False
         else:
             self.settings_path.parent.mkdir(parents=True, exist_ok=True)
             self.settings = ZSettings()
@@ -161,6 +170,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
             self.dialog_settings.show()
+            self._is_initing = False
             return
         self.user.name = self.settings.username
         if self.settings.host:
@@ -174,6 +184,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
+        self._is_initing = False
 
     def save_geometry(self):
         geometry_data: QByteArray = self.saveGeometry()
@@ -251,8 +262,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         QMessageBox.critical(
             self,
-            "Error",
-            "Login Failed, check internet or username and password",
+            self.tr("Error"),
+            self.tr("Login Failed, check internet or username and password"),
             QMessageBox.StandardButton.Ok,
         )
         if not self.dialog_settings.isVisible():
@@ -294,8 +305,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_get_projects_failed(self, msg: str):
         QMessageBox.critical(
             self,
-            "Error",
-            f"Get Projects Failed, {msg=}",
+            self.tr("Error"),
+            self.tr(f"Get Projects Failed, {msg=}"),
             QMessageBox.StandardButton.Ok,
         )
 
@@ -310,7 +321,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def load_tasks_remote(self):
         """
-            Load tasks from remote server
+        Load tasks from remote server
         """
         self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
         if self.zl_server_api is None:
@@ -341,8 +352,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_get_tasks_failed(self, msg: str):
         QMessageBox.critical(
             self,
-            "Error",
-            f"Get Tasks Failed, {msg=}",
+            self.tr("Error"),
+            self.tr(f"Get Tasks Failed, {msg=}"),
             QMessageBox.StandardButton.Ok,
         )
 
@@ -387,8 +398,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_processing.close()
         QMessageBox.warning(
             self,
-            "Warning",
-            f"Get image failed, {msg=}",
+            self.tr("Warning"),
+            self.tr(f"Get image failed, {msg=}"),
             QMessageBox.StandardButton.Ok,
         )
 
@@ -456,8 +467,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_label is None:
             QMessageBox.critical(
                 self,
-                "Label Error",
-                "Select a label first!",
+                self.tr("Label Error"),
+                self.tr("Select a label first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return False
@@ -516,7 +527,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def show_project_validation_error(self, error_msg: str):
         """Show project validation error to user"""
-        QMessageBox.warning(self, "Project Validation Error", error_msg, QMessageBox.StandardButton.Ok)
+        QMessageBox.warning(self, self.tr("Project Validation Error"), error_msg, QMessageBox.StandardButton.Ok)
 
     def restore_annotations(self):
         # restore annotations
@@ -582,6 +593,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     #         self.dialog_settings.close()
 
     # region Slots Actions
+    def on_action_chinese_triggered(self):
+        self.set_language(Language.CHINESE)
+
+    def on_action_english_triggered(self):
+        self.set_language(Language.ENGLISH)
+
+    def set_language(self, language: Language):
+        assert language in [Language.ENGLISH, Language.CHINESE]
+        if not self._is_initing and language.value == self.settings.language:
+            return
+
+        self.settings.language = language.value
+        if self._translator is not None:
+            QApplication.instance().removeTranslator(self._translator)
+            self._translator = None
+
+        if language != Language.ENGLISH:
+            qm_path = Path("i18n") / f"{language.value}.qm"
+            if not qm_path.exists():
+                QMessageBox.warning(
+                    self,
+                    self.tr("Warning"),
+                    self.tr(f"Translation file for {language.value} not found"),
+                    QMessageBox.StandardButton.Ok,
+                )
+                return
+            tr = QTranslator()
+            if not tr.load(str(qm_path)):
+                QMessageBox.warning(
+                    self,
+                    self.tr("Warning"),
+                    self.tr(f"Failed to load translation for {language.value}"),
+                    QMessageBox.StandardButton.Ok,
+                )
+                return
+            QApplication.instance().installTranslator(tr)
+            self._translator = tr
+        self.retranslateUi(self)
+        self.dialog_about.retranslateUi(self.dialog_about)
+        self.dialog_shortcut.retranslateUi(self.dialog_shortcut)
+        self.dialog_settings.retranslateUi(self.dialog_settings)
+        self.dockcnt_info.retranslateUi(self.dockcnt_info)
+        self.dockcnt_files.retranslateUi(self.dockcnt_files)
+        self.dockcnt_labels.retranslateUi(self.dockcnt_labels)
+        self.dockcnt_anno.retranslateUi(self.dockcnt_anno)
+        self.ui_update_settings()
+        self.settings.save_json(self.settings_path)
+
     def on_action_next_prev_triggered(self):
         row = self.dockcnt_files.currentRow()
         if self.sender() == self.actionNext:
@@ -646,8 +705,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_cancel_triggered(self):
         confirm = QMessageBox.question(
             self,
-            "Confirm",
-            "Are you sure to cancel the current annotation?",
+            self.tr("Confirm"),
+            self.tr("Are you sure to cancel the current annotation?"),
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
         )
         if confirm == QMessageBox.StandardButton.No:
@@ -689,14 +748,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             action.setEnabled(action != self.actionMove)
 
         self.canvas.set_status_mode(StatusMode.VIEW)
-        self.show_toast("Move Mode")
+        self.show_toast(self.tr("Move Mode"))
 
     def on_action_edit_triggered(self):
         for action in self.action_group_edit:
             action.setEnabled(action != self.actionEdit)
 
         self.canvas.set_status_mode(StatusMode.EDIT)
-        self.show_toast(msg="Edit Mode")
+        self.show_toast(msg=self.tr("Edit Mode"))
 
     def on_action_rectangle_triggered(self):
         for action in self.action_group_edit:
@@ -704,7 +763,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.RECTANGLE)
-        self.show_toast("Draw Rectangle")
+        self.show_toast(self.tr("Draw Rectangle"))
 
     def on_action_point_triggered(self):
         for action in self.action_group_edit:
@@ -712,7 +771,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.POINT)
-        self.show_toast("Draw Point")
+        self.show_toast(self.tr("Draw Point"))
 
     def on_action_polygon_triggered(self):
         for action in self.action_group_edit:
@@ -720,7 +779,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.POLYGON)
-        self.show_toast("Draw Polygon")
+        self.show_toast(self.tr("Draw Polygon"))
 
     def on_action_merge_triggered(self):
         self.canvas.merge_items(self.canvas.selected_items)
@@ -728,7 +787,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_import_task_triggered(self):
         file_path = QFileDialog.getOpenFileName(
             self,
-            "Import Task",
+            self.tr("Import Task"),
             ".",
             "JSON Files (*.json)",
         )[0]
@@ -740,8 +799,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if proj.name not in names:
             QMessageBox.warning(
                 self,
-                "Warning",
-                f"project {proj.name} not found in settings, please refresh projects first!",
+                self.tr("Warning"),
+                self.tr(f"project {proj.name} not found in settings, please refresh projects first!"),
             )
             return
         self.settings.project_idx = names.index(proj.name)
@@ -754,7 +813,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_export_triggered(self):
         file_path = QFileDialog.getSaveFileName(
             self,
-            "Export Task",
+            self.tr("Export Task"),
             ".",
             "JSON Files (*.json)",
         )[0]
@@ -811,7 +870,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_labels.select_row(idx)
         try:
             label = list(self.proj.labels.values())[idx]
-            self.show_toast(f"Select [{label.name}]", timeout=1500)
+            self.show_toast(self.tr(f"Select [{label.name}]"), timeout=1500)
         except Exception as e:
             self.logger.error(e)
 
@@ -882,7 +941,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
     def on_dock_anno_item_count_changed(self, count: int):
-        self.dock_annos.setWindowTitle(f"Annos ({count} items)")
+        self.dock_annos.setWindowTitle(self.tr(f"Annos ({count} items)"))
 
     # endregion
 
@@ -974,16 +1033,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.current_image is None:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Please select an image first!",
+                self.tr("Warning"),
+                self.tr("Please select an image first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
         if self.proj.crt_label is None or self.proj.crt_task is None:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Please select a label and a task first!",
+                self.tr("Warning"),
+                self.tr("Please select a label and a task first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -994,8 +1053,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             case _:
                 QMessageBox.warning(
                     self,
-                    "Warning",
-                    "With point, you have to select SAM or CV",
+                    self.tr("Warning"),
+                    self.tr("With point, you have to select SAM or CV"),
                     QMessageBox.StandardButton.Ok,
                 )
                 return
@@ -1003,16 +1062,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not (self.proj.crt_anno and self.proj.crt_anno.image_path):
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Please select a task first!",
+                self.tr("Warning"),
+                self.tr("Please select a task first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
         if self.zl_server_api is None:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "ApiPredict is None, please login first!",
+                self.tr("Warning"),
+                self.tr("ApiPredict is None, please login first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -1038,8 +1097,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not self.proj.crt_label:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Select a label first!",
+                self.tr("Warning"),
+                self.tr("Select a label first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -1069,8 +1128,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             case _:
                 QMessageBox.warning(
                     self,
-                    "Warning",
-                    "AutoMode error",
+                    self.tr("Warning"),
+                    self.tr("AutoMode error"),
                     QMessageBox.StandardButton.Ok,
                 )
                 return
@@ -1078,16 +1137,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not (self.proj.crt_anno and self.proj.crt_anno.image_path):
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Please select a task first!",
+                self.tr("Warning"),
+                self.tr("Please select a task first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
         if self.zl_server_api is None:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "ApiPredict is None, please login first!",
+                self.tr("Warning"),
+                self.tr("ApiPredict is None, please login first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -1112,8 +1171,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not self.proj.crt_label:
             QMessageBox.warning(
                 self,
-                "Warning",
-                "Select a label first!",
+                self.tr("Warning"),
+                self.tr("Select a label first!"),
                 QMessageBox.StandardButton.Ok,
             )
             return
@@ -1235,8 +1294,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.slider_threshold = ZSlider(Qt.Orientation.Horizontal, self)
         self.slider_threshold.setValue(self.threshold)
-        self.slider_threshold.setStatusTip("Set Threshold")
-        self.slider_threshold.setToolTip("Set Threshold")
+        self.slider_threshold.setStatusTip(self.tr("Set Threshold"))
+        self.slider_threshold.setToolTip(self.tr("Set Threshold"))
         self.slider_threshold.setMaximumSize(150, 15)
         self.toolBar.addWidget(self.slider_threshold)
 
@@ -1253,6 +1312,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionAbout.triggered.connect(self.dialog_about.show)
         self.actionShortcut.triggered.connect(self.dialog_shortcut.show)
         self.actionExit.triggered.connect(self.close)
+        self.actionChinese.triggered.connect(self.on_action_chinese_triggered)
+        self.actionEnglish.triggered.connect(self.on_action_english_triggered)
 
         self.actionNext.triggered.connect(self.on_action_next_prev_triggered)
         self.actionPrev.triggered.connect(self.on_action_next_prev_triggered)

@@ -1,4 +1,4 @@
-from enum import Flag, IntEnum
+from enum import Flag, IntEnum, StrEnum
 
 
 class AutoMode(Flag):
@@ -63,3 +63,8 @@ class LogLevel(IntEnum):
     INFO = 1
     WARNING = 2
     ERROR = 3
+
+
+class Language(StrEnum):
+    ENGLISH = "en"
+    CHINESE = "zh_CN"

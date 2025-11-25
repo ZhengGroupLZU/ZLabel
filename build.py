@@ -70,7 +70,7 @@ def publish_to_7z(build_dir: str, version: str):
 
 
 def build_with_pyinstaller(version: str, enable_debug: bool = False, jobs: int = CPUS):
-    icon_png = "zlabel/resources/icons/zlabel.png"
+    icon_png = "resources/icons/zlabel.png"
     convert_png_ico(icon_png)
 
     std_out = "--force-stdout-spec=%PROGRAM_BASE%.out.txt "
@@ -112,7 +112,7 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
     print("Building with Nuitka...")
 
     nuitka_build_dir = "build/debug" if enable_debug else "build/release"
-    icon_png = "zlabel/resources/icons/logo.png"
+    icon_png = "resources/icons/logo.png"
     # convert_png_ico(icon_png)
 
     # Base Nuitka command based on pyproject.toml configuration

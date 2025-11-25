@@ -78,7 +78,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl+Z</string>
+                 <string notr="true">Ctrl+Z</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -111,7 +111,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Del</string>
+                 <string notr="true">Del</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -202,7 +202,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>A</string>
+                 <string notr="true">A</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -215,7 +215,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl+-</string>
+                 <string notr="true">Ctrl+-</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -228,7 +228,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>F</string>
+                 <string notr="true">F</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -241,7 +241,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>D</string>
+                 <string notr="true">D</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -271,7 +271,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Q</string>
+                 <string notr="true">Q</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -318,7 +318,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>W</string>
+                 <string notr="true">W</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -331,7 +331,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string/>
+                 <string notr="true">Ctrl+Del</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -344,7 +344,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl+Y</string>
+                 <string notr="true">Ctrl+Y</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -357,7 +357,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl++</string>
+                 <string notr="true">Ctrl++</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -370,7 +370,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl+S</string>
+                 <string notr="true">Ctrl+S</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -400,7 +400,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>V</string>
+                 <string notr="true">V</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -450,7 +450,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>Ctrl+Return</string>
+                 <string notr="true">Ctrl+Return</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -510,7 +510,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>E</string>
+                 <string notr="true">E</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -540,7 +540,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>M</string>
+                 <string notr="true">M</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -553,7 +553,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>R</string>
+                 <string notr="true">R</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -583,7 +583,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>P</string>
+                 <string notr="true">P</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -613,7 +613,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>O</string>
+                 <string notr="true">O</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -643,7 +643,7 @@
                  <bool>false</bool>
                 </property>
                 <property name="keySequence">
-                 <string>G</string>
+                 <string notr="true">G</string>
                 </property>
                 <property name="clearButtonEnabled">
                  <bool>true</bool>
@@ -735,7 +735,7 @@
                <bool>false</bool>
               </property>
               <property name="keySequence">
-               <string>X</string>
+               <string notr="true">X</string>
               </property>
               <property name="clearButtonEnabled">
                <bool>true</bool>
@@ -799,7 +799,7 @@
                <bool>false</bool>
               </property>
               <property name="keySequence">
-               <string>C</string>
+               <string notr="true">C</string>
               </property>
               <property name="clearButtonEnabled">
                <bool>true</bool>
@@ -812,7 +812,7 @@
                <bool>false</bool>
               </property>
               <property name="keySequence">
-               <string>Space</string>
+               <string notr="true">Space</string>
               </property>
               <property name="clearButtonEnabled">
                <bool>true</bool>
@@ -825,7 +825,7 @@
                <bool>false</bool>
               </property>
               <property name="keySequence">
-               <string>Esc</string>
+               <string notr="true">Esc</string>
               </property>
               <property name="clearButtonEnabled">
                <bool>true</bool>

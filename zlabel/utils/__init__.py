@@ -6,9 +6,11 @@ from .enums import (
     ContourMode,
     DrawMode,
     FetchType,
+    Language,
     LogLevel,
     MapMode,
     StatusMode,
+    RgbMode,
 )
 from .logger import ZLogger
 from .project import (

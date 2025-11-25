@@ -1,7 +1,7 @@
 [project]
 name = "ZLabel"
 version = "0.2.0"
-description = ""
+description = "An image data labeling tool powered by advanced AI models."
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
@@ -92,10 +92,11 @@ build = """python ./build.py"""
 designer = "pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"
+translate = "pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm"
 
 [tool.cxfreeze]
 executables = [
-    { script = "zlabel.py", base = "gui", icon = "zlabel/resources/icons/logo.ico" },
+    { script = "zlabel.py", base = "gui", icon = "resources/icons/logo.ico" },
 ]
 
 [tool.cxfreeze.build_exe]
@@ -103,7 +104,6 @@ excludes = [
     "tkinter",
     "unittest",
     "pytest",
-    "zlabel.resources",
     "imageio",
     "nuitka",
     "ordered-set",
@@ -128,4 +128,6 @@ bin_excludes = [
 ]
 optimize = 2
 zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
-include_files = []
+include_files = [
+    ["i18n/zh_CN.qm", "i18n/zh_CN.qm"],
+]
