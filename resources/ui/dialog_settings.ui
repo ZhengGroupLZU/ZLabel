@@ -189,7 +189,14 @@
                  </widget>
                 </item>
                 <item row="2" column="1">
-                 <widget class="QLineEdit" name="ledit_password"/>
+                 <widget class="QLineEdit" name="ledit_password">
+                  <property name="inputMethodHints">
+                   <set>Qt::InputMethodHint::ImhHiddenText|Qt::InputMethodHint::ImhNoAutoUppercase|Qt::InputMethodHint::ImhNoPredictiveText|Qt::InputMethodHint::ImhSensitiveData</set>
+                  </property>
+                  <property name="echoMode">
+                   <enum>QLineEdit::EchoMode::Password</enum>
+                  </property>
+                 </widget>
                 </item>
                 <item row="0" column="1">
                  <widget class="QLineEdit" name="ledit_host">

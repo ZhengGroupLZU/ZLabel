@@ -115,6 +115,8 @@ class Ui_DialogSettings(object):
 
         self.ledit_password = QLineEdit(self.groupBox)
         self.ledit_password.setObjectName(u"ledit_password")
+        self.ledit_password.setInputMethodHints(Qt.InputMethodHint.ImhHiddenText|Qt.InputMethodHint.ImhNoAutoUppercase|Qt.InputMethodHint.ImhNoPredictiveText|Qt.InputMethodHint.ImhSensitiveData)
+        self.ledit_password.setEchoMode(QLineEdit.EchoMode.Password)
 
         self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
 
