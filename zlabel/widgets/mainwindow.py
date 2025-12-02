@@ -210,6 +210,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.set_loglevel(self.settings.log_level.name)
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
         self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
+        self.canvas.alpha = self.settings.alpha
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)

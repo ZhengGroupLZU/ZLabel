@@ -53,7 +53,7 @@ class Canvas(pg.PlotWidget):
         self._polygon_enable_catmull_rom = enable_catmull_rom
         self._point_radius: float = 1.5
         self._default_color = "#000000"
-        self._alpha: float = 0.5
+        self._alpha: float = 0.3
         self._drawing = False
         self._z_value = 1
         self._is_editing_handle = False
@@ -393,6 +393,7 @@ class Canvas(pg.PlotWidget):
             color=color,
             movable=movable,
             id_=id_,
+            alpha=self.alpha,
         )  # type: ignore
         # self.logger.debug(f"Created rect {id_=}")
         return rectangle
@@ -410,6 +411,7 @@ class Canvas(pg.PlotWidget):
             positions=positions,
             closed=closed,
             color=color or self.default_color,
+            alpha=self.alpha,
             movable=movable,
             id_=id_,
             antialias=False,
