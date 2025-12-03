@@ -1199,6 +1199,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.proj.key_result = id_
         self.dockcnt_anno.set_row_by_text(id_)
+        if self.proj.crt_result and self.proj.crt_result.labels:
+            self.dockcnt_labels.select_row_by_id(self.proj.crt_result.labels[0].id)
 
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
