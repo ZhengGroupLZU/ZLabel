@@ -11,8 +11,6 @@ test/*.png
 data/
 bios/
 .vscode/
-*.ts
-*.qm
 projects/
 deployment/
 .pdm-python

@@ -682,6 +682,36 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_fit_window_triggered(self):
         self.canvas.view_box.autoRange()
 
+    def on_action_restore_triggered(self):
+        self.dock_annos.show()
+        self.dock_labels.show()
+        self.dock_infos.show()
+        self.dock_files.show()
+
+    def on_action_annotations_triggered(self):
+        if self.actionAnnotations.isChecked():
+            self.dock_annos.show()
+        else:
+            self.dock_annos.hide()
+
+    def on_action_info_triggered(self):
+        if self.actionInfo.isChecked():
+            self.dock_infos.show()
+        else:
+            self.dock_infos.hide()
+
+    def on_action_files_triggered(self):
+        if self.actionFiles.isChecked():
+            self.dock_files.show()
+        else:
+            self.dock_files.hide()
+
+    def on_action_labels_triggered(self):
+        if self.actionLabels.isChecked():
+            self.dock_labels.show()
+        else:
+            self.dock_labels.hide()
+
     def on_action_finish_triggered(self):
         if self.proj.crt_task is None or self.proj.crt_anno is None or self.zl_server_api is None:
             return
@@ -854,6 +884,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # endregion
 
     # region DockLabel
+    def on_dock_label_visibility_changed(self, visible: bool):
+        self.actionLabels.setChecked(visible)
+
     def on_dock_label_listw_item_clicked(self, id: str):
         if self.is_current_anno_ok():
             self.proj.key_label = id
@@ -913,6 +946,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region DockInfo
     # DockInfo #####
+    def on_dock_info_visibility_changed(self, visible: bool):
+        self.actionInfo.setChecked(visible)
+
     def on_dock_info_ledit_note_changed(self, s: str):
         if self.proj.crt_anno:
             self.proj.crt_anno.note = s
@@ -921,6 +957,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region DockAnnotation
     # DockAnnotation #####
+    def on_dock_anno_visibility_changed(self, visible: bool):
+        self.actionAnnotations.setChecked(visible)
+
     def on_dock_anno_listw_item_clicked(self, item: ZListWidgetItem):
         self.canvas.block_item_state_changed(True)
         self.canvas.select_item(item.id_)
@@ -948,6 +987,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     # region DockFiles
     # DockFiles #####
+    def on_dock_files_visibility_changed(self, visible: bool):
+        self.actionFiles.setChecked(visible)
+
     def on_dock_files_item_clicked(self, task_id: str):
         # save first
         self.on_action_finish_triggered()
@@ -1341,6 +1383,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
         self.actionFit_wiondow.triggered.connect(self.on_action_fit_window_triggered)
 
+        self.actionRestore.triggered.connect(self.on_action_restore_triggered)
+        self.actionAnnotations.triggered.connect(self.on_action_annotations_triggered)
+        self.actionInfo.triggered.connect(self.on_action_info_triggered)
+        self.actionFiles.triggered.connect(self.on_action_files_triggered)
+        self.actionLabels.triggered.connect(self.on_action_labels_triggered)
+
         self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
         self.cmbox_rgb.currentIndexChanged.connect(self.on_cmbox_rgb_index_changed)
 
@@ -1360,13 +1408,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.sigMouseForwardClicked.connect(self.actionNext.trigger)
 
         # dock info
+        self.dock_infos.visibilityChanged.connect(self.on_dock_info_visibility_changed)
         self.dockcnt_info.sigNoteTextChanged.connect(self.on_dock_info_ledit_note_changed)
 
         # dock files
+        self.dock_files.visibilityChanged.connect(self.on_dock_files_visibility_changed)
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
         self.dockcnt_files.sigFetchTasks.connect(self.on_dock_files_fetch_tasks)
 
         # dock labels
+        self.dock_labels.visibilityChanged.connect(self.on_dock_label_visibility_changed)
         self.dockcnt_labels.sigItemClicked.connect(self.on_dock_label_listw_item_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
         self.dockcnt_labels.sigItemDoubleClicked.connect(self.on_dock_label_item_double_clicked)
@@ -1378,6 +1429,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._label_shortcuts.append(sc)
 
         # dock annotations
+        self.dock_annos.visibilityChanged.connect(self.on_dock_anno_visibility_changed)
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
         self.dockcnt_anno.sigItemCountChanged.connect(self.on_dock_anno_item_count_changed)

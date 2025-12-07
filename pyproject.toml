@@ -1,7 +1,7 @@
 [project]
 name = "ZLabel"
 version = "0.2.1"
-description = "An image data labeling tool powered by advanced AI models."
+description = "ZLabel"
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.10,<3.14"
 readme = "README.md"
@@ -87,47 +87,9 @@ check_untyped_defs = true
 
 [tool.poe.tasks]
 run = "python ./main.py"
-build = """python ./build.py"""
+build = """python ./setup.py build_exe"""
 
 designer = "pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
 uic_rcc = "python ./uic_rcc.py"
 translate = "pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm"
-
-[tool.cxfreeze]
-executables = [
-    { script = "zlabel.py", base = "gui", icon = "resources/icons/logo.ico" },
-]
-
-[tool.cxfreeze.build_exe]
-excludes = [
-    "tkinter",
-    "unittest",
-    "pytest",
-    "imageio",
-    "nuitka",
-    "ordered-set",
-    "zstandard",
-    "py7zr",
-    "tqdm",
-    "typed-argument-parser",
-]
-includes = [
-    "PySide6.QtOpenGL",
-    "PySide6.QtOpenGLWidgets",
-]
-bin_excludes = [
-    "QtTest.pyd",
-    "Qt6Test.dll",
-    "Qt6Quick.dll",
-    "Qt6QmlWorkerScript.dll",
-    "Qt6QmlModels.dll",
-    "Qt6QmlMeta.dll",
-    "Qt6Qml.dll",
-    "Qt6Pdf.dll",
-]
-optimize = 2
-zip_include_packages = ["encodings", "PySide6", "shiboken6", "pydantic"]
-include_files = [
-    ["i18n/zh_CN.qm", "i18n/zh_CN.qm"],
-]

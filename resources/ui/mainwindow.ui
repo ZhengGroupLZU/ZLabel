@@ -191,10 +191,31 @@
     <addaction name="actionRedo"/>
     <addaction name="actionMerge"/>
    </widget>
+   <widget class="QMenu" name="menuWindow">
+    <property name="title">
+     <string>Window</string>
+    </property>
+    <widget class="QMenu" name="menuDocks">
+     <property name="title">
+      <string>Docks</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../icons.qrc">
+       <normaloff>:/icon/icons/dock_bottom.svg</normaloff>:/icon/icons/dock_bottom.svg</iconset>
+     </property>
+     <addaction name="actionFiles"/>
+     <addaction name="actionInfo"/>
+     <addaction name="actionAnnotations"/>
+     <addaction name="actionLabels"/>
+    </widget>
+    <addaction name="menuDocks"/>
+    <addaction name="actionRestore"/>
+   </widget>
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
    <addaction name="menuTools"/>
+   <addaction name="menuWindow"/>
    <addaction name="menuAbout"/>
   </widget>
   <widget class="QStatusBar" name="statusbar">
@@ -458,7 +479,7 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/back.svg</normaloff>:/icon/icons/back.svg</iconset>
+     <normaloff>:/icon/icons/prev.svg</normaloff>:/icon/icons/prev.svg</iconset>
    </property>
    <property name="text">
     <string>Prev image</string>
@@ -954,6 +975,10 @@
    </property>
   </action>
   <action name="actionUndo">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/undo.svg</normaloff>:/icon/icons/undo.svg</iconset>
+   </property>
    <property name="text">
     <string>Undo</string>
    </property>
@@ -962,6 +987,10 @@
    </property>
   </action>
   <action name="actionRedo">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/redo.svg</normaloff>:/icon/icons/redo.svg</iconset>
+   </property>
    <property name="text">
     <string>Redo</string>
    </property>
@@ -1102,6 +1131,75 @@
   <action name="actionChinese">
    <property name="text">
     <string>中文</string>
+   </property>
+  </action>
+  <action name="actionFiles">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_left.svg</normaloff>:/icon/icons/dock_left.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Files</string>
+   </property>
+  </action>
+  <action name="actionInfo">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Info</string>
+   </property>
+  </action>
+  <action name="actionAnnotations">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Annotations</string>
+   </property>
+  </action>
+  <action name="actionLabels">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Labels</string>
+   </property>
+  </action>
+  <action name="actionRestore">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/reset.svg</normaloff>:/icon/icons/reset.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Restore</string>
    </property>
   </action>
  </widget>

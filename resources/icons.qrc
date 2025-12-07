@@ -1,5 +1,11 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/dock_bottom.svg</file>
+    <file>icons/dock_left.svg</file>
+    <file>icons/dock_right.svg</file>
+    <file>icons/reset.svg</file>
+    <file>icons/reset_settings.svg</file>
+    <file>icons/dock_top.svg</file>
     <file>icons/logo.png</file>
     <file>icons/logo.svg</file>
     <file>icons/zlabel.png</file>
@@ -39,8 +45,11 @@
     <file>./icons/folder-open.svg</file>
     <file>./icons/zoom-out.svg</file>
     <file>./icons/setting-two.svg</file>
-    <file>./icons/back.svg</file>
     <file>./icons/delete.svg</file>
+    <file>icons/next.svg</file>
+    <file>icons/prev.svg</file>
+    <file>icons/redo.svg</file>
+    <file>icons/undo.svg</file>
     <file>./icons/delete-two.svg</file>
     <file>./icons/fullwidth.svg</file>
     <file>./icons/to-top.svg</file>
