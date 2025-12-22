@@ -13,6 +13,7 @@ from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
+from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
 from zlabel.widgets.graphic_objects import Point, Polygon, Rectangle, ZHandle
 
 
@@ -591,29 +592,61 @@ class Canvas(pg.PlotWidget):
         items = [self.showing_items[id_] for id_ in ids]
         self.merge_items(items)
 
+    def merge_rectangles(self, rectangles: list[Rectangle]):
+        x0, y0 = 0x3F3F3F, 0x3F3F3F
+        x1, y1 = 0.0, 0.0
+        for i, rect in enumerate(rectangles):
+            state = rect.getState()
+            x0 = min(x0, state["pos"].x())
+            y0 = min(y0, state["pos"].y())
+            x1 = max(x1, state["pos"].x() + state["size"].x())
+            y1 = max(y1, state["pos"].y() + state["size"].y())
+
+            if i > 0:  # keep the first as merged item
+                rect.setSelected(False)
+                self.hide_item(rect)
+            self.logger.debug(f"Merge: {x0=}, {y0=}, w={x1 - x0}, h={y1 - y0}")
+        self.sigItemsRemoved.emit([item.id_ for item in rectangles[1:]])
+        state = rectangles[0].getState()
+        self.sigItemStateChangeStarted.emit(state)
+        state["pos"] = QPointF(x0, y0)
+        state["size"] = QPointF(x1 - x0, y1 - y0)
+        rectangles[0].setState(state)
+        self.sigItemStateChangeFinished.emit(rectangles[0].saveState())
+
+    def merge_polygons(self, polygons: list[Polygon]):
+        if not polygons:
+            return
+
+        polygons[0].removeHandles()
+        merged_polygon = merge_polygons_util([list(p.saveState()["points"]) for p in polygons])
+
+        # collect ids of polygons that will be hidden (keep first as primary)
+        remove_ids = [p.id_ for p in polygons[1:]] if len(polygons) > 1 else []
+        if remove_ids:
+            self.sigItemsRemoved.emit(remove_ids)
+        for i, p in enumerate(polygons):
+            if i > 0:
+                p.setSelected(False)
+                self.hide_item(p)
+
+        state = polygons[0].getState()
+        state["points"] = merged_polygon
+        state["closed"] = True
+        polygons[0].setState(state, update=True)
+
+        self.sigItemStateChangeFinished.emit(polygons[0].saveState())
+
     def merge_items(self, items: list[Any] | None = None):
         items = items or self.selected_items
         if len(items) == 0:
             return
-        x, y = 0x3F3F3F, 0x3F3F3F
-        x1, y1 = 0.0, 0.0
-        for i, item in enumerate(items):
-            state = item.getState()
-            xt, yt = state["pos"].x(), state["pos"].y()
-            wt, ht = state["size"].x(), state["size"].y()
-            x, y = min(x, xt), min(y, yt)
-            x1, y1 = max(x1, xt + wt), max(y1, yt + ht)
-            if i > 0:  # keep the first as merged item
-                item.setSelected(False)
-                self.hide_item(item)
-            self.logger.debug(f"Merge: {x=}, {y=}, w={x1 - x}, h={y1 - y}")
-        self.sigItemsRemoved.emit([item.id_ for item in items[1:]])
-        state = items[0].getState()
-        self.sigItemStateChangeStarted.emit(state)
-        state["pos"] = QPointF(x, y)
-        state["size"] = QPointF(x1 - x, y1 - y)
-        items[0].setState(state)
-        self.sigItemStateChangeFinished.emit(state)
+        if all(isinstance(item, Rectangle) for item in items):
+            self.merge_rectangles(items)
+        elif all(isinstance(item, Polygon) for item in items):
+            self.merge_polygons(items)
+        else:
+            self.logger.warning("Can't merge items")
 
     # endregion
 
