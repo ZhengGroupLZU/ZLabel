@@ -6,11 +6,14 @@ PySide6 + pyqtgraph desktop image-labeling app (GUI client for an external ZL an
 
 - Setup: `uv sync` (PyPI index overridden to Tsinghua mirror in `pyproject.toml`)
 - Local-inference dev deps (onnxruntime + opencv): `uv sync --extra local` (or `--extra local-gpu` for onnxruntime-gpu)
-- Run: `uv run python zlabel.py` — entry point is `zlabel.py`, `.vscode/launch.json` also launches `zlabel.py`.
+- Project commands are declared as entry points in `pyproject.toml` (`[project.scripts]` / `[project.gui-scripts]`, implemented in `zlabel/scripts.py`) and invoked via `uv run <name>`:
+  - `uv run zlabel` — launch the GUI (gui-script, no console window on Windows)
+  - `uv run zlabel-build` — cx_Freeze + Inno Setup build
+  - `uv run zlabel-uic` — regenerate Qt generated code (uic/rcc, also runs `lupdate`)
+  - `uv run zlabel-translate` — compile `i18n/zh_CN.qm`
+  - The project is a uv-managed package (uv_build, flat layout) and installed editable — `import zlabel` works from anywhere, no `PYTHONPATH` needed.
 - Lint: `uv run ruff check .` and `uv run ruff format .` (line-length 120; `ruff` is the configured formatter)
-- Regenerate Qt generated code: `uv run python uic_rcc.py` (also runs `lupdate` for i18n)
-- Compile translations: `uv run pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm`
-- Build: `uv run python build.py` (Nuitka default; add `--pyinstaller`, `--debug`; output 7z in `build/`) or `uv run python setup.py` (cx_Freeze + Inno Setup via `setup.iss`)
+- Build (Nuitka): `uv run python build.py` (Nuitka default; add `--pyinstaller`, `--debug`; output 7z in `build/`)
 - Tests: pytest. `uv run pytest` (runs all; real-model tests skip when onnx models in `data/` or the `local` extras are absent). Useful variants:
   - `uv run pytest -m "not models"` — skip everything needing `data/` onnx models
   - `uv run pytest --cov=zlabel` — coverage report
@@ -34,6 +37,6 @@ PySide6 + pyqtgraph desktop image-labeling app (GUI client for an external ZL an
 
 - Qt is always imported through the pyqtgraph wrapper (`from pyqtgraph.Qt.QtWidgets import ...`), not `PySide6.*` directly — keeps binding agnosticness.
 - `zlabel/widgets/ui/*.py` and `icons_rc.py` are GENERATED (pyside6-uic/rcc). Edit the sources under `resources/ui/*.ui` and `resources/icons.qrc`, then regenerate. Never hand-edit generated files. mypy excludes `zlabel/widgets/ui/`. New widgets can be added in code (see the "Inference" group box in `dialog_settings.py` and the storage combo in `dock_file.py`) to avoid regenerating all UI.
-- SAM prediction needs onnx model files in `data/`, which is gitignored — local mode fails without them; release builds bundle them via `build.py`/`setup.py`.
+- SAM prediction needs onnx model files in `data/`, which is gitignored — local mode fails without them. Release builds intentionally do NOT bundle them; users must provide the `.onnx` files next to the installed app (resolved via `resource_dir()`).
 - Version is single-sourced from `pyproject.toml` (`project.version`); `build.py` and `setup.py` parse it. `setup.py` also rewrites `setup.iss` (version + src dir).
 - `build/`, `dist/`, `data/`, `*.zproj`, `.venv/` are gitignored; don't commit build artifacts or model files.

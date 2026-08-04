@@ -1,6 +1,6 @@
 [project]
 name = "ZLabel"
-version = "0.2.2"
+version = "0.2.3"
 description = "ZLabel"
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.10,<3.14"
@@ -16,6 +16,18 @@ dependencies = [
     "numpy>=2.2.6",
     "shapely>=2.1.2",
 ]
+
+[project.scripts]
+zlabel-build = "zlabel.scripts:build"
+zlabel-uic = "zlabel.scripts:uic_rcc"
+zlabel-translate = "zlabel.scripts:translate"
+
+[project.gui-scripts]
+zlabel = "zlabel.main:main"
+
+[build-system]
+requires = ["uv_build>=0.4"]
+build-backend = "uv_build"
 
 [project.optional-dependencies]
 local = [
@@ -35,7 +47,6 @@ dev = [
     "py7zr>=1.0.0",
     "pytest>=8.4.2",
     "pytest-cov>=6.0.0",
-    "poethepoet>=0.37.0",
     "typed-argument-parser>=1.11.0",
     # "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
@@ -48,6 +59,9 @@ dev = [
 [[tool.uv.index]]
 name = "tsinghua"
 url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
+
+[tool.uv.build-backend]
+module-root = ""
 
 [tool.ruff]
 line-length = 120
@@ -106,12 +120,3 @@ markers = [
 filterwarnings = [
     "ignore:Specified provider 'CUDAExecutionProvider':UserWarning",
 ]
-
-[tool.poe.tasks]
-run = "uv run python zlabel.py"
-build = """uv run python ./setup.py build_exe"""
-
-designer = "uv run pyside6-designer.exe"
-designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
-uic_rcc = "uv run python ./uic_rcc.py"
-translate = "uv run pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm"

@@ -137,8 +137,9 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
         f"-j {jobs}",
     ]
 
-    # Bundle local inference (onnxruntime + opencv) and onnx models if available.
+    # Bundle local inference runtime (onnxruntime + opencv) if available.
     # They are optional: without them the build stays remote-only.
+    # onnx model files in data/ are intentionally NOT bundled.
     try:
         import cv2  # noqa: F401
         import onnxruntime  # noqa: F401
@@ -146,14 +147,7 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
         cmd_parts.extend([
             "--include-module=onnxruntime",
             "--include-module=cv2",
-            "--include-module=opencv",
         ])
-        data_models = sorted(Path("data").glob("*.onnx"))
-        if data_models:
-            cmd_parts.extend([f"--include-data-files={m}={m}" for m in data_models])
-            print(f"Bundling {len(data_models)} onnx model files from data/")
-        else:
-            print("Warning: no onnx models found in data/, local inference models won't be bundled")
     except ImportError:
         print("Warning: onnxruntime/cv2 not installed, local inference will be disabled in this build")
 
