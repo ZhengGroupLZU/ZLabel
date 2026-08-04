@@ -1,168 +1,345 @@
-# -*- coding: utf-8 -*-
-# @Author  : LG
-
-import os
-
-from qtpy.QtCore import QSettings, QSize, Qt, Signal
-from qtpy.QtWidgets import (
+from pyqtgraph.Qt.QtCore import Qt, Signal
+from pyqtgraph.Qt.QtGui import QIcon
+from pyqtgraph.Qt.QtWidgets import (
     QColorDialog,
+    QComboBox,
     QDialog,
     QFileDialog,
-    QHBoxLayout,
+    QGridLayout,
+    QGroupBox,
     QLabel,
-    QListWidgetItem,
+    QLineEdit,
     QPushButton,
-    QWidget,
-    QApplication,
+    QTableWidgetItem,
 )
 
+from zlabel.utils import id_md5
+from zlabel.utils.enums import LogLevel
+from zlabel.utils.project import Label
+from zlabel.widgets.zsettings import ZSettings
+
 from .ui import Ui_DialogSettings
-from ..utils import StatusMode, MapMode, DrawMode, ClickMode, ContourMode
 
 
 class DialogSettings(QDialog, Ui_DialogSettings):
-    settings_changed = Signal(QSettings)
+    sigSettingsChanged = Signal()
+    sigApplyClicked = Signal()
+    sigCancelClicked = Signal()
 
-    def __init__(self, parent):
-        super(DialogSettings, self).__init__(parent)
+    def __init__(
+        self,
+        settings: ZSettings | None = None,
+        parent=None,
+    ):
+        super().__init__(parent)
         self.setupUi(self)
         self.setWindowModality(Qt.WindowModality.WindowModal)
 
-        self.format = QSettings.Format.IniFormat
-        self.conf_path = os.path.join(QApplication.applicationDirPath(), "zlabel.conf")
-        self.settings = QSettings(self.conf_path, self.format)
-        if not os.path.exists(self.conf_path):
-            self.init_settings()
-        else:
+        self.settings: ZSettings | None = settings
+        self.table_labels.setHorizontalHeaderLabels(["ID", "Name", "Color", "Delete"])
+        self.table_labels.setRowCount(0)
+
+        self._loading: bool = True
+        self.init_inference_widgets()
+
+        if self.settings:
             self.load_settings()
-
         self.init_signals()
+        self._loading = False
 
-    def init_settings(self):
-        self.settings.setValue("global/status_mode", StatusMode.VIEW.value)
-        self.settings.setValue("global/map_mode", MapMode.LABEL.value)
-        self.settings.setValue("global/draw_mode", DrawMode.SAM_RECT.value)
-        self.settings.setValue("global/click_mode", ClickMode.POSITIVE.value)
-        self.settings.setValue("global/contour_mode", ContourMode.SAVE_MAX_ONLY.value)
-        self.settings.setValue("global/alpha", 0.5)
-        self.settings.setValue("global/vertex_size", 3)
+    def init_inference_widgets(self):
+        self.gbox_inference = QGroupBox(self.tr("Inference"), self)
+        grid = QGridLayout(self.gbox_inference)
+        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
+        self.cmbox_inference_mode.addItems(["Remote", "Local"])
+        self.cmbox_model_name = QComboBox(self.gbox_inference)
+        self.cmbox_model_name.addItems(["SAM", "EdgeSAM", "SAM2"])
+        self.ledit_encoder_path = QLineEdit(self.gbox_inference)
+        self.ledit_decoder_path = QLineEdit(self.gbox_inference)
+        self.btn_encoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
+        self.btn_decoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
+        self.btn_encoder_path.clicked.connect(lambda: self.on_browse_model_path("encoder"))
+        self.btn_decoder_path.clicked.connect(lambda: self.on_browse_model_path("decoder"))
+        grid.addWidget(QLabel(self.tr("Inference Mode:")), 0, 0)
+        grid.addWidget(self.cmbox_inference_mode, 0, 1)
+        grid.addWidget(QLabel(self.tr("Model:")), 1, 0)
+        grid.addWidget(self.cmbox_model_name, 1, 1)
+        grid.addWidget(QLabel(self.tr("Encoder Path:")), 2, 0)
+        grid.addWidget(self.ledit_encoder_path, 2, 1)
+        grid.addWidget(self.btn_encoder_path, 2, 2)
+        grid.addWidget(QLabel(self.tr("Decoder Path:")), 3, 0)
+        grid.addWidget(self.ledit_decoder_path, 3, 1)
+        grid.addWidget(self.btn_decoder_path, 3, 2)
+        self.gridLayout.addWidget(self.gbox_inference, 2, 0)
+        self.update_inference_widgets_enabled()
 
-    def load_settings(self, path: str | None = None):
-        self.settings = QSettings(path or self.conf_path, self.format)
-        self.cbox_status_mode.setCurrentIndex(
-            self.settings.value("global/status_mode", StatusMode.VIEW.value, type=int)
+    def on_browse_model_path(self, which: str):
+        path, _ = QFileDialog.getOpenFileName(
+            self, self.tr("Select onnx model"), "", self.tr("ONNX (*.onnx)")
         )
-        self.cbox_click_mode.setCurrentIndex(
-            self.settings.value("global/click_mode", ClickMode.POSITIVE.value, type=int)
+        if not path:
+            return
+        if which == "encoder":
+            self.ledit_encoder_path.setText(path)
+            self.on_settings_changed("encoder_path")
+        else:
+            self.ledit_decoder_path.setText(path)
+            self.on_settings_changed("decoder_path")
+
+    def update_inference_widgets_enabled(self):
+        is_local = self.cmbox_inference_mode.currentIndex() == 1
+        self.cmbox_model_name.setEnabled(is_local)
+        self.ledit_encoder_path.setEnabled(is_local)
+        self.ledit_decoder_path.setEnabled(is_local)
+        self.btn_encoder_path.setEnabled(is_local)
+        self.btn_decoder_path.setEnabled(is_local)
+
+    def load_settings(self, settings: ZSettings | None = None):
+        self.settings = settings or self.settings
+        assert self.settings is not None
+
+        self.ledit_host.setText(str(self.settings.host))
+        self.ledit_username.setText(str(self.settings.username))
+        self.ledit_password.setText(str(self.settings.password))
+        self.dspbox_alpha.setValue(self.settings.alpha)
+        self.ckbox_random.setChecked(self.settings.random_select)
+        self.ckbox_catmull_rom.setChecked(self.settings.enable_catmull_rom)
+
+        self.cmbox_loglevel.setCurrentIndex(self.settings.log_level.value)
+
+        self.cmbox_inference_mode.setCurrentIndex(
+            0 if self.settings.inference_mode == "remote" else 1
         )
-        self.cbox_map_mode.setCurrentIndex(
-            self.settings.value("global/map_mode", MapMode.LABEL.value, type=int)
-        )
-        self.cbox_draw_mode.setCurrentIndex(
-            self.settings.value("global/draw_mode", DrawMode.SAM_RECT.value, type=int)
-        )
-        self.cbox_contour_mode.setCurrentIndex(
-            self.settings.value(
-                "global/contour_mode", ContourMode.SAVE_MAX_ONLY.value, type=int
-            )
-        )
-        self.dspbox_alpha.setValue(self.settings.value("global/alpha", 0.5, type=float))
-        self.spbox_vertex_size.setValue(
-            self.settings.value("global/vertex_size", 3, type=int)
-        )
-        self.settings_changed.emit(self.settings)
+        self.cmbox_model_name.setCurrentText(self.settings.model_name)
+        self.ledit_encoder_path.setText(self.settings.encoder_path)
+        self.ledit_decoder_path.setText(self.settings.decoder_path)
+        self.update_inference_widgets_enabled()
 
-    def get_item_and_widget(self, category, color: str):
-        item = QListWidgetItem()
-        item.setSizeHint(QSize(200, 40))
-
-        widget = QWidget()
-        layout = QHBoxLayout()
-        category_label = QLabel()
-        category_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        category_label.setText(category)
-        category_label.setObjectName("category")
-        # 颜色
-        color_button = QPushButton()
-        color_button.setStyleSheet("QWidget {background-color: %s}" % color)
-        color_button.setFixedWidth(50)
-        color_button.clicked.connect(self.edit_category_item_color)
-        color_button.setObjectName("color")
-        # 删除
-        delete_button = QPushButton()
-        delete_button.setText("delete")
-        delete_button.setFixedWidth(80)
-        delete_button.clicked.connect(self.remove_category_item)
-
-        if category == "__background__":
-            color_button.setEnabled(False)
-            delete_button.setEnabled(False)
-
-        layout.addWidget(category_label)
-        layout.addWidget(color_button)
-        layout.addWidget(delete_button)
-        widget.setLayout(layout)
-        return item, widget
-
-    def edit_category_item_color(self):
-        button = self.sender()
-        color = QColorDialog.getColor()
-        if color.isValid():
-            button.setStyleSheet("QWidget {background-color: %s}" % (color.name()))
-
-    def remove_category_item(self):
-        button = self.sender()
-        row = self.category_list_widget.indexAt(button.parent().pos()).row()
-        self.category_list_widget.takeItem(row)
-
-    def add_new_category(self):
-        category = self.category_input.text()
-        color = self.color_button.palette().button().color().name()
-        if category:
-            item, item_widget = self.get_item_and_widget(category, color)
-            self.category_list_widget.addItem(item)
-            self.category_list_widget.setItemWidget(item, item_widget)
-        self.category_input.clear()
-
-    def choice_color(self):
-        color = QColorDialog.getColor()
-        if color.isValid():
-            self.color_button.setStyleSheet(
-                "QWidget {background-color: %s}" % color.name()
-            )
-
-    def apply(self):
-        self.settings_changed.emit(self.settings)
-        self.close()
-
-    def on_settings_changed(self, k: str, v: int | float):
-        self.settings.setValue(k, v)
-        self.settings_changed.emit(self.settings)
+        self.set_labels(self.settings.project.labels)
+        self.ledit_projname.setText(str(self.settings.project.name))
+        self.ledit_prjdesc.setText(str(self.settings.project.description))
 
     def init_signals(self):
-        self.cbox_status_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/status_mode", idx)
-        )
-        self.cbox_map_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/map_mode", idx)
-        )
-        self.cbox_draw_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/draw_mode", idx)
-        )
-        self.cbox_click_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/click_mode", idx)
-        )
-        self.cbox_contour_mode.currentIndexChanged.connect(
-            lambda idx: self.on_settings_changed("global/contour_mode", idx)
-        )
-        self.dspbox_alpha.valueChanged.connect(
-            lambda value: self.on_settings_changed("global/alpha", value)
-        )
-        self.spbox_vertex_size.valueChanged.connect(
-            lambda value: self.on_settings_changed("global/vertex_size", value)
-        )
+        # here the k passed to on_settings_changed is the attribute name in ZSettings
+        self.ledit_host.editingFinished.connect(lambda: self.on_settings_changed("host"))
+        self.ledit_username.editingFinished.connect(lambda: self.on_settings_changed("username"))
+        self.ledit_password.editingFinished.connect(lambda: self.on_settings_changed("password"))
+        self.dspbox_alpha.editingFinished.connect(lambda: self.on_settings_changed("alpha"))
+        self.ckbox_random.checkStateChanged.connect(lambda: self.on_settings_changed("random_select"))
+        self.ckbox_catmull_rom.checkStateChanged.connect(lambda: self.on_settings_changed("enable_catmull_rom"))
 
-        self.add_button.clicked.connect(self.add_new_category)
-        self.btn_apply.clicked.connect(self.apply)
+        self.ledit_projname.editingFinished.connect(lambda: self.on_settings_changed("project_name"))
+        self.ledit_prjdesc.editingFinished.connect(lambda: self.on_settings_changed("project_desc"))
+
+        # Track edits in the labels table
+        self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)
+
+        self.btn_apply.clicked.connect(self.sigSettingsChanged.emit)
+        self.btn_apply.clicked.connect(self.sigApplyClicked.emit)
         self.btn_cancel.clicked.connect(self.close)
-        self.color_button.clicked.connect(self.choice_color)
+        self.btn_cancel.clicked.connect(self.sigCancelClicked.emit)
+
+        self.btn_add_label.clicked.connect(self.on_btn_label_add_clicked)
+        self.btn_delete_label.clicked.connect(self.on_btn_label_delete_clicked)
+        self.btn_clear.clicked.connect(self.on_btn_label_clear_clicked)
+
+        self.cmbox_loglevel.currentIndexChanged.connect(lambda: self.on_settings_changed("log_level"))
+
+        self.cmbox_inference_mode.currentIndexChanged.connect(self.on_inference_mode_changed)
+        self.cmbox_model_name.currentIndexChanged.connect(lambda: self.on_settings_changed("model_name"))
+        self.ledit_encoder_path.editingFinished.connect(lambda: self.on_settings_changed("encoder_path"))
+        self.ledit_decoder_path.editingFinished.connect(lambda: self.on_settings_changed("decoder_path"))
+
+    def on_inference_mode_changed(self):
+        self.update_inference_widgets_enabled()
+        self.on_settings_changed("inference_mode")
+
+    def on_settings_changed(self, k: str):
+        if self._loading:
+            return
+        assert self.settings is not None
+        if k == "host":
+            self.settings.host = self.ledit_host.text().strip()
+        elif k == "username":
+            self.settings.username = self.ledit_username.text().strip()
+        elif k == "password":
+            self.settings.password = self.ledit_password.text().strip()
+        elif k == "alpha":
+            self.settings.alpha = self.dspbox_alpha.value()
+        elif k == "random_select":
+            self.settings.random_select = self.ckbox_random.isChecked()
+        elif k == "enable_catmull_rom":
+            self.settings.enable_catmull_rom = self.ckbox_catmull_rom.isChecked()
+        elif k == "inference_mode":
+            self.settings.inference_mode = (
+                "local" if self.cmbox_inference_mode.currentIndex() == 1 else "remote"
+            )
+        elif k == "model_name":
+            self.settings.model_name = self.cmbox_model_name.currentText()
+        elif k == "encoder_path":
+            self.settings.encoder_path = self.ledit_encoder_path.text().strip()
+        elif k == "decoder_path":
+            self.settings.decoder_path = self.ledit_decoder_path.text().strip()
+        # elif k == "project_name":
+        #     self.settings.project.name = str(v)
+        #     self.settings.project_name = str(v)
+        # elif k == "project_desc":
+        #     self.settings.project.description = str(v)
+        elif k == "log_level":
+            self.settings.log_level = LogLevel(self.cmbox_loglevel.currentIndex())
+        else:
+            raise ValueError(f"Unknown setting key: {k}")
+        self.sigSettingsChanged.emit()
+
+    def on_table_labels_item_changed(self, item: QTableWidgetItem):
+        if self.settings is None or self.sender() != self.table_labels or item.column() == 0:
+            return
+
+        # Name
+        item_name = self.table_labels.item(item.row(), 1)
+        label_name = item_name.text().strip() if item_name else ""
+        if not label_name:
+            return
+
+        # ID
+        label_id = id_md5(label_name)
+        item_id = self.table_labels.item(item.row(), 0)
+        prev_id = item_id.text().strip() if item_id else ""
+        if item_id:
+            item_id.setText(label_id)
+        else:
+            self.table_labels.setItem(item.row(), 0, QTableWidgetItem(label_id))
+        # Determine current color from the row's color button (if present)
+        color_btn = self.table_labels.cellWidget(item.row(), 2)
+        color_text = "#000000"
+        if isinstance(color_btn, QPushButton):
+            t = color_btn.text().strip()
+            if t:
+                color_text = t.lower()
+        # If the ID changed due to a name edit, drop the old entry
+        if prev_id and prev_id != label_id:
+            self.settings.project.labels.pop(prev_id, None)
+
+        if label_id in self.settings.project.labels:
+            self.settings.project.labels[label_id].name = label_name
+            self.settings.project.labels[label_id].color = color_text
+        else:
+            self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color_text)
+
+        # Only handle name edits here; color is managed by the button widget
+        self.sigSettingsChanged.emit()
+
+    def on_btn_label_add_clicked(self):
+        self.add_row(Label(id="", name=""))
+
+    def on_btn_label_delete_clicked(self):
+        if self.settings is None:
+            return
+
+        selected_items = self.table_labels.selectedItems()
+        selected_rows = list({item.row() for item in selected_items})
+        selected_rows.sort(reverse=True)
+        for row in selected_rows:
+            label_item = self.table_labels.item(row, 0)
+            if label_item:
+                label_id = label_item.text().strip()
+                self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(row)
+        self.sigSettingsChanged.emit()
+
+    def on_btn_label_clear_clicked(self):
+        if self.settings is None:
+            return
+
+        self.settings.project.labels.clear()
+        self.table_labels.setRowCount(0)
+
+    def add_row(self, label: Label, row: int | None = None):
+        idx = row if row is not None else self.table_labels.rowCount()
+        self.table_labels.insertRow(idx)
+
+        # ID
+        item = QTableWidgetItem("")
+        item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+        if label.id:
+            item.setText(label.id)
+        self.table_labels.setItem(idx, 0, item)
+
+        # name
+        item = QTableWidgetItem("")
+        if label.name:
+            item.setText(label.name)
+        self.table_labels.setItem(idx, 1, item)
+
+        def btn_item_select_color_clicked(btn: QPushButton):
+            color = QColorDialog.getColor()
+            if not color.isValid():
+                return
+            btn.setStyleSheet(f"background-color: {color.name()}")
+            btn.setText(color.name().upper())
+            # Update settings with the selected color based on current row/name
+            if self.settings is None:
+                return
+            # find the row of this button
+            row_idx = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 2) is btn:
+                    row_idx = r
+                    break
+            if row_idx < 0:
+                return
+            item_name = self.table_labels.item(row_idx, 1)
+            label_name = item_name.text().strip() if item_name else ""
+            if not label_name:
+                # No name yet; just update button UI, wait for name input
+                return
+            label_id = id_md5(label_name)
+            item_id = self.table_labels.item(row_idx, 0)
+            if item_id:
+                item_id.setText(label_id)
+            else:
+                self.table_labels.setItem(row_idx, 0, QTableWidgetItem(label_id))
+            if label_id in self.settings.project.labels:
+                self.settings.project.labels[label_id].color = color.name()
+                self.settings.project.labels[label_id].name = label_name
+            else:
+                self.settings.project.labels[label_id] = Label(id=label_id, name=label_name, color=color.name())
+            self.sigSettingsChanged.emit()
+
+        def btn_item_delete_clicked(btn: QPushButton):
+            if self.settings is None:
+                return
+            # Identify the row from the clicked button
+            target_row = -1
+            for r in range(self.table_labels.rowCount()):
+                if self.table_labels.cellWidget(r, 3) is btn:
+                    target_row = r
+                    break
+            if target_row < 0:
+                return
+            label_item_id = self.table_labels.item(target_row, 0)
+            label_id = label_item_id.text().strip() if label_item_id else ""
+            if label_id:
+                self.settings.project.labels.pop(label_id, None)
+            self.table_labels.removeRow(target_row)
+            self.sigSettingsChanged.emit()
+
+        # color
+        btn_select_color = QPushButton(self.tr("Select Color"))
+        btn_select_color.setStyleSheet(f"background-color: {label.color}")
+        btn_select_color.setText(label.color.upper())
+        btn_select_color.clicked.connect(lambda: btn_item_select_color_clicked(btn_select_color))
+        self.table_labels.setCellWidget(idx, 2, btn_select_color)
+
+        # delete
+        btn_delete = QPushButton(self.tr("Delete"))
+        btn_delete.setIcon(QIcon(":/icon/icons/delete-3.svg"))
+        btn_delete.clicked.connect(lambda: btn_item_delete_clicked(btn_delete))
+        self.table_labels.setCellWidget(idx, 3, btn_delete)
+
+    def set_labels(self, labels: dict[str, Label]):
+        self.table_labels.itemChanged.disconnect(self.on_table_labels_item_changed)
+        self.table_labels.setRowCount(0)
+        for idx, label in enumerate(labels.values()):
+            self.add_row(label, idx)
+        self.table_labels.itemChanged.connect(self.on_table_labels_item_changed)

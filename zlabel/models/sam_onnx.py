@@ -1,15 +1,18 @@
 import copy
-from functools import lru_cache
 import hashlib
-from typing import Any, Dict, List, Tuple
 
 import cv2
 import numpy as np
 import onnxruntime as ort
 from numpy.typing import NDArray
 
-from ..utils.logger import ZLogger
-from .types import PromptType, SamOnnxEncodedInput, SamOnnxPrompt, SamOnnxResult
+from zlabel.models.ztypes import (
+    PromptType,
+    SamOnnxEncodedInput,
+    SamOnnxPrompt,
+    SamOnnxResult,
+)
+from zlabel.utils.logger import ZLogger
 
 
 class SamOnnxModel:
@@ -20,22 +23,40 @@ class SamOnnxModel:
         self.input_size = (1024, 1024)
         self.logger = ZLogger("SamOnnxModel")
         self.img = None
-        self._cache: Dict[str, SamOnnxEncodedInput] = {}
+        self._cache: dict[str, SamOnnxEncodedInput] = {}
 
         # Load models
-        providers: List[str] = ort.get_available_providers()
+        providers: list[str] = ort.get_available_providers()
 
         # Pop TensorRT Runtime due to crashing issues
         # TODO: Add back when TensorRT backend is stable
-        providers = [p for p in providers if p != "TensorrtExecutionProvider"]
+        # providers = [p for p in providers if p != "TensorrtExecutionProvider"]
 
         if providers:
             self.logger.info(f"Available providers for ONNXRuntime: {providers}")
         else:
             self.logger.warning("No available providers for ONNXRuntime")
-        self.encoder = ort.InferenceSession(encoder_path, providers=providers)
+        # providers = ["CPUExecutionProvider"]
+        sess_options = ort.SessionOptions()
+        cuda_provider_options = {
+            "arena_extend_strategy": "kSameAsRequested",
+        }
+        providers_encoder = [
+            ("CUDAExecutionProvider", cuda_provider_options),
+            # "CUDAExecutionProvider",
+            "CPUExecutionProvider",
+        ]
+        providers_decoder = [
+            "CPUExecutionProvider",
+        ]
+        self.logger.info(f"Using encoder: {encoder_path}, decoder: {decoder_path}")
+        self.encoder = ort.InferenceSession(
+            encoder_path,
+            sess_options,
+            providers=providers_encoder,
+        )
         self.encoder_input_name: str = self.encoder.get_inputs()[0].name
-        self.decoder = ort.InferenceSession(decoder_path, providers=providers)
+        self.decoder = ort.InferenceSession(decoder_path, providers=providers_decoder)
 
     def add_encoded_input(self, key: str, inp: SamOnnxEncodedInput):
         if key not in self._cache:
@@ -47,11 +68,11 @@ class SamOnnxModel:
     def get_encoded_input(self, key: str):
         return self._cache.get(key, None)
 
-    def get_input_points(self, prompt: List[SamOnnxPrompt]):
+    def get_input_points(self, prompt: list[SamOnnxPrompt]):
         """Get input points"""
         points = []
         labels = []
-        for i, mark in enumerate(prompt):
+        for _, mark in enumerate(prompt):
             if mark.type_ == PromptType.POINT:
                 points.append(mark.point)
                 labels.append(mark.label)
@@ -64,11 +85,13 @@ class SamOnnxModel:
                 raise NotImplementedError
         points, labels = (
             np.array(points, dtype=np.float32),
-            np.array(labels, dtype=np.float32),
+            np.array(labels, dtype=np.float32).ravel(),
         )
         return points, labels
 
-    def run_encoder(self, img: NDArray) -> NDArray[np.float32]:
+    def run_encoder(
+        self, img: NDArray, h: int, w: int, nh: int, nw: int
+    ) -> SamOnnxEncodedInput:
         """Run encoder"""
         if img.dtype != np.float32:
             img = img.astype(np.float32)
@@ -77,8 +100,9 @@ class SamOnnxModel:
         if img.ndim == 3:
             img = np.expand_dims(img, 0)
         encoder_inputs = {self.encoder_input_name: img}
-        image_embedding = self.encoder.run(None, encoder_inputs)[0]
-        return image_embedding
+        image_embedding: np.ndarray = self.encoder.run(None, encoder_inputs)[0]  # type: ignore
+        res = SamOnnxEncodedInput(image_embedding, h, w, nh, nw)
+        return res
 
     @staticmethod
     def get_preprocess_shape(oldh: int, oldw: int, long_side_length: int):
@@ -123,8 +147,8 @@ class SamOnnxModel:
     def run_decoder(
         self,
         einput: SamOnnxEncodedInput,
-        prompt: List[SamOnnxPrompt],
-    ):
+        prompt: list[SamOnnxPrompt],
+    ) -> SamOnnxResult:
         """Run decoder"""
         # (N, 2), (N,)
         input_points, input_labels = self.get_input_points(prompt)
@@ -153,9 +177,9 @@ class SamOnnxModel:
         }
         masks, scores, logits = self.decoder.run(None, decoder_inputs)
 
-        return self.decode(masks[0], scores[0])
+        return self.decode(masks[0], scores[0])  # type: ignore
 
-    def encode(self, cv_image: NDArray):
+    def encode(self, cv_image: NDArray) -> SamOnnxEncodedInput:
         """
         Calculate embedding and metadata for a single image.
         """
@@ -183,16 +207,180 @@ class SamOnnxModel:
         cv_image = (cv_image - mean) / std
 
         cv_image = np.transpose(cv_image, (2, 0, 1))[None, ...]
-        image_embedding = self.run_encoder(cv_image)
-        res = SamOnnxEncodedInput(image_embedding, h, w, nh, nw)
+        res = self.run_encoder(cv_image, h, w, nh, nw)
         self._cache[md5] = res
         return res
 
-    def decode(self, masks: NDArray[np.float32], scores: NDArray[np.float32]):
+    def decode(
+        self,
+        masks: NDArray[np.float32],
+        scores: NDArray[np.float32],
+    ) -> SamOnnxResult:
         idx = np.argmax(scores[:-1])
         return SamOnnxResult((masks[idx] > 0).astype(np.uint8) * 255, scores[idx])
 
-    def predict(self, img: NDArray, prompts: List[SamOnnxPrompt]):
+    def predict(self, img: NDArray, prompts: list[SamOnnxPrompt]) -> SamOnnxResult:
         img_encoded = self.encode(cv_image=img)
         out = self.run_decoder(img_encoded, prompts)
         return out
+
+
+class EdgeSam(SamOnnxModel):
+    def run_decoder(
+        self,
+        einput: SamOnnxEncodedInput,
+        prompt: list[SamOnnxPrompt],
+    ) -> SamOnnxResult:
+        """Run decoder"""
+        # (N, 2), (N,)
+        input_points, input_labels = self.get_input_points(prompt)
+
+        onnx_coord, onnx_label = self.transform_point_labels(
+            input_points,
+            input_labels,
+            einput.original_height,
+            einput.original_width,
+            einput.resized_height,
+            einput.resized_width,
+        )
+
+        decoder_inputs = {
+            "image_embeddings": einput.image_embedding,
+            "point_coords": onnx_coord,
+            "point_labels": onnx_label,
+        }
+        scores, masks = self.decoder.run(None, decoder_inputs)
+
+        ori_img_size = np.array(
+            [einput.original_height, einput.original_width],
+            dtype=int,
+        )
+        masks = self.postprocess_masks(
+            masks,  # type: ignore
+            ori_img_size,
+            (einput.resized_height, einput.resized_width),
+        )
+
+        return self.decode(masks[0], scores[0])  # type: ignore
+
+    def postprocess_masks(
+        self,
+        mask: np.ndarray,
+        original_size: np.ndarray,
+        resized_size: tuple[int, int],
+    ):
+        mask = mask.squeeze(0).transpose(1, 2, 0)
+        mask = cv2.resize(
+            mask,
+            (self.img_size, self.img_size),
+            interpolation=cv2.INTER_LINEAR,
+        )
+        mask = mask[: resized_size[0], : resized_size[1], :]
+        mask = cv2.resize(
+            mask,
+            (original_size[1], original_size[0]),
+            interpolation=cv2.INTER_LINEAR,
+        )
+        mask = mask.transpose(2, 0, 1)[None, :, :, :]
+        return mask
+
+
+class SAM2(SamOnnxModel):
+    def postprocess_masks(
+        self,
+        mask: np.ndarray,
+        original_size: np.ndarray,
+        resized_size: tuple[int, int],
+    ):
+        mask = mask.squeeze(0).transpose(1, 2, 0)
+        mask = cv2.resize(
+            mask,
+            (self.img_size, self.img_size),
+            interpolation=cv2.INTER_LINEAR,
+        )
+        mask = mask[: resized_size[0], : resized_size[1], :]
+        mask = cv2.resize(
+            mask,
+            (original_size[1], original_size[0]),
+            interpolation=cv2.INTER_LINEAR,
+        )
+        mask = mask.transpose(2, 0, 1)[None, :, :, :]
+        return mask
+
+    def run_encoder(
+        self,
+        img: NDArray,
+        h: int,
+        w: int,
+        nh: int,
+        nw: int,
+    ) -> SamOnnxEncodedInput:
+        """Run encoder"""
+        if img.dtype != np.float32:
+            img = img.astype(np.float32)
+        if img.ndim == 2:
+            img = np.expand_dims(img, 2)
+        if img.ndim == 3:
+            img = np.expand_dims(img, 0)
+        encoder_inputs = {self.encoder_input_name: img}
+        (
+            high_res_feats_0,
+            high_res_feats_1,
+            image_embedding,
+        ) = self.encoder.run(None, encoder_inputs)  # type: ignore
+        res = SamOnnxEncodedInput(
+            image_embedding,  # type: ignore
+            h,
+            w,
+            nh,
+            nw,
+            high_res_feats_0,  # type: ignore
+            high_res_feats_1,  # type: ignore
+        )
+        return res
+
+    def run_decoder(
+        self,
+        einput: SamOnnxEncodedInput,
+        prompt: list[SamOnnxPrompt],
+    ) -> SamOnnxResult:
+        """Run decoder"""
+        assert einput.high_res_feats_0 is not None
+        assert einput.high_res_feats_1 is not None
+
+        # (N, 2), (N,)
+        input_points, input_labels = self.get_input_points(prompt)
+
+        onnx_coord, onnx_label = self.transform_point_labels(
+            input_points,
+            input_labels,
+            einput.original_height,
+            einput.original_width,
+            einput.resized_height,
+            einput.resized_width,
+        )
+        onnx_mask_input = np.zeros((1, 1, 256, 256), dtype=np.float32)
+        onnx_has_mask_input = np.zeros(1, dtype=np.float32)
+
+        decoder_inputs = {
+            "image_embed": einput.image_embedding,
+            "point_coords": onnx_coord,
+            "point_labels": onnx_label,
+            "high_res_feats_0": einput.high_res_feats_0,
+            "high_res_feats_1": einput.high_res_feats_1,
+            "mask_input": onnx_mask_input,
+            "has_mask_input": onnx_has_mask_input,
+        }
+        masks, scores = self.decoder.run(None, decoder_inputs)
+
+        ori_img_size = np.array(
+            [einput.original_height, einput.original_width],
+            dtype=int,
+        )
+        masks = self.postprocess_masks(
+            masks,  # type: ignore
+            ori_img_size,
+            (einput.resized_height, einput.resized_width),
+        )
+
+        return self.decode(masks[0], scores[0])  # type: ignore

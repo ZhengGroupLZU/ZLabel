@@ -1,60 +1,122 @@
 [project]
-name = "zlabel"
-version = "0.1.0"
-description = "Add your description here"
+name = "ZLabel"
+version = "0.2.3"
+description = "ZLabel"
+authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
+requires-python = ">=3.10,<3.14"
 readme = "README.md"
-requires-python = ">=3.11"
+license = "Apache-2.0"
 dependencies = [
-    "imgviz>=1.7.6",
+    "Pillow<13.0.0,>=10.1.0",
+    "pyside6<7.0.0,>=6.6.1",
+    "rich<16.0.0,>=13.7.0",
+    "pydantic<3.0.0,>=2.5.2",
+    "requests<3.0.0,>=2.31.0",
+    "pyqtgraph<1.0.0,>=0.14.0",
     "numpy>=2.2.6",
-    "onnxruntime>=1.23.2",
+    "shapely>=2.1.2",
+]
+
+[project.scripts]
+zlabel-build = "zlabel.scripts:build"
+zlabel-uic = "zlabel.scripts:uic_rcc"
+zlabel-translate = "zlabel.scripts:translate"
+
+[project.gui-scripts]
+zlabel = "zlabel.main:main"
+
+[build-system]
+requires = ["uv_build>=0.4"]
+build-backend = "uv_build"
+
+[project.optional-dependencies]
+local = [
+    "onnxruntime>=1.19.0",
     "opencv-python-headless>=4.11.0.86",
-    "pillow>=12.0.0",
-    "pycocotools>=2.0.10",
-    "pydantic>=2.12.3",
-    "pyqtgraph>=0.13.7",
-    "pyside6>=6.10.0",
-    "pyyaml>=6.0.3",
-    "qtpy>=2.4.3",
-    "rich>=14.2.0",
+]
+local-gpu = [
+    "onnxruntime-gpu>=1.22.0",
+    "opencv-python-headless>=4.11.0.86",
 ]
 
 [dependency-groups]
 dev = [
-    "poethepoet>=0.37.0",
+    # "PyYAML<7.0.0,>=6.0.1",
+    # "pyinstaller-versionfile>=2.1.1,<3.0.0",
+    "nuitka>=2.7.2",
     "py7zr>=1.0.0",
     "pytest>=8.4.2",
+    "pytest-cov>=6.0.0",
+    "typed-argument-parser>=1.11.0",
+    # "pyinstaller<7.0.0,>=6.3.0",
+    "tqdm>=4.67.1",
+    "imageio>=2.37.0",
+    "cx-freeze>=8.4.1",
+    "tomli>=2.3.0",
+    "ruff>=0.14.0",
 ]
 
+[[tool.uv.index]]
+name = "tsinghua"
+url = "https://mirrors.tuna.tsinghua.edu.cn/pypi/web/simple"
 
-[tool.poe.tasks]
-run = "python ./main.py"
-build = """python ./build.py"""
+[tool.uv.build-backend]
+module-root = ""
 
-designer = "pyside6-designer.exe "
-rcc = "pyside6-rcc -o icons_rc.py zlabel/resources/icons.qrc"
+[tool.ruff]
+line-length = 120
+# Enable preview features.
+preview = true
 
-[tool.poe.tasks.uic]
-sequence = [
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/mainwindow.py zlabel/resources/ui/mainwindow.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_processing.py zlabel/resources/ui/dialog_processing.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_new_proj.py zlabel/resources/ui/dialog_new_proj.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_about.py zlabel/resources/ui/dialog_about.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_category_choice.py zlabel/resources/ui/dialog_category_choice.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_model_manager.py zlabel/resources/ui/dialog_model_manager.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_settings.py zlabel/resources/ui/dialog_settings.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_shortcuts.py zlabel/resources/ui/dialog_shortcuts.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_export.py zlabel/resources/ui/dialog_export.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dialog_import.py zlabel/resources/ui/dialog_import.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_anno.py zlabel/resources/ui/dock_anno.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_file.py zlabel/resources/ui/dock_file.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_info.py zlabel/resources/ui/dock_info.ui" },
-    { cmd = "pyside6-uic -o zlabel/widgets/ui/dock_label.py zlabel/resources/ui/dock_label.ui" },
+[tool.ruff.lint]
+select = [
+    "E",      # pycodestyle errors
+    "W",      # pycodestyle warnings
+    "F",      # pyflakes
+    "I",      # isort
+    "B",      # flake8-bugbear
+    "C4",     # flake8-comprehensions
+    "UP",     # pyupgrade
+    "ARG001", # unused arguments in functions
+]
+ignore = [
+    "B008",  # do not perform function calls in argument defaults
+    "W191",  # indentation contains tabs
+    "B904",  # Allow raising exceptions without from e, for HTTPException
+    "B905",
+    "E712",
+    "UP015",
+    "F401",
 ]
 
 [tool.pyright]
 defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
+reportUnannotatedClassAttribute = false
+reportUnusedCallResult = false
+reportUnknownMemberType = false
+reportImplicitOverride = false
+reportUnknownLambdaType = false
+reportImportCycles = false
+reportExplicitAny = false
+reportUnusedImport = false
+reportMissingTypeStubs = false
 
-[tool.ruff]
-ignore = ["E501", "F401"]
-line-length = 120
+[tool.mypy]
+exclude = [
+    "^zlabel/widgets/ui/",
+    "^zlabel/models/",
+    "^tests/",
+    "^dist/",
+    "^build/",
+]
+disable_error_code = ["import-untyped"]
+check_untyped_defs = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = [
+    "models: requires onnx models in data/ (gitignored)",
+]
+filterwarnings = [
+    "ignore:Specified provider 'CUDAExecutionProvider':UserWarning",
+]

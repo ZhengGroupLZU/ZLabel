@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dialog_category_choice.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.6.0
+## Created by: Qt User Interface Compiler version 6.9.0
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -129,14 +129,14 @@ class Ui_DialogCategoryChoice(object):
 
         self.horizontalLayout_2.addWidget(self.checkBox_iscrowded)
 
-        self.horizontalSpacer_2 = QSpacerItem(97, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer_2 = QSpacerItem(97, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_2.addItem(self.horizontalSpacer_2)
 
         self.pushButton_cancel = QPushButton(self.widget_2)
         self.pushButton_cancel.setObjectName(u"pushButton_cancel")
         icon = QIcon()
-        icon.addFile(u":/icon/icons/close-one.svg", QSize(), QIcon.Normal, QIcon.Off)
+        icon.addFile(u":/icon/icons/close-one.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_cancel.setIcon(icon)
 
         self.horizontalLayout_2.addWidget(self.pushButton_cancel)
@@ -144,7 +144,7 @@ class Ui_DialogCategoryChoice(object):
         self.pushButton_apply = QPushButton(self.widget_2)
         self.pushButton_apply.setObjectName(u"pushButton_apply")
         icon1 = QIcon()
-        icon1.addFile(u":/icon/icons/check-one.svg", QSize(), QIcon.Normal, QIcon.Off)
+        icon1.addFile(u":/icon/icons/check-one.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
         self.pushButton_apply.setIcon(icon1)
 
         self.horizontalLayout_2.addWidget(self.pushButton_apply)
