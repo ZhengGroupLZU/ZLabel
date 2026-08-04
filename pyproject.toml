@@ -7,9 +7,9 @@ requires-python = ">=3.10,<3.14"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
-    "Pillow<11.0.0,>=10.1.0",
+    "Pillow<13.0.0,>=10.1.0",
     "pyside6<7.0.0,>=6.6.1",
-    "rich<14.0.0,>=13.7.0",
+    "rich<16.0.0,>=13.7.0",
     "pydantic<3.0.0,>=2.5.2",
     "requests<3.0.0,>=2.31.0",
     "pyqtgraph<1.0.0,>=0.14.0",
@@ -31,6 +31,7 @@ dev = [
     "imageio>=2.37.0",
     "cx-freeze>=8.4.1",
     "tomli>=2.3.0",
+    "ruff>=0.14.0",
 ]
 
 [[tool.uv.index]]
@@ -87,10 +88,10 @@ disable_error_code = ["import-untyped"]
 check_untyped_defs = true
 
 [tool.poe.tasks]
-run = "python ./main.py"
-build = """python ./setup.py build_exe"""
+run = "uv run python zlabel.py"
+build = """uv run python ./setup.py build_exe"""
 
-designer = "pyside6-designer.exe"
+designer = "uv run pyside6-designer.exe"
 designer_macos = "open .venv/lib/python3.10/site-packages/PySide6/Designer.app"
-uic_rcc = "python ./uic_rcc.py"
-translate = "pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm"
+uic_rcc = "uv run python ./uic_rcc.py"
+translate = "uv run pyside6-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm"
