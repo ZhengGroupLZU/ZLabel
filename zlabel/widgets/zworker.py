@@ -6,7 +6,8 @@ from PIL import Image
 from pyqtgraph.Qt.QtCore import QObject, QRunnable, Signal
 from rich import print
 
-from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult, ZLServerApiHelper
+from zlabel.utils import AutoMode, Label, PolygonResult, RectangleResult
+from zlabel.utils.backend import ZLabelBackend
 from zlabel.utils.project import Task
 
 
@@ -24,7 +25,7 @@ class PredictWorkerEmitter(QObject):
 class ZSamPredictWorker(QRunnable):
     def __init__(
             self,
-            api: ZLServerApiHelper,
+            api: ZLabelBackend,
             anno_id: str,
             image: str,
             result_labels: list[Label],
@@ -145,7 +146,7 @@ class PreuploadEmitter(QObject):
 class ZPreuploadImageWorker(QRunnable):
     def __init__(
             self,
-            api: ZLServerApiHelper,
+            api: ZLabelBackend,
             anno_id: str,
             image: Image.Image,
     ) -> None:
@@ -172,7 +173,7 @@ class UploadFileEmitter(QObject):
 class ZUploadFileWorker(QRunnable):
     def __init__(
             self,
-            api: ZLServerApiHelper,
+            api: ZLabelBackend,
             filename: str,
             username: str | None = None,
             password: str | None = None,
@@ -205,7 +206,7 @@ class GetFileEmitter(QObject):
 class ZGetImageWorker(QRunnable):
     def __init__(
             self,
-            api: ZLServerApiHelper,
+            api: ZLabelBackend,
             filename: str,
             username: str | None = None,
             password: str | None = None,
@@ -238,7 +239,7 @@ class GetProjectsEmitter(QObject):
 class GetProjectsWorker(QRunnable):
     def __init__(
             self,
-            api: ZLServerApiHelper,
+            api: ZLabelBackend,
             username: str | None = None,
             password: str | None = None,
     ) -> None:
@@ -275,7 +276,7 @@ class GetTasksEmitter(QObject):
 class ZGetTasksWorker(QRunnable):
     def __init__(
         self,
-        api: ZLServerApiHelper,
+        api: ZLabelBackend,
         num: int,
         finished: int = 1,
         project_id: int = -1,

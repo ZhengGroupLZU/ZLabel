@@ -2,6 +2,7 @@ import os
 import platform
 import re
 import sys
+from pathlib import Path
 
 from cx_Freeze import Executable, setup
 
@@ -32,6 +33,25 @@ bdist_msi_options = {
 
 uname = platform.uname()
 output_dir = f"build/exe.{uname.system.lower()}-{uname.machine.lower()}"
+
+data_models = sorted(str(p) for p in Path("data").glob("*.onnx")) if Path("data").exists() else []
+include_files = [["i18n/zh_CN.qm", "i18n/zh_CN.qm"]]
+include_files += [[m, m] for m in data_models]
+if data_models:
+    print(f"Bundling {len(data_models)} onnx model files from data/")
+
+includes = [
+    "PySide6.QtOpenGL",
+    "PySide6.QtOpenGLWidgets",
+]
+try:
+    import cv2  # noqa: F401
+    import onnxruntime  # noqa: F401
+
+    includes += ["onnxruntime", "cv2", "opencv"]
+except ImportError:
+    print("Warning: onnxruntime/cv2 not installed, local inference disabled in this build")
+
 build_exe_options = {
     "build_exe": output_dir,
     "excludes": [
@@ -46,10 +66,7 @@ build_exe_options = {
         "tqdm",
         "typed-argument-parser",
     ],
-    "includes": [
-        "PySide6.QtOpenGL",
-        "PySide6.QtOpenGLWidgets",
-    ],
+    "includes": includes,
     "bin_excludes": [
         "QtTest.pyd",
         "Qt6Test.dll",
@@ -63,9 +80,7 @@ build_exe_options = {
     "include_msvcr": False,
     "optimize": 2,
     "zip_include_packages": ["encodings", "PySide6", "shiboken6", "pydantic"],
-    "include_files": [
-        ["i18n/zh_CN.qm", "i18n/zh_CN.qm"],
-    ],
+    "include_files": include_files,
 }
 
 executables = [

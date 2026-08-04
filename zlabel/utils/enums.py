@@ -8,6 +8,12 @@ class AutoMode(Flag):
     MANUAL = 3
 
 
+class ReturnType(Flag):
+    RECT = 1
+    POLYGON = 2
+    RLE = 3
+
+
 class RgbMode(IntEnum):
     R = 1
     G = 2

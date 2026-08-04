@@ -1,6 +1,15 @@
 from pyqtgraph.Qt.QtCore import Qt, Signal
 from pyqtgraph.Qt.QtGui import QIntValidator
-from pyqtgraph.Qt.QtWidgets import QWidget
+from pyqtgraph.Qt.QtWidgets import (
+    QComboBox,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QVBoxLayout,
+    QWidget,
+)
 
 from zlabel.utils import Task, ZLogger
 from zlabel.widgets.zwidgets import ZTableWidgetItem
@@ -11,6 +20,8 @@ from .ui import Ui_ZDockFileContent
 class ZDockFileContent(QWidget, Ui_ZDockFileContent):
     sigItemClicked = Signal(str)
     sigFetchTasks = Signal(int, int, int)  # project_id, fetch_num, fetch_finished
+    sigStorageChanged = Signal(str)  # "remote" or "local"
+    sigLocalDirChanged = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -29,9 +40,56 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
 
         self.ckbox_finished.checkStateChanged.connect(self.on_ckbox_finished_state_changed)
 
+        self.cmbox_storage = QComboBox(self)
+        self.cmbox_storage.addItems(["Remote", "Local"])
+        self.cmbox_storage.setToolTip("Storage backend for the current project")
+        self.cmbox_storage.currentTextChanged.connect(self.on_cmbox_storage_changed)
+
+        self.ledit_local_dir = QLineEdit(self)
+        self.ledit_local_dir.setPlaceholderText("Local images folder (optional)")
+        self.btn_local_dir = QPushButton(self.tr("Browse..."), self)
+        self.btn_local_dir.clicked.connect(self.on_btn_local_dir_clicked)
+
+        hbox_storage = QHBoxLayout()
+        hbox_storage.addWidget(QLabel(self.tr("Storage:")))
+        hbox_storage.addWidget(self.cmbox_storage)
+        hbox_local_dir = QHBoxLayout()
+        hbox_local_dir.addWidget(self.ledit_local_dir, 1)
+        hbox_local_dir.addWidget(self.btn_local_dir)
+        vbox_storage = QVBoxLayout()
+        vbox_storage.addLayout(hbox_storage)
+        vbox_storage.addLayout(hbox_local_dir)
+        self.gridLayout.addLayout(vbox_storage, 2, 0, 1, 3)
+        self.update_local_dir_visible()
+
     def set_cmbox_projects(self, list_projects: list[str]):
         self.cmbox_project.clear()
         self.cmbox_project.addItems(list_projects)
+
+    def set_storage_mode(self, mode: str):
+        idx = 0 if mode == "remote" else 1
+        if self.cmbox_storage.currentIndex() != idx:
+            self.cmbox_storage.setCurrentIndex(idx)
+        self.update_local_dir_visible()
+
+    def on_cmbox_storage_changed(self, text: str):
+        self.update_local_dir_visible()
+        self.sigStorageChanged.emit(text.lower())
+
+    def update_local_dir_visible(self):
+        is_local = self.cmbox_storage.currentIndex() == 1
+        self.ledit_local_dir.setVisible(is_local)
+        self.btn_local_dir.setVisible(is_local)
+
+    def set_local_dir(self, path: str):
+        self.ledit_local_dir.setText(path)
+
+    def on_btn_local_dir_clicked(self):
+        d = QFileDialog.getExistingDirectory(self, self.tr("Select local images folder"))
+        if not d:
+            return
+        self.ledit_local_dir.setText(d)
+        self.sigLocalDirChanged.emit(d)
 
     def on_ckbox_finished_state_changed(self, state: Qt.CheckState):
         if state == Qt.CheckState.Checked:

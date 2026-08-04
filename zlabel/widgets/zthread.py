@@ -1,6 +1,6 @@
 from pyqtgraph.Qt.QtCore import QObject, QThread, Signal
 
-from zlabel.utils.api_helper import ZLServerApiHelper
+from zlabel.utils.backend import ZLabelBackend
 
 
 class ZLoginThread(QThread):
@@ -9,7 +9,7 @@ class ZLoginThread(QThread):
 
     def __init__(
         self,
-        api: ZLServerApiHelper,
+        api: ZLabelBackend,
         username: str,
         password: str,
         parent: QObject | None = None,

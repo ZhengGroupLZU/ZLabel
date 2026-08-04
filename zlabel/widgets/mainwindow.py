@@ -6,15 +6,8 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
-from pyqtgraph.Qt.QtGui import (
-    QCloseEvent,
-    QIcon,
-    QKeySequence,
-    QShortcut,
-    QSurfaceFormat,
-    QUndoStack,
-)
-from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QMainWindow, QMessageBox
+from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QLabel, QMainWindow, QMessageBox
 
 from zlabel.utils import (
     Annotation,
@@ -33,9 +26,9 @@ from zlabel.utils import (
     Task,
     User,
     ZLogger,
-    ZLServerApiHelper,
     id_uuid4,
 )
+from zlabel.utils.backend import ZLabelBackend, build_backend
 from zlabel.widgets import (
     DialogAbout,
     DialogProcessing,
@@ -72,7 +65,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger: ZLogger = ZLogger("MainWindow")
         self.settings_path: Path = Path(QDir.homePath()) / ".zlabel" / ".zlabel.conf"
         self.settings: ZSettings = ZSettings()
-        self.zl_server_api: ZLServerApiHelper | None = None
+        self.backend: ZLabelBackend | None = None
         self.dialog_settings: DialogSettings = DialogSettings(parent=self)
         self.dialog_processing: DialogProcessing = DialogProcessing(parent=self)
 
@@ -97,6 +90,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._is_initing: bool = True
 
         self.init_ui()
+        self.init_statusbar()
         self.init_signals()
         self.load_settings()
         # self.ui_update_settings()
@@ -173,15 +167,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._is_initing = False
             return
         self.user.name = self.settings.username
-        if self.settings.host:
-            self.zl_server_api = ZLServerApiHelper(
-                self.settings.username,
-                self.settings.password,
-                self.settings.host,
-            )
-            self.dialog_processing.show()
-            self.login()
+        self.backend = build_backend(self.settings)
+        if self.backend.needs_login:
+            if self.settings.host:
+                self.dialog_processing.show()
+                self.login()
+            else:
+                if self.dialog_processing.isVisible():
+                    self.dialog_processing.close()
         else:
+            self.load_projects()
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
         self._is_initing = False
@@ -213,6 +208,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.alpha = self.settings.alpha
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
+        self.dockcnt_files.set_storage_mode(self.proj.storage_mode)
+        self.dockcnt_files.set_local_dir(self.proj.local_dir)
         self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)
         self.dockcnt_files.set_file_list(list(self.proj.tasks.values()))
         self.actionSAM.setChecked(self.settings.sam_enabled)
@@ -239,14 +236,58 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
             self.canvas.create_items_by_anno(self.proj.crt_anno)
             self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self.update_inference_status()
+        self.update_storage_status()
         self.try_set_image()
+
+    def init_statusbar(self):
+        self.statusbar_inference = QLabel(self.statusbar)
+        self.statusbar_inference.setStyleSheet("color: #b4b4b4;")
+        self.statusbar.addPermanentWidget(self.statusbar_inference)
+        self.statusbar_storage = QLabel(self.statusbar)
+        self.statusbar_storage.setStyleSheet("color: #b4b4b4;")
+        self.statusbar.addPermanentWidget(self.statusbar_storage)
+
+    def update_inference_status(self):
+        """Show the inference mode and local model status on the right side
+        of the status bar. Reads the actual backend (which may silently fall
+        back to local inference for local-storage projects)."""
+        if self.backend is None:
+            self.statusbar_inference.setText("Inference: Remote")
+            return
+        infer = self.backend.inference
+        if getattr(infer, "requires_server", True):
+            self.statusbar_inference.setText("Inference: Remote")
+            return
+        status = "not loaded"
+        model_status = getattr(infer, "model_status", "idle")
+        if model_status == "ready":
+            status = "model ready"
+        elif model_status == "error":
+            err = getattr(infer, "model_error", "")
+            status = f"model error: {err}" if err else "model error"
+        self.statusbar_inference.setText(f"Inference: Local ({status})")
+
+    def update_storage_status(self):
+        """Show the current storage mode and, when local, the images folder
+        in the right side of the status bar."""
+        is_local = self.proj.storage_mode == "local"
+        if is_local:
+            img_dir = None
+            if self.backend is not None:
+                img_dir = getattr(self.backend.storage, "image_dir", None)
+            if img_dir is None:
+                img_dir = Path(self.proj.local_dir) if self.proj.local_dir else self.settings.project_dir / "images"
+            self.statusbar_storage.setText(f"Storage: Local | {img_dir}")
+        else:
+            self.statusbar_storage.setText("Storage: Remote")
 
     def login(self):
         # TODO: use async or worker?
-        if self.zl_server_api is None:
+        if self.backend is None:
             return
         self.login_thread = ZLoginThread(
-            self.zl_server_api,
+            self.backend,
             self.settings.username,
             self.settings.password,
         )
@@ -273,19 +314,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_login_success(self, token: str):
         self.user_token = token
         self.logger.info(f"Login success, {self.settings.username=}")
-        self.load_projects_remote()
+        self.load_projects()
         if self.dialog_settings.isVisible():
             self.dialog_settings.close()
 
         if self.dialog_processing.isVisible():
             self.dialog_processing.close()
 
-    def load_projects_remote(self):
-        self.logger.debug("Loading projects from remote server...")
-        if self.zl_server_api is None:
+    def load_projects(self):
+        self.logger.debug("Loading projects...")
+        if self.backend is None:
             return
         worker = GetProjectsWorker(
-            self.zl_server_api,
+            self.backend,
             self.settings.username,
             self.settings.password,
         )
@@ -301,7 +342,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_cmbox_projects([p[1] for p in projects])
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.logger.debug(f"Loaded {projects=}")
-        self.load_tasks_remote()
+        self.load_tasks()
 
     def on_get_projects_failed(self, msg: str):
         QMessageBox.critical(
@@ -312,23 +353,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
     def refresh_tasks(self, tasks: list[Task]):
-        """Refresh tasks from remote server - do not save to local disk"""
+        """Refresh tasks from the storage backend - do not save to local disk"""
         self.proj.tasks.clear()
         for task in tasks:
             self.proj.add_task(task)
         self.proj.reset_task_key()
 
-        self.logger.info(f"Refreshed {len(tasks)} tasks from remote server")
+        self.logger.info(f"Refreshed {len(tasks)} tasks")
 
-    def load_tasks_remote(self):
+    def load_tasks(self):
         """
-        Load tasks from remote server
+        Load tasks from the current storage backend
         """
-        self.logger.debug(f"Loading tasks from remote server for project: {self.settings.project_name}")
-        if self.zl_server_api is None:
+        self.logger.debug(f"Loading tasks for project: {self.settings.project_name}")
+        if self.backend is None:
             return
         worker = ZGetTasksWorker(
-            self.zl_server_api,
+            self.backend,
             self.settings.fetch_num,
             self.settings.fetch_type.value,
             self.settings.project_id,
@@ -341,7 +382,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_get_tasks_success(self, tasks: list[Task]):
-        self.logger.debug(f"Loaded {len(tasks)} tasks from remote server for project: {self.settings.project_name}")
+        self.logger.debug(f"Loaded {len(tasks)} tasks for project: {self.settings.project_name}")
         self.refresh_tasks(tasks)
 
         self.dockcnt_files.set_file_list(tasks)
@@ -359,13 +400,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
 
     def try_set_image(self, image: Image.Image | None = None):
-        if self.proj.crt_task is None or self.zl_server_api is None:
+        if self.proj.crt_task is None or self.backend is None:
             return
         if image is None:
             img_name = self.proj.crt_task.filename
             if img_name not in self._image_cache:
                 worker = ZGetImageWorker(
-                    self.zl_server_api,
+                    self.backend,
                     img_name,
                     self.settings.username,
                     self.settings.password,
@@ -507,11 +548,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.logger.info(f"Creating annotation directory: {self.settings.project_anno_dir}")
                 self.settings.project_anno_dir.mkdir(parents=True, exist_ok=True)
 
-            # Check if API is available for remote operations
-            if self.zl_server_api is None:
+            # Check if a backend is available
+            if self.backend is None:
                 return (
                     False,
-                    "Remote API service is not available. Please check your connection settings.",
+                    "Backend is not available. Please check your connection settings.",
                 )
 
             # Note: Tasks are loaded from remote server, so empty tasks is normal during initialization
@@ -560,15 +601,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui_update_settings()
 
     def on_dialog_settings_apply_clicked(self):
-        if self.settings.host:
-            self.zl_server_api = ZLServerApiHelper(
-                self.settings.username,
-                self.settings.password,
-                self.settings.host,
-            )
-            self.dialog_processing.show()
-            self.login()
+        self.rebuild_backend()
+        if self.backend is None:
+            return
+        if self.backend.needs_login:
+            if self.settings.host:
+                self.dialog_processing.show()
+                self.login()
+            else:
+                if self.dialog_processing.isVisible():
+                    self.dialog_processing.close()
         else:
+            self.load_projects()
             if self.dialog_processing.isVisible():
                 self.dialog_processing.close()
 
@@ -577,8 +621,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.setLevel(level)
         if getattr(self, "canvas", None) is not None:
             self.canvas.logger.setLevel(level)
-        if self.zl_server_api is not None:
-            self.zl_server_api.logger.setLevel(level)
+        if self.backend is not None:
+            self.backend.logger.setLevel(level)
 
     # def check_login(self):
     #     if not self.login():
@@ -713,25 +757,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dock_labels.hide()
 
     def on_action_finish_triggered(self):
-        if self.proj.crt_task is None or self.proj.crt_anno is None or self.zl_server_api is None:
+        if self.proj.crt_task is None or self.proj.crt_anno is None or self.backend is None:
             return
         self.on_action_save_triggered()
-        filename = f"{self.settings.project_anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
+        anno_dir = self.backend.anno_dir or self.settings.project_anno_dir
+        filename = f"{anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
         self.proj.crt_anno.save_json(filename)
 
-        # if triggered by click, set task finished and upload
+        # if triggered by click, set task finished and upload to remote storage
         if self.sender() == self.actionFinish:
             self.proj.crt_task.finished = True
             self.dockcnt_files.set_item_finished(self.proj.crt_task)
-            worker_upload = ZUploadFileWorker(
-                self.zl_server_api,
-                filename,
-                self.settings.username,
-                self.settings.password,
-            )
-            worker_upload.emitter.fail.connect(self.show_toast)
-            worker_upload.emitter.success.connect(self.show_toast)
-            self.threadpool.start(worker_upload)
+            # In local-storage mode the annotation is already saved locally;
+            # only upload when the storage backend is remote.
+            if self.backend is not None and self.backend.needs_login:
+                worker_upload = ZUploadFileWorker(
+                    self.backend,
+                    filename,
+                    self.settings.username,
+                    self.settings.password,
+                )
+                worker_upload.emitter.fail.connect(self.show_toast)
+                worker_upload.emitter.success.connect(self.show_toast)
+                self.threadpool.start(worker_upload)
 
     def on_action_cancel_triggered(self):
         confirm = QMessageBox.question(
@@ -999,8 +1047,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_task is None:
             self.logger.warning(f"Current task is None, {self.proj.tasks=}")
             return
-        if self.zl_server_api is None:
-            self.logger.warning(f"ApiPredict is None, {self.zl_server_api=}")
+        if self.backend is None:
+            self.logger.warning(f"ApiPredict is None, {self.backend=}")
             return
 
         # if the current anno is None:
@@ -1010,7 +1058,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             task = self.proj.tasks[task_id]
             try:
                 name = f"{task.anno_id}.{self.anno_suffix}"
-                anno_json = self.zl_server_api.get_zlabel(name=name)
+                anno_json = self.backend.get_zlabel(name=name)
                 if anno_json is None:
                     raise Exception(f"Response of {name} is None")
                 anno = Annotation.model_validate_json(anno_json, strict=True)
@@ -1049,13 +1097,47 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_dock_files_fetch_tasks(self, project_idx: int, num: int, finished: int):
         if self.settings.project_idx != project_idx:
+            # project_name resolves from project_idx, so update the index first,
+            # then load the new project and rebuild the backend from it.
+            self.settings.project_idx = project_idx
             self.settings.reload_project()
+            self.rebuild_backend()
         self.settings.project_idx = project_idx
         self.settings.project.name = self.settings.project_name
         self.settings.fetch_num = num
         self.settings.fetch_type = FetchType(finished)
         self.settings.save_json(self.settings_path)
-        self.load_tasks_remote()
+        self.load_tasks()
+
+    def on_dock_files_storage_changed(self, storage_mode: str):
+        """Switch the current project's storage backend (local vs remote)."""
+        if self.settings.project.storage_mode == storage_mode:
+            return
+        self.settings.project.storage_mode = storage_mode
+        self.settings.project.save_json(self.settings.project_path)
+        self.rebuild_backend()
+        self.update_storage_status()
+        if self.backend is None:
+            return
+        if self.backend.needs_login:
+            if self.settings.host:
+                self.login()
+        else:
+            self.load_projects()
+
+    def on_dock_files_local_dir_changed(self, local_dir: str):
+        """Set the current project's local images folder."""
+        if self.settings.project.local_dir == local_dir:
+            return
+        self.settings.project.local_dir = local_dir
+        self.settings.project.save_json(self.settings.project_path)
+        self.rebuild_backend()
+        self.update_storage_status()
+        if self.backend is not None:
+            self.load_tasks()
+
+    def rebuild_backend(self):
+        self.backend = build_backend(self.settings)
 
     # endregion
 
@@ -1065,6 +1147,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool.start(worker)
 
     def on_sam_worker_finished(self, worker_results: list[SamWorkerResult]):
+        self.update_inference_status()
         if len(worker_results) == 0:
             return
         results = [wr.result for wr in worker_results]
@@ -1110,7 +1193,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        if self.zl_server_api is None:
+        if self.backend is None:
             QMessageBox.warning(
                 self,
                 self.tr("Warning"),
@@ -1119,7 +1202,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
         worker = ZSamPredictWorker(
-            api=self.zl_server_api,
+            api=self.backend,
             anno_id=self.proj.crt_task.anno_id,
             image=self.proj.crt_anno.image_path,
             points=[(point.x(), point.y())],
@@ -1185,7 +1268,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        if self.zl_server_api is None:
+        if self.backend is None:
             QMessageBox.warning(
                 self,
                 self.tr("Warning"),
@@ -1194,7 +1277,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
         worker = ZSamPredictWorker(
-            api=self.zl_server_api,
+            api=self.backend,
             anno_id=self.proj.key_task,
             image=self.proj.crt_anno.image_path,
             rects=[(result.x, result.y, result.w, result.h)],
@@ -1415,6 +1498,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_files.visibilityChanged.connect(self.on_dock_files_visibility_changed)
         self.dockcnt_files.sigItemClicked.connect(self.on_dock_files_item_clicked)
         self.dockcnt_files.sigFetchTasks.connect(self.on_dock_files_fetch_tasks)
+        self.dockcnt_files.sigStorageChanged.connect(self.on_dock_files_storage_changed)
+        self.dockcnt_files.sigLocalDirChanged.connect(self.on_dock_files_local_dir_changed)
 
         # dock labels
         self.dock_labels.visibilityChanged.connect(self.on_dock_label_visibility_changed)

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, NamedTuple, TypeAlias
+from typing import Any, Literal, NamedTuple, TypeAlias
 
 import pyqtgraph as pg
 from pydantic import BaseModel, Field
@@ -309,6 +309,9 @@ class Project(BaseModel):
     id: str
     name: str = "defaultProject"
     description: str | None = "New Project"
+
+    storage_mode: Literal["remote", "local"] = "remote"
+    local_dir: str = ""
 
     key_task: str | None = None
     key_label: str | None = None

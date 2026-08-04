@@ -1,6 +1,17 @@
 from pyqtgraph.Qt.QtCore import Qt, Signal
 from pyqtgraph.Qt.QtGui import QIcon
-from pyqtgraph.Qt.QtWidgets import QColorDialog, QDialog, QPushButton, QTableWidgetItem
+from pyqtgraph.Qt.QtWidgets import (
+    QColorDialog,
+    QComboBox,
+    QDialog,
+    QFileDialog,
+    QGridLayout,
+    QGroupBox,
+    QLabel,
+    QLineEdit,
+    QPushButton,
+    QTableWidgetItem,
+)
 
 from zlabel.utils import id_md5
 from zlabel.utils.enums import LogLevel
@@ -28,9 +39,60 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.table_labels.setHorizontalHeaderLabels(["ID", "Name", "Color", "Delete"])
         self.table_labels.setRowCount(0)
 
+        self._loading: bool = True
+        self.init_inference_widgets()
+
         if self.settings:
             self.load_settings()
         self.init_signals()
+        self._loading = False
+
+    def init_inference_widgets(self):
+        self.gbox_inference = QGroupBox(self.tr("Inference"), self)
+        grid = QGridLayout(self.gbox_inference)
+        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
+        self.cmbox_inference_mode.addItems(["Remote", "Local"])
+        self.cmbox_model_name = QComboBox(self.gbox_inference)
+        self.cmbox_model_name.addItems(["SAM", "EdgeSAM", "SAM2"])
+        self.ledit_encoder_path = QLineEdit(self.gbox_inference)
+        self.ledit_decoder_path = QLineEdit(self.gbox_inference)
+        self.btn_encoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
+        self.btn_decoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
+        self.btn_encoder_path.clicked.connect(lambda: self.on_browse_model_path("encoder"))
+        self.btn_decoder_path.clicked.connect(lambda: self.on_browse_model_path("decoder"))
+        grid.addWidget(QLabel(self.tr("Inference Mode:")), 0, 0)
+        grid.addWidget(self.cmbox_inference_mode, 0, 1)
+        grid.addWidget(QLabel(self.tr("Model:")), 1, 0)
+        grid.addWidget(self.cmbox_model_name, 1, 1)
+        grid.addWidget(QLabel(self.tr("Encoder Path:")), 2, 0)
+        grid.addWidget(self.ledit_encoder_path, 2, 1)
+        grid.addWidget(self.btn_encoder_path, 2, 2)
+        grid.addWidget(QLabel(self.tr("Decoder Path:")), 3, 0)
+        grid.addWidget(self.ledit_decoder_path, 3, 1)
+        grid.addWidget(self.btn_decoder_path, 3, 2)
+        self.gridLayout.addWidget(self.gbox_inference, 2, 0)
+        self.update_inference_widgets_enabled()
+
+    def on_browse_model_path(self, which: str):
+        path, _ = QFileDialog.getOpenFileName(
+            self, self.tr("Select onnx model"), "", self.tr("ONNX (*.onnx)")
+        )
+        if not path:
+            return
+        if which == "encoder":
+            self.ledit_encoder_path.setText(path)
+            self.on_settings_changed("encoder_path")
+        else:
+            self.ledit_decoder_path.setText(path)
+            self.on_settings_changed("decoder_path")
+
+    def update_inference_widgets_enabled(self):
+        is_local = self.cmbox_inference_mode.currentIndex() == 1
+        self.cmbox_model_name.setEnabled(is_local)
+        self.ledit_encoder_path.setEnabled(is_local)
+        self.ledit_decoder_path.setEnabled(is_local)
+        self.btn_encoder_path.setEnabled(is_local)
+        self.btn_decoder_path.setEnabled(is_local)
 
     def load_settings(self, settings: ZSettings | None = None):
         self.settings = settings or self.settings
@@ -44,6 +106,14 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ckbox_catmull_rom.setChecked(self.settings.enable_catmull_rom)
 
         self.cmbox_loglevel.setCurrentIndex(self.settings.log_level.value)
+
+        self.cmbox_inference_mode.setCurrentIndex(
+            0 if self.settings.inference_mode == "remote" else 1
+        )
+        self.cmbox_model_name.setCurrentText(self.settings.model_name)
+        self.ledit_encoder_path.setText(self.settings.encoder_path)
+        self.ledit_decoder_path.setText(self.settings.decoder_path)
+        self.update_inference_widgets_enabled()
 
         self.set_labels(self.settings.project.labels)
         self.ledit_projname.setText(str(self.settings.project.name))
@@ -75,7 +145,18 @@ class DialogSettings(QDialog, Ui_DialogSettings):
 
         self.cmbox_loglevel.currentIndexChanged.connect(lambda: self.on_settings_changed("log_level"))
 
+        self.cmbox_inference_mode.currentIndexChanged.connect(self.on_inference_mode_changed)
+        self.cmbox_model_name.currentIndexChanged.connect(lambda: self.on_settings_changed("model_name"))
+        self.ledit_encoder_path.editingFinished.connect(lambda: self.on_settings_changed("encoder_path"))
+        self.ledit_decoder_path.editingFinished.connect(lambda: self.on_settings_changed("decoder_path"))
+
+    def on_inference_mode_changed(self):
+        self.update_inference_widgets_enabled()
+        self.on_settings_changed("inference_mode")
+
     def on_settings_changed(self, k: str):
+        if self._loading:
+            return
         assert self.settings is not None
         if k == "host":
             self.settings.host = self.ledit_host.text().strip()
@@ -89,6 +170,16 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.random_select = self.ckbox_random.isChecked()
         elif k == "enable_catmull_rom":
             self.settings.enable_catmull_rom = self.ckbox_catmull_rom.isChecked()
+        elif k == "inference_mode":
+            self.settings.inference_mode = (
+                "local" if self.cmbox_inference_mode.currentIndex() == 1 else "remote"
+            )
+        elif k == "model_name":
+            self.settings.model_name = self.cmbox_model_name.currentText()
+        elif k == "encoder_path":
+            self.settings.encoder_path = self.ledit_encoder_path.text().strip()
+        elif k == "decoder_path":
+            self.settings.decoder_path = self.ledit_decoder_path.text().strip()
         # elif k == "project_name":
         #     self.settings.project.name = str(v)
         #     self.settings.project_name = str(v)

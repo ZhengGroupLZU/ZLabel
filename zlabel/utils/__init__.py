@@ -9,8 +9,9 @@ from .enums import (
     Language,
     LogLevel,
     MapMode,
-    StatusMode,
+    ReturnType,
     RgbMode,
+    StatusMode,
 )
 from .logger import ZLogger
 from .project import (
@@ -38,6 +39,7 @@ __all__ = [
     "AnnotationType",
     "FetchType",
     "LogLevel",
+    "ReturnType",
     "ZLogger",
     "ZLServerApiHelper",
     "Label",

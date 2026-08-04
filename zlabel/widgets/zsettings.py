@@ -1,6 +1,6 @@
 import os
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, PrivateAttr, field_validator
 from pyqtgraph.Qt.QtCore import QDir
@@ -26,6 +26,11 @@ class ZSettings(BaseModel):
 
     cv_enabled: bool = False
     sam_enabled: bool = False
+
+    inference_mode: Literal["remote", "local"] = "remote"
+    model_name: Literal["SAM", "EdgeSAM", "SAM2"] = "EdgeSAM"
+    encoder_path: str = ""
+    decoder_path: str = ""
 
     geometry: str = ""  # base64 encoded
     window_state: str = ""  # base64 encoded

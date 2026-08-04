@@ -1,0 +1,91 @@
+import pytest
+
+pytest.importorskip(
+    "zlabel.models.worker", reason="opencv-python-headless not installed (uv sync --extra local)"
+)
+
+from zlabel.utils.backend import LocalInference, LocalStorage  # noqa: E402
+
+
+def _inference(tmp_path, make_image):
+    imgdir = tmp_path / "imgs"
+    imgdir.mkdir()
+    make_image().save(imgdir / "a.png")
+    storage = LocalStorage(root_dir=tmp_path, project_name="p", local_dir=str(imgdir))
+    return LocalInference(storage=storage, model_name="EdgeSAM")
+
+
+def test_dict_wire_format(tmp_path, make_image):
+    """ZSamPredictWorker sends {x,y} dicts; LocalInference must accept them."""
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict(
+        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
+    )
+    assert resp["status"] is True
+    assert resp["mode"] == "SAM"
+
+
+def test_tuple_format(tmp_path, make_image):
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict("x", "a.png", points=[(32, 32)], labels=[1.0], threshold=100, mode=1, return_type=1)
+    assert resp["status"] is True
+
+
+def test_rect_dict_cv(tmp_path, make_image):
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict(
+        "x", "a.png", rects=[{"x": 5, "y": 5, "w": 20, "h": 20}], threshold=100, mode=2, return_type=1
+    )
+    assert resp["status"] is True
+    assert resp["mode"] == "CV"
+
+
+def test_missing_image(tmp_path, make_image):
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict("x", "nope.png", points=[{"x": 1, "y": 1}], labels=[1.0])
+    assert resp["status"] is False
+    assert "not found" in resp["msg"]
+
+
+def test_points_labels_length_mismatch(tmp_path, make_image):
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict(
+        "x", "a.png", points=[{"x": 1, "y": 1}], labels=[1.0, 2.0], threshold=100, mode=1, return_type=1
+    )
+    assert resp["status"] is False
+
+
+def test_no_prompt(tmp_path, make_image):
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict("x", "a.png", threshold=100, mode=1, return_type=1)
+    assert resp["status"] is False
+
+
+def test_fake_model_sam(tmp_path, make_image, fake_model):
+    """SAM branch without a real onnx model via injected fake."""
+    inf = _inference(tmp_path, make_image)
+    inf._model = fake_model  # noqa: E402
+    resp = inf.predict(
+        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
+    )
+    assert resp["status"] is True
+
+
+@pytest.mark.models
+def test_real_edge_sam(tmp_path, make_image):
+    """End-to-end local SAM with the bundled EdgeSAM onnx models."""
+    from zlabel.utils.paths import resource_dir
+
+    enc = resource_dir() / "edge_sam_3x_encoder.onnx"
+    dec = resource_dir() / "edge_sam_3x_decoder.onnx"
+    if not (enc.exists() and dec.exists()):
+        pytest.skip("onnx models not present in data/ (gitignored)")
+    try:
+        import onnxruntime  # noqa: F401, E402
+    except ImportError:
+        pytest.skip("onnxruntime not installed (uv sync --extra local)")
+    inf = _inference(tmp_path, make_image)
+    resp = inf.predict(
+        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
+    )
+    assert resp["status"] is True
