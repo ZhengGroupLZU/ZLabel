@@ -30,21 +30,22 @@
     <number>2</number>
    </property>
    <item>
-    <widget class="ZListWidget" name="listWidget">
+    <widget class="QTreeWidget" name="listWidget">
      <property name="selectionMode">
       <enum>QAbstractItemView::ExtendedSelection</enum>
      </property>
+     <property name="headerHidden">
+      <bool>true</bool>
+     </property>
+     <column>
+      <property name="text">
+       <string notr="true">1</string>
+      </property>
+     </column>
     </widget>
    </item>
   </layout>
  </widget>
- <customwidgets>
-  <customwidget>
-   <class>ZListWidget</class>
-   <extends>QListWidget</extends>
-   <header>zlabel.widgets.zwidgets</header>
-  </customwidget>
- </customwidgets>
  <resources>
   <include location="../icons.qrc"/>
  </resources>

@@ -60,7 +60,7 @@ if __name__ == "__main__":
         ui_dir / "dock_file.ui",
         ui_dir / "dock_info.ui",
         ui_dir / "dock_label.ui",
-        # ui_dir / "dialog_export.ui",
+        ui_dir / "dialog_export.ui",
         # ui_dir / "dialog_import.ui",
         # ui_dir / "dialog_new_proj.ui",
         # ui_dir / "dialog_category_choice.ui",

@@ -7,7 +7,7 @@ import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
 from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QLabel, QMainWindow, QMessageBox
+from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QLabel, QMainWindow, QMenu, QMessageBox
 
 from zlabel.utils import (
     Annotation,
@@ -33,6 +33,7 @@ from zlabel.utils import (
 from zlabel.utils.backend import ZLabelBackend, build_backend
 from zlabel.widgets import (
     DialogAbout,
+    DialogExport,
     DialogProcessing,
     DialogSettings,
     DialogShortcut,
@@ -41,7 +42,6 @@ from zlabel.widgets import (
     Toast,
     ZGetImageWorker,
     ZGetTasksWorker,
-    ZListWidgetItem,
     ZLoginThread,
     ZResultUndoCmd,
     ZSamPredictWorker,
@@ -795,7 +795,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.canvas.clear_all_items()
         self.dockcnt_anno.listWidget.clear()
-        self.dockcnt_anno.listWidget.setCurrentRow(-1)
+        self.dockcnt_anno.listWidget.setCurrentItem(None)
         self.dockcnt_info.set_info_by_anno(None)
         if self.proj.crt_anno:
             self.proj.crt_anno.reset_results()
@@ -864,6 +864,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.show_toast(self.tr("Draw Polygon"))
 
     def on_action_merge_triggered(self):
+        # In KeyPoint mode the merge tool groups selected keypoints into an instance.
+        pts = self._selected_point_results()
+        if pts:
+            self.on_group_points()
+            return
         self.canvas.merge_items(self.canvas.selected_items)
 
     def on_action_import_task_triggered(self):
@@ -893,16 +898,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.debug(f"imported project {self.settings.project_name}")
 
     def on_action_export_triggered(self):
-        file_path = QFileDialog.getSaveFileName(
-            self,
-            self.tr("Export Task"),
-            ".",
-            "JSON Files (*.json)",
-        )[0]
-        if not file_path:
-            return
-        self.proj.save_json(file_path, include={"id", "name", "description", "labels"})
-        self.logger.debug(f"exported project {self.settings.project.name} to {file_path}")
+        get_image = None
+        if self.backend is not None:
+            get_image = self.backend.get_image
+        dialog = DialogExport(project=self.proj, get_image=get_image, parent=self)
+        dialog.show()
 
     def on_cmbox_annotype_index_changed(self, index: int):
         if index < 0 or index >= len(self.annotation_types):
@@ -918,7 +918,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         is_keypoint = self.settings.annotation_type == AnnotationType.POINT
         self.actionRectangle.setEnabled(not is_keypoint)
         self.actionPolygon.setEnabled(not is_keypoint)
-        self.actionMerge.setEnabled(not is_keypoint)
+        # merge is always enabled: in KeyPoint mode it groups keypoints into instances
         if is_keypoint:
             self.canvas.set_status_mode(StatusMode.VIEW)
             self._set_edit_action_enabled(self.actionMove)
@@ -1030,13 +1030,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_anno_visibility_changed(self, visible: bool):
         self.actionAnnotations.setChecked(visible)
 
-    def on_dock_anno_listw_item_clicked(self, item: ZListWidgetItem):
+    def on_dock_anno_listw_item_clicked(self, item, column: int = 0):
+        id_ = item.data(0, Qt.ItemDataRole.UserRole) if hasattr(item, "data") else getattr(item, "id_", None)
+        if not id_:
+            return
         self.canvas.block_item_state_changed(True)
-        self.canvas.select_item(item.id_)
+        self.canvas.select_item(id_)
         self.canvas.block_item_state_changed(False)
 
-        if self.proj.crt_anno and item.id_ in self.proj.crt_anno.results:
-            self.proj.crt_anno.key_result = item.id_
+        if self.proj.crt_anno and id_ in self.proj.crt_anno.results:
+            self.proj.crt_anno.key_result = id_
             if self.proj.crt_result and self.proj.crt_result.labels:
                 self.proj.key_label = self.proj.crt_result.labels[0].id
                 self.dockcnt_labels.select_row_by_id(self.proj.key_label)
@@ -1395,6 +1398,54 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.show_toast(self.tr(f"Keypoint: {KeypointVisible(visible).name}"))
 
+    def _selected_point_results(self) -> list[PointResult]:
+        """PointResults of the currently selected canvas items."""
+        results: list[PointResult] = []
+        if self.proj.crt_anno is None:
+            return results
+        for item in self.canvas.selected_items:
+            r = self.proj.crt_anno.results.get(item.id_, None)
+            if isinstance(r, PointResult):
+                results.append(r)
+        return results
+
+    def on_group_points(self):
+        """Assign the same instance_id to all selected keypoints."""
+        pts = self._selected_point_results()
+        if not pts:
+            return
+        instance_id = pts[0].instance_id or id_uuid4()
+        result_old = [copy.deepcopy(p) for p in pts]
+        result_new = [copy.deepcopy(p) for p in pts]
+        for r in result_new:
+            r.instance_id = instance_id
+        self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
+        self.dockcnt_anno.update_instance_colors(self.proj.crt_anno)
+        self.show_toast(self.tr(f"Grouped {len(pts)} keypoints"))
+
+    def on_ungroup_points(self):
+        """Clear instance_id so each selected keypoint becomes its own instance."""
+        pts = self._selected_point_results()
+        if not pts:
+            return
+        result_old = [copy.deepcopy(p) for p in pts]
+        result_new = [copy.deepcopy(p) for p in pts]
+        for r in result_new:
+            r.instance_id = ""
+        self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
+        self.dockcnt_anno.update_instance_colors(self.proj.crt_anno)
+        self.show_toast(self.tr(f"Split {len(pts)} keypoints"))
+
+    def on_anno_context_menu(self, pos):
+        menu = QMenu(self)
+        act_merge = menu.addAction(self.tr("Merge to instance"))
+        act_split = menu.addAction(self.tr("Split to instances"))
+        selected = menu.exec(self.dockcnt_anno.listWidget.mapToGlobal(pos))
+        if selected == act_merge:
+            self.on_group_points()
+        elif selected == act_split:
+            self.on_ungroup_points()
+
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
             return
@@ -1600,6 +1651,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sc.setContext(Qt.ShortcutContext.WindowShortcut)
             sc.activated.connect(functools.partial(self.on_toggle_point_visible, vis.value))
             self._point_visible_shortcuts.append(sc)
+
+        # group / ungroup keypoints into instances.
+        # 'G' is already bound to actionMerge (which merges keypoints when
+        # points are selected); only 'U' needs a dedicated shortcut here.
+        self._point_group_shortcuts: list[QShortcut] = []
+        sc = QShortcut(QKeySequence("U"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)
+        sc.activated.connect(self.on_ungroup_points)
+        self._point_group_shortcuts.append(sc)
+
+        # dock annotation context menu
+        self.dockcnt_anno.listWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
+        self.dockcnt_anno.listWidget.customContextMenuRequested.connect(self.on_anno_context_menu)
 
         # dock annotations
         self.dock_annos.visibilityChanged.connect(self.on_dock_anno_visibility_changed)

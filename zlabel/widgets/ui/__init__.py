@@ -1,4 +1,5 @@
 from .dialog_about import Ui_DialogAbout
+from .dialog_export import Ui_DialogExport
 from .dialog_processing import Ui_DialogProcessing
 from .dialog_settings import Ui_DialogSettings
 from .dialog_shortcuts import Ui_DialogShortcut
@@ -11,6 +12,7 @@ from .mainwindow import Ui_MainWindow
 __all__ = (
     "Ui_MainWindow",
     "Ui_DialogAbout",
+    "Ui_DialogExport",
     "Ui_DialogShortcut",
     "Ui_DialogSettings",
     "Ui_DialogProcessing",

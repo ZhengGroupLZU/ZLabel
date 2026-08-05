@@ -15,10 +15,8 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
     QFont, QFontDatabase, QGradient, QIcon,
     QImage, QKeySequence, QLinearGradient, QPainter,
     QPalette, QPixmap, QRadialGradient, QTransform)
-from PySide6.QtWidgets import (QAbstractItemView, QApplication, QListWidgetItem, QSizePolicy,
-    QVBoxLayout, QWidget)
-
-from zlabel.widgets.zwidgets import ZListWidget
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QHeaderView, QSizePolicy,
+    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 import icons_rc
 
 class Ui_ZDockAnnotationContent(object):
@@ -30,9 +28,13 @@ class Ui_ZDockAnnotationContent(object):
         self.verticalLayout.setSpacing(2)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(2, 2, 2, 2)
-        self.listWidget = ZListWidget(ZDockAnnotationContent)
+        self.listWidget = QTreeWidget(ZDockAnnotationContent)
+        __qtreewidgetitem = QTreeWidgetItem()
+        __qtreewidgetitem.setText(0, u"1")
+        self.listWidget.setHeaderItem(__qtreewidgetitem)
         self.listWidget.setObjectName(u"listWidget")
         self.listWidget.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.listWidget.setHeaderHidden(True)
 
         self.verticalLayout.addWidget(self.listWidget)
 

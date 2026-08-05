@@ -107,6 +107,7 @@ class PointResult(Result):
     y: float = 0.0
     visible: int = 1  # COCO keypoint visibility: 0=not labeled, 1=labeled, 2=occluded
     category_id: int = 0  # COCO keypoint category index
+    instance_id: str = ""  # shared id groups keypoints of the same instance
 
     @staticmethod
     def new(
@@ -119,6 +120,7 @@ class PointResult(Result):
         y: float = 0.0,
         visible: int = 1,
         category_id: int = 0,
+        instance_id: str = "",
     ):
         r = PointResult(
             id=id_ or id_uuid4(),
@@ -130,6 +132,7 @@ class PointResult(Result):
             y=y,
             visible=visible,
             category_id=category_id,
+            instance_id=instance_id,
         )
 
         return r
@@ -145,6 +148,7 @@ class PointResult(Result):
             and self.y == r.y
             and self.visible == r.visible
             and self.category_id == r.category_id
+            and self.instance_id == r.instance_id
         )
 
     def getState(self) -> dict[str, Any]:
@@ -152,6 +156,7 @@ class PointResult(Result):
             "id": self.id,
             "pos": pg.Point(self.x, self.y),
             "visible": self.visible,
+            "instance_id": self.instance_id,
         }
 
 

@@ -389,6 +389,74 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
 </context>
 <context>
+    <name>DialogExport</name>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="14"/>
+        <source>Export Dataset</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="20"/>
+        <source>Format:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="28"/>
+        <source>COCO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="33"/>
+        <source>Ultralytics YOLO</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="41"/>
+        <source>Task:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="49"/>
+        <source>Object Detection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="54"/>
+        <source>Segmentation</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="59"/>
+        <source>Keypoint Detection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="67"/>
+        <source>Output:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="76"/>
+        <source>COCO json path / YOLO output directory</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="83"/>
+        <source>Browse...</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="120"/>
+        <source>Cancel</source>
+        <translation type="unfinished">取消</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_export.ui" line="127"/>
+        <source>Export</source>
+        <translation type="unfinished">导出</translation>
+    </message>
+</context>
+<context>
     <name>DialogProcessing</name>
     <message>
         <location filename="../resources/ui/dialog_processing.ui" line="14"/>

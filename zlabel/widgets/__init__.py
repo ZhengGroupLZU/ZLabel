@@ -1,4 +1,5 @@
 from zlabel.widgets.dialog_about import DialogAbout
+from zlabel.widgets.dialog_export import DialogExport
 from zlabel.widgets.dialog_processing import DialogProcessing
 from zlabel.widgets.dialog_settings import DialogSettings
 from zlabel.widgets.dialog_shortcut import DialogShortcut
@@ -24,6 +25,7 @@ from zlabel.widgets.zworker import (
 
 __all__ = [
     "DialogAbout",
+    "DialogExport",
     "DialogProcessing",
     "DialogSettings",
     "DialogShortcut",
