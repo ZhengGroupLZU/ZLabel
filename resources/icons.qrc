@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/points.svg</file>
     <file>icons/dock_bottom.svg</file>
     <file>icons/dock_left.svg</file>
     <file>icons/dock_right.svg</file>

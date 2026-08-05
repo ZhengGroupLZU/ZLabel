@@ -709,6 +709,9 @@ class Point(ZROI):
         id_: str | None = None,
     ):
         self.path = None
+        # Set before super().__init__: pg.ROI calls getState() during init.
+        self.radius: float = radius
+        self.visible: int = 1  # COCO keypoint visibility: 0/1/2
         super().__init__(
             pos,
             (radius * 2, radius * 2),
@@ -721,6 +724,7 @@ class Point(ZROI):
 
         self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.id_ = id_ or id_uuid4()
+        self._selected: bool = False
 
         self.center = QPointF(pos[0] - radius, pos[1] - radius)
         self.fill_color = QColor(color)
@@ -729,6 +733,85 @@ class Point(ZROI):
 
         self.setPos(self.center)
 
+    def setSelected(self, s: bool):
+        self._selected = s
+        return super().setSelected(s)
+
+    def isSelected(self):
+        return self._selected
+
+    def mouseClickEvent(self, ev: MouseClickEvent):
+        if ev.button() == Qt.MouseButton.LeftButton:
+            if self.translatable:
+                if not self._selected:
+                    self.setSelected(True)
+                else:
+                    self.setSelected(False)
+            else:
+                ev.ignore()
+                return
+        super().mouseClickEvent(ev)
+
+    def set_visible(self, v: int):
+        self.visible = int(v)
+        if self.visible == 2:  # occluded: hollow
+            self.brush = QBrush(Qt.BrushStyle.NoBrush)
+        else:
+            self.fill_color.setAlphaF(0.3 if self.visible == 0 else 0.8)
+            self.brush = QBrush(self.fill_color)
+        self.update()
+
+    def setMovable(self, movable: bool):
+        self.translatable = movable
+        if self.translatable:
+            self.setCursor(Qt.CursorShape.PointingHandCursor)
+        else:
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def set_radius(self, r: float):
+        """Resize the point while keeping its center fixed."""
+        r = max(float(r), 1e-3)
+        center = self.state["pos"] + pg.Point(self.radius, self.radius)  # type: ignore[attr-defined]
+        self.radius = r
+        self.setSize((r * 2, r * 2), update=False)
+        self.setPos(center - pg.Point(r, r), update=False)
+        self._clearPath()  # cached hit-test shape no longer matches the new size
+        self.update()
+
+    def setFillColor(self, color: QColor | str, alpha: float = 0.8):
+        # Keep keypoint fill opaque regardless of the fill `alpha` used for
+        # rectangles/polygons; visibility only follows the COCO visible state.
+        self.fill_color = QColor(color)
+        if self.visible == 2:  # occluded: hollow
+            self.brush = QBrush(Qt.BrushStyle.NoBrush)
+        else:
+            self.fill_color.setAlphaF(0.3 if self.visible == 0 else 0.8)
+            self.brush = QBrush(self.fill_color)
+        self.update()
+
+    def getState(self) -> dict[str, Any]:
+        # pg.ROI.pos() and stateChanged() call getState(), possibly during
+        # super().__init__(), so tolerate attributes that are not set yet.
+        radius = getattr(self, "radius", 1.0)
+        p = self.state["pos"]  # type: ignore[attr-defined]
+        c = p + pg.Point(radius, radius)
+        return {
+            "id": getattr(self, "id_", ""),
+            "pos": pg.Point(c.x(), c.y()),
+            "visible": getattr(self, "visible", 1),
+        }
+
+    def saveState(self):
+        return self.getState()
+
+    def setState(self, state: dict[str, Any], update: bool = True):
+        self.id_ = state.get("id", self.id_)
+        self.set_visible(state.get("visible", self.visible))
+        if update and "pos" in state:
+            p = state["pos"]
+            self.setPos(QPointF(p.x() - self.radius, p.y() - self.radius))
+        self.update()
+
     def _clearPath(self):
         self.path = None
 
@@ -736,7 +819,10 @@ class Point(ZROI):
         r = self.boundingRect()
 
         p.setRenderHint(QPainter.RenderHint.Antialiasing, self._antialias)
-        p.setPen(self.currentPen)
+        if self.isSelected():
+            p.setPen(pg.mkPen(color="#ffff00", width=3))
+        else:
+            p.setPen(self.currentPen)
         p.setBrush(self.brush)
         p.scale(r.width(), r.height())  # workaround for GL bug
         r = QRectF(r.x() / r.width(), r.y() / r.height(), 1, 1)

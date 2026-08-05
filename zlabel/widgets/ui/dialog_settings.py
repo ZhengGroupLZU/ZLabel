@@ -3,7 +3,7 @@
 ################################################################################
 ## Form generated from reading UI file 'dialog_settings.ui'
 ##
-## Created by: Qt User Interface Compiler version 6.10.0
+## Created by: Qt User Interface Compiler version 6.11.1
 ##
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
@@ -340,13 +340,13 @@ class Ui_DialogSettings(object):
         self.btn_delete_label.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
         self.btn_clear.setText(QCoreApplication.translate("DialogSettings", u"Clear", None))
         ___qtablewidgetitem = self.table_labels.horizontalHeaderItem(0)
-        ___qtablewidgetitem.setText(QCoreApplication.translate("DialogSettings", u"ID", None));
+        ___qtablewidgetitem.setText(QCoreApplication.translate("DialogSettings", u"ID", None))
         ___qtablewidgetitem1 = self.table_labels.horizontalHeaderItem(1)
-        ___qtablewidgetitem1.setText(QCoreApplication.translate("DialogSettings", u"Name", None));
+        ___qtablewidgetitem1.setText(QCoreApplication.translate("DialogSettings", u"Name", None))
         ___qtablewidgetitem2 = self.table_labels.horizontalHeaderItem(2)
-        ___qtablewidgetitem2.setText(QCoreApplication.translate("DialogSettings", u"Color", None));
+        ___qtablewidgetitem2.setText(QCoreApplication.translate("DialogSettings", u"Color", None))
         ___qtablewidgetitem3 = self.table_labels.horizontalHeaderItem(3)
-        ___qtablewidgetitem3.setText(QCoreApplication.translate("DialogSettings", u"Delete", None));
+        ___qtablewidgetitem3.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("DialogSettings", u"Project", None))
     # retranslateUi
 

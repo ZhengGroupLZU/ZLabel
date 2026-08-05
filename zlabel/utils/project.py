@@ -102,6 +102,59 @@ class Result(BaseModel):
         raise NotImplementedError
 
 
+class PointResult(Result):
+    x: float = 0.0
+    y: float = 0.0
+    visible: int = 1  # COCO keypoint visibility: 0=not labeled, 1=labeled, 2=occluded
+    category_id: int = 0  # COCO keypoint category index
+
+    @staticmethod
+    def new(
+        type_id: ResultType = ResultType.POINT,
+        labels: list[Label] | None = None,
+        origin: str = "manual",
+        score: float = 0,
+        id_=None,
+        x: float = 0.0,
+        y: float = 0.0,
+        visible: int = 1,
+        category_id: int = 0,
+    ):
+        r = PointResult(
+            id=id_ or id_uuid4(),
+            type_id=type_id,
+            labels=labels or [],
+            origin=origin,
+            score=score,
+            x=x,
+            y=y,
+            visible=visible,
+            category_id=category_id,
+        )
+
+        return r
+
+    def equal_v(self, r: "Result"):
+        return (
+            isinstance(r, PointResult)
+            and self.type_id == r.type_id
+            and self.labels == r.labels
+            and self.origin == r.origin
+            and self.score == r.score
+            and self.x == r.x
+            and self.y == r.y
+            and self.visible == r.visible
+            and self.category_id == r.category_id
+        )
+
+    def getState(self) -> dict[str, Any]:
+        return {
+            "id": self.id,
+            "pos": pg.Point(self.x, self.y),
+            "visible": self.visible,
+        }
+
+
 class RectangleResult(Result):
     x: float = 0.0
     y: float = 0.0
@@ -247,7 +300,7 @@ class Annotation(BaseModel):
     image_rotation: int = 0
     note: str = ""
 
-    results: OrderedDict[str, PolygonResult | RectangleResult] = OrderedDict()
+    results: OrderedDict[str, PointResult | RectangleResult | PolygonResult] = OrderedDict()
 
     key_result: str | None = None
 
@@ -273,7 +326,7 @@ class Annotation(BaseModel):
             return None
         return self.results.get(self.key_result, None)
 
-    def add_result(self, result: RectangleResult | PolygonResult):
+    def add_result(self, result: PointResult | RectangleResult | PolygonResult):
         self.results[result.id] = result
         self.key_result = result.id
 

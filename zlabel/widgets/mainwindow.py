@@ -15,8 +15,10 @@ from zlabel.utils import (
     AutoMode,
     DrawMode,
     FetchType,
+    KeypointVisible,
     Label,
     Language,
+    PointResult,
     PolygonResult,
     Project,
     RectangleResult,
@@ -202,6 +204,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
+        self.update_anno_type_actions()
         self.set_loglevel(self.settings.log_level.name)
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
         self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
@@ -445,7 +448,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.StandardButton.Ok,
         )
 
-    def add_result(self, result: RectangleResult | PolygonResult, update: bool = False):
+    def add_result(self, result: PointResult | RectangleResult | PolygonResult, update: bool = False):
         if self.proj.crt_anno is None:
             self.logger.error(f"Current annotation is None! {self.proj.crt_task=}")
             return
@@ -454,15 +457,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.add_item(result.id)
         # self.logger.debug(f"Added result {result}")
 
-    def add_results(self, results: list[RectangleResult | PolygonResult], update: bool = False):
+    def add_results(self, results: list[PointResult | RectangleResult | PolygonResult], update: bool = False):
         for result in results:
             self.add_result(result, update)
 
     def add_result_undo_cmd(
         self,
-        results: list[RectangleResult | PolygonResult],
+        results: list[PointResult | RectangleResult | PolygonResult],
         mode: ResultUndoMode,
-        results_old: list[RectangleResult | PolygonResult] | None = None,
+        results_old: list[PointResult | RectangleResult | PolygonResult] | None = None,
     ):
         cmd = ZResultUndoCmd(self, results, mode, results_old)
         self.undo_stack.push(cmd)
@@ -479,7 +482,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for id_ in ids:
             self.remove_result(id_, update)
 
-    def modify_result(self, result: RectangleResult | PolygonResult, update: bool = False):
+    def modify_result(self, result: PointResult | RectangleResult | PolygonResult, update: bool = False):
         if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
             return
         self.logger.debug(f"{result=}")
@@ -492,7 +495,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def modify_results(
         self,
-        results: list[RectangleResult | PolygonResult] | None = None,
+        results: list[PointResult | RectangleResult | PolygonResult] | None = None,
         update: bool = False,
     ):
         if results is None:
@@ -822,40 +825,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if msg:
             self.show_toast("+".join(msg))
 
-    def on_action_move_triggered(self):
+    def _set_edit_action_enabled(self, active):
+        """Enable the active edit action and disable the others. In KeyPoint
+        mode, Rectangle and Polygon stay disabled regardless of what is active."""
+        is_keypoint = self.settings.annotation_type == AnnotationType.POINT
         for action in self.action_group_edit:
-            action.setEnabled(action != self.actionMove)
+            if is_keypoint and action in (self.actionRectangle, self.actionPolygon):
+                action.setEnabled(False)
+            else:
+                action.setEnabled(action != active)
 
+    def on_action_move_triggered(self):
+        self._set_edit_action_enabled(self.actionMove)
         self.canvas.set_status_mode(StatusMode.VIEW)
         self.show_toast(self.tr("Move Mode"))
 
     def on_action_edit_triggered(self):
-        for action in self.action_group_edit:
-            action.setEnabled(action != self.actionEdit)
-
+        self._set_edit_action_enabled(self.actionEdit)
         self.canvas.set_status_mode(StatusMode.EDIT)
         self.show_toast(msg=self.tr("Edit Mode"))
 
     def on_action_rectangle_triggered(self):
-        for action in self.action_group_edit:
-            action.setEnabled(action != self.actionRectangle)
-
+        self._set_edit_action_enabled(self.actionRectangle)
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.RECTANGLE)
         self.show_toast(self.tr("Draw Rectangle"))
 
     def on_action_point_triggered(self):
-        for action in self.action_group_edit:
-            action.setEnabled(action != self.actionPoint)
-
+        self._set_edit_action_enabled(self.actionPoint)
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.POINT)
-        self.show_toast(self.tr("Draw Point"))
+        self.show_toast(self.tr("Draw KeyPoint"))
 
     def on_action_polygon_triggered(self):
-        for action in self.action_group_edit:
-            action.setEnabled(action != self.actionPolygon)
-
+        self._set_edit_action_enabled(self.actionPolygon)
         self.canvas.set_status_mode(StatusMode.CREATE)
         self.canvas.set_draw_mode(DrawMode.POLYGON)
         self.show_toast(self.tr("Draw Polygon"))
@@ -906,6 +909,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.settings.annotation_type = AnnotationType(index)
         self.settings.save_json(self.settings_path)
+        self.update_anno_type_actions()
+
+    def update_anno_type_actions(self):
+        """KeyPoint mode disables Rectangle/Polygon/Merge and drops into Move
+        (preview) mode; Move is shown as the active mode, the user clicks Point
+        to start drawing keypoints."""
+        is_keypoint = self.settings.annotation_type == AnnotationType.POINT
+        self.actionRectangle.setEnabled(not is_keypoint)
+        self.actionPolygon.setEnabled(not is_keypoint)
+        self.actionMerge.setEnabled(not is_keypoint)
+        if is_keypoint:
+            self.canvas.set_status_mode(StatusMode.VIEW)
+            self._set_edit_action_enabled(self.actionMove)
+        else:
+            for action in self.action_group_edit:
+                action.setEnabled(True)
+            # drop any leftover point-drawing state from KeyPoint mode
+            if self.canvas._status_mode == StatusMode.CREATE and self.canvas._draw_mode == DrawMode.POINT:
+                self.canvas.set_status_mode(StatusMode.VIEW)
 
     def on_cmbox_rgb_index_changed(self, index: int):
         if index < 0 or index >= len(self.rgb_channels):
@@ -977,8 +999,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # prevent canvas state changed signal
         self._is_modifying = True
 
-        result_old: list[RectangleResult | PolygonResult] = []
-        result_new: list[RectangleResult | PolygonResult] = []
+        result_old: list[PointResult | RectangleResult | PolygonResult] = []
+        result_new: list[PointResult | RectangleResult | PolygonResult] = []
         for item in items:
             result = self.proj.crt_anno.results.get(item.id_, None)
             if result is None:
@@ -1155,7 +1177,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.add_results(results)
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
 
-    def on_canvas_point_created(self, point: QPointF):
+    def on_canvas_point_created(self, item_state: dict[str, Any] | None):
+        if item_state is None:
+            return
         if self.current_image is None:
             QMessageBox.warning(
                 self,
@@ -1173,6 +1197,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
 
+        pos = item_state["pos"]
+
+        # Direct keypoint annotation: save the click as a PointResult.
+        if self.settings.annotation_type == AnnotationType.POINT:
+            if not (self.proj.crt_anno and self.proj.crt_anno.image_path):
+                QMessageBox.warning(
+                    self,
+                    self.tr("Warning"),
+                    self.tr("Please select a task first!"),
+                    QMessageBox.StandardButton.Ok,
+                )
+                return
+            result = PointResult.new(
+                id_=item_state.get("id"),
+                labels=[self.proj.crt_label],
+                x=pos.x(),
+                y=pos.y(),
+                visible=KeypointVisible.VISIBLE,
+                category_id=self._label_category_id(self.proj.crt_label),
+            )
+            self.add_result_undo_cmd([result], ResultUndoMode.ADD)
+            return
+
+        # Legacy SAM/CV prompt path
         match self.auto_mode:
             case AutoMode.SAM | AutoMode.CV:
                 ...
@@ -1205,7 +1253,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             api=self.backend,
             anno_id=self.proj.crt_task.anno_id,
             image=self.proj.crt_anno.image_path,
-            points=[(point.x(), point.y())],
+            points=[(pos.x(), pos.y())],
             labels=[1.0],
             threshold=self.threshold,
             mode=self.auto_mode,
@@ -1214,6 +1262,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return_type=1 if self.settings.annotation_type == 0 else 2,
         )
         self.run_sam_api_worker(worker)
+
+    def _label_category_id(self, label: Label) -> int:
+        for i, lab in enumerate(self.proj.labels.values()):
+            if lab.id == label.id:
+                return i
+        return 0
 
     def on_canvas_rectangle_created(self, item_state: dict[str, Any] | None):
         if item_state is None or self.proj.key_task is None or self.current_image is None:
@@ -1327,6 +1381,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_result and self.proj.crt_result.labels:
             self.dockcnt_labels.select_row_by_id(self.proj.crt_result.labels[0].id)
 
+    def on_toggle_point_visible(self, visible: int):
+        """Toggle the COCO visibility of the currently selected PointResult."""
+        if self.proj.crt_anno is None or self.proj.crt_result is None:
+            return
+        if not isinstance(self.proj.crt_result, PointResult):
+            return
+        if self.proj.crt_result.visible == visible:
+            return
+        result_old = copy.deepcopy(self.proj.crt_result)
+        result_new = copy.deepcopy(self.proj.crt_result)
+        result_new.visible = visible
+        self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
+        self.show_toast(self.tr(f"Keypoint: {KeypointVisible(visible).name}"))
+
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
             return
@@ -1350,15 +1418,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None or self._is_modifying:
             return
         assert "id" in state and state["id"] in self.proj.crt_anno.results, f"state={state}"
-        result: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
-        result_old: RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
-        result.x = state["pos"][0]
-        result.y = state["pos"][1]
-        result.w = state["size"][0]
-        result.h = state["size"][1]
-        result.rotation = state["angle"]
-        if isinstance(result, PolygonResult):
-            result.points = list(state["points"])
+        result: PointResult | RectangleResult | PolygonResult = copy.deepcopy(self.proj.crt_anno.results[state["id"]])
+        result_old: PointResult | RectangleResult | PolygonResult = copy.deepcopy(
+            self.proj.crt_anno.results[state["id"]]
+        )
+        if isinstance(result, PointResult):
+            result.x = state["pos"][0]
+            result.y = state["pos"][1]
+            result.visible = state.get("visible", result.visible)
+        else:
+            result.x = state["pos"][0]
+            result.y = state["pos"][1]
+            result.w = state["size"][0]
+            result.h = state["size"][1]
+            result.rotation = state["angle"]
+            if isinstance(result, PolygonResult):
+                result.points = list(state["points"])
         if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
             self.add_result_undo_cmd([result], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
@@ -1396,6 +1471,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.annotation_types = [
             ("Rectangle", ":/icon/icons/rectangle_two_points.svg"),
             ("Polygon", ":/icon/icons/polygon.svg"),
+            ("KeyPoint", ":/icon/icons/points.svg"),
         ]
         self.cmbox_anno_type = QComboBox(self)
         for anno_type, icon_path in self.annotation_types:
@@ -1512,6 +1588,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sc.setContext(Qt.ShortcutContext.WindowShortcut)
             sc.activated.connect(functools.partial(self.on_shortcut_select_label_number, n))
             self._label_shortcuts.append(sc)
+
+        # keypoint visibility shortcuts (apply to the selected PointResult)
+        self._point_visible_shortcuts: list[QShortcut] = []
+        for key, vis in [
+            ("V", KeypointVisible.VISIBLE),
+            ("O", KeypointVisible.OCCLUDED),
+            ("M", KeypointVisible.MISSING),
+        ]:
+            sc = QShortcut(QKeySequence(key), self)
+            sc.setContext(Qt.ShortcutContext.WindowShortcut)
+            sc.activated.connect(functools.partial(self.on_toggle_point_visible, vis.value))
+            self._point_visible_shortcuts.append(sc)
 
         # dock annotations
         self.dock_annos.visibilityChanged.connect(self.on_dock_anno_visibility_changed)

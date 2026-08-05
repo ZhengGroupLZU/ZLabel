@@ -23,7 +23,7 @@ PySide6 + pyqtgraph desktop image-labeling app (GUI client for an external ZL an
 ## Architecture
 
 - `zlabel/main.py` — app entry; `zlabel/widgets/mainwindow.py` — main window; `zlabel/widgets/canvas.py` — pyqtgraph-based annotation canvas.
-- `zlabel/utils/project.py` — all pydantic data models (`User`, `Label`, `Result`/`RectangleResult`/`PolygonResult`, `Annotation`, `Task`, `Project`). Annotations serialize to JSON; `Project.save_json` deliberately excludes `tasks` (fetched from the storage backend). `Project.storage_mode` ("remote"|"local") is persisted per project.
+- `zlabel/utils/project.py` — all pydantic data models (`User`, `Label`, `Result`/`PointResult`/`RectangleResult`/`PolygonResult`, `Annotation`, `Task`, `Project`). Annotations serialize to JSON; `Project.save_json` deliberately excludes `tasks` (fetched from the storage backend). `Project.storage_mode` ("remote"|"local") is persisted per project. Keypoints are `PointResult` (x/y + COCO `visible` 0/1/2 + `category_id`), created when the annotation-type combo is "Point"; `V`/`O`/`M` toggle visibility of the selected keypoint.
 - `zlabel/utils/backend.py` — backend abstraction. Two independent axes, composed into `ZLabelBackend` via `build_backend(settings)`:
   - Inference: `RemoteInference` (HTTP `/predict`) vs `LocalInference` (in-process ONNX). Selected by `settings.inference_mode`.
   - Storage: `RemoteStorage` (wraps `ZLServerApiHelper` / OpenList) vs `LocalStorage` (filesystem under `~/.zlabel/projects/<name>/`, images in `images/`, annos in `annos/`). Selected per project via `Project.storage_mode`.

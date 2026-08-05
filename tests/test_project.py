@@ -1,6 +1,14 @@
 import json
 
-from zlabel.utils.project import Annotation, Label, Project, RectangleResult, Task
+from zlabel.utils.project import (
+    Annotation,
+    Label,
+    PointResult,
+    Project,
+    RectangleResult,
+    ResultType,
+    Task,
+)
 
 
 def _project() -> Project:
@@ -91,3 +99,40 @@ def test_rect_result_get_state():
     state = r.getState()
     assert state["pos"].x() == 1.0
     assert state["size"].y() == 4.0
+
+
+def test_point_result_defaults():
+    r = PointResult.new(labels=[], x=1.5, y=2.5)
+    assert r.type_id == ResultType.POINT
+    assert r.visible == 1
+    assert r.category_id == 0
+
+
+def test_point_result_get_state():
+    r = PointResult.new(labels=[], x=1.5, y=2.5, visible=2, category_id=3)
+    state = r.getState()
+    assert state["id"] == r.id
+    assert state["pos"].x() == 1.5
+    assert state["pos"].y() == 2.5
+    assert state["visible"] == 2
+
+
+def test_point_result_equal_v():
+    lab = Label.new("A")
+    a = PointResult.new(labels=[lab], x=1.0, y=2.0, visible=1)
+    b = PointResult.new(labels=[lab], x=1.0, y=2.0, visible=1)
+    c = PointResult.new(labels=[lab], x=1.0, y=3.0, visible=1)
+    assert a.equal_v(b)
+    assert not a.equal_v(c)
+
+
+def test_annotation_with_point_result_roundtrip(tmp_path):
+    anno = Annotation(id="a1", image_path="a.png", original_width=10, original_height=10)
+    r = PointResult.new(labels=[Label.new("A")], x=1.5, y=2.5, visible=2, category_id=1)
+    anno.add_result(r)
+    path = tmp_path / "a1.zlabel"
+    anno.save_json(str(path))
+    anno2 = Annotation.model_validate_json(path.read_text(encoding="utf-8"), strict=True)
+    r2 = anno2.results[r.id]
+    assert isinstance(r2, PointResult)
+    assert r2.x == 1.5 and r2.y == 2.5 and r2.visible == 2 and r2.category_id == 1

@@ -56,6 +56,13 @@ class ContourMode(IntEnum):
 class AnnotationType(IntEnum):
     RECTANGLE = 0
     POLYGON = 1
+    POINT = 2
+
+
+class KeypointVisible(IntEnum):
+    MISSING = 0  # not labeled
+    VISIBLE = 1  # labeled and visible
+    OCCLUDED = 2  # labeled but occluded
 
 
 class FetchType(IntEnum):

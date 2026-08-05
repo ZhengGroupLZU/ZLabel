@@ -2,7 +2,7 @@ from enum import Enum
 
 from pyqtgraph.Qt.QtGui import QUndoCommand
 
-from zlabel.utils import PolygonResult, RectangleResult
+from zlabel.utils import PointResult, PolygonResult, RectangleResult
 
 
 class ResultUndoMode(Enum):
@@ -17,9 +17,9 @@ class ZResultUndoCmd(QUndoCommand):
     def __init__(
         self,
         mainwindow,
-        results: list[RectangleResult | PolygonResult],
+        results: list[PointResult | RectangleResult | PolygonResult],
         mode: ResultUndoMode,
-        results_old: list[RectangleResult | PolygonResult] | None = None,
+        results_old: list[PointResult | RectangleResult | PolygonResult] | None = None,
     ):
         super().__init__()
         self.mw = mainwindow
