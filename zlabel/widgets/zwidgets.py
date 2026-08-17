@@ -1,5 +1,3 @@
-from functools import partial
-
 from pyqtgraph.Qt.QtCore import QByteArray, QPointF, QPropertyAnimation, QSize, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import (
     QBrush,
@@ -167,6 +165,7 @@ class ZListWidgetItem(QListWidgetItem):
 class ZLabelItemWidget(QWidget):
     sigColorChanged = Signal(str)
     sigSelected = Signal()
+    sigVisibilityToggled = Signal(str)
 
     def __init__(
         self,
@@ -181,6 +180,14 @@ class ZLabelItemWidget(QWidget):
         self.color = color
         self.clipboard = QGuiApplication.clipboard()
 
+        self.btn_visible = QPushButton()
+        self.btn_visible.setCheckable(True)
+        self.btn_visible.setChecked(True)
+        self.btn_visible.setFixedSize(22, 22)
+        self.btn_visible.setIcon(QIcon(":/icon/icons/eye-2.svg"))
+        self.btn_visible.setToolTip("Show / hide all annotations of this label")
+        self.btn_visible.clicked.connect(self.on_visible_clicked)
+
         self.label_color = ZPushButton(btn_text)
         self.label_color.setMaximumWidth(30)
         self.label_color.clicked.connect(self.sigSelected.emit)
@@ -191,9 +198,19 @@ class ZLabelItemWidget(QWidget):
 
         self.layout_ = QHBoxLayout()
         self.layout_.setContentsMargins(0, 0, 0, 0)
+        self.layout_.addWidget(self.btn_visible)
         self.layout_.addWidget(self.label_color)
         self.layout_.addWidget(self.label_text)
         self.setLayout(self.layout_)
+
+    def set_visible_state(self, visible: bool):
+        self.btn_visible.blockSignals(True)
+        self.btn_visible.setChecked(visible)
+        self.btn_visible.blockSignals(False)
+        self.btn_visible.setStyleSheet("opacity: 0.35;" if not visible else "")
+
+    def on_visible_clicked(self):
+        self.sigVisibilityToggled.emit(self.id_)
 
     def set_label_color(self, color: str):
         self.label_color.setStyleSheet(f"ZPushButton {{margin: 1px; background-color: {color};}}")
@@ -289,7 +306,7 @@ QSlider::handle:horizontal {
         layout.setSpacing(3)
         self.setLayout(layout)
 
-        self.slider.valueChanged.connect(partial(self.label.setText, f"{self.slider.value()}"))
+        self.slider.valueChanged.connect(lambda v: self.label.setText(f"{v}"))
         self.slider.valueChanged.connect(self.valueChanged.emit)
 
     def setValue(self, v: int) -> None:
@@ -304,9 +321,7 @@ class Toast(QWidget):
         self.parent_: QMainWindow | None = parent
         QTimer.singleShot(timeout, self.close)
         self.setWindowFlags(
-            Qt.WindowType.FramelessWindowHint
-            | Qt.WindowType.ToolTip
-            | Qt.WindowType.WindowStaysOnTopHint
+            Qt.WindowType.FramelessWindowHint | Qt.WindowType.ToolTip | Qt.WindowType.WindowStaysOnTopHint
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         # self.setMaximumSize(QSize(300, 200))

@@ -1,6 +1,7 @@
+"""Shared data / result types for the local MNN inference backend."""
+
 from collections.abc import Sequence
 from dataclasses import dataclass
-from enum import Enum
 
 import numpy as np
 from numpy.typing import NDArray
@@ -48,10 +49,6 @@ class Polygon(BaseModel):
     # ref.: https://www.kaggle.com/stainsby/fast-tested-rle
     @staticmethod
     def rle_encode(img: np.ndarray):
-        """
-        img: numpy array, 1 - mask, 0 - background
-        Returns run length as string formated
-        """
         pixels = img.flatten()
         pixels = np.concatenate([[0], pixels, [0]])
         runs = np.where(pixels[1:] != pixels[:-1])[0] + 1
@@ -60,11 +57,6 @@ class Polygon(BaseModel):
 
     @staticmethod
     def rle_decode(mask_rle: str, shape: tuple[int, int]) -> np.ndarray:
-        """
-        mask_rle: run-length as string formated (start length)
-        shape: (height,width) of array to return
-        Returns numpy array, 1 - mask, 0 - background
-        """
         s = mask_rle.split()
         starts, lengths = [np.asarray(x, dtype=int) for x in (s[0:][::2], s[1:][::2])]
         starts -= 1
@@ -77,52 +69,17 @@ class Polygon(BaseModel):
 
 @dataclass
 class SamOnnxResult:
+    """One predicted object: binary mask (H,W) + score + optional xyxy box (px)."""
+
     mask: NDArray[np.float32]
     score: float
-
-
-class PromptType(Enum):
-    POINT = "point"
-    RECTANGLE = "rectangle"
+    box: tuple[float, float, float, float] | None = None
 
 
 @dataclass
-class SamOnnxPrompt:
-    type_: PromptType
-    # (x, y) for point, (x0, y0, x1, y1) for rectangle
-    point: tuple[float, float] | tuple[float, float, float, float]
-    label: float
+class PvsResult:
+    """Interactive (points/box) single-object result, SAM3 PVS path."""
 
-    @staticmethod
-    def new(p: Point | Rect | tuple[int, int] | tuple[int, int, int, int], label):
-        match p:
-            case Point():
-                prompt = SamOnnxPrompt(PromptType.POINT, (p.x, p.y), label)
-            case Rect():
-                prompt = SamOnnxPrompt(
-                    PromptType.RECTANGLE,
-                    (p.x, p.y, p.x1, p.y1),
-                    label,
-                )
-            case (x, y):
-                prompt = SamOnnxPrompt(PromptType.POINT, (float(x), float(y)), label)
-            case (x, y, w, h):
-                prompt = SamOnnxPrompt(
-                    PromptType.RECTANGLE,
-                    (float(x), float(y), float(w), float(h)),
-                    label,
-                )
-            case _:
-                raise ValueError
-        return prompt
-
-
-@dataclass
-class SamOnnxEncodedInput:
-    image_embedding: NDArray[np.float32]
-    original_height: int
-    original_width: int
-    resized_height: int
-    resized_width: int
-    high_res_feats_0: np.ndarray | None = None  # SAM2
-    high_res_feats_1: np.ndarray | None = None  # SAM2
+    mask: NDArray[np.uint8]  # (H, W) binary in original image space
+    score: float
+    box: NDArray[np.float32]  # (4,) xyxy in original pixel coords

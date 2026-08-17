@@ -13,6 +13,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
     sigItemColorChanged = Signal(str, str)
     sigItemClicked = Signal(str)  # id
     sigItemDoubleClicked = Signal(str)  # id
+    sigItemVisibilityToggled = Signal(str)  # id
 
     def __init__(self, parent: QWidget | None = None):
         super().__init__(parent)
@@ -61,6 +62,7 @@ class ZDockLabelContent(QWidget, Ui_ZDockLabelContent):
         item_widget = ZLabelItemWidget(label.id, label.name, label.color, btn_text=btn_text)
         item_widget.sigColorChanged.connect(self.on_item_color_changed)
         item_widget.sigSelected.connect(partial(self.select_row_by_id, label.id))
+        item_widget.sigVisibilityToggled.connect(self.sigItemVisibilityToggled.emit)
         if index is None:
             self.listw_labels.addItem(item)
         else:

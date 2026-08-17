@@ -18,8 +18,9 @@ from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
 from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
     QDoubleSpinBox, QGridLayout, QGroupBox, QHBoxLayout,
     QHeaderView, QLabel, QLineEdit, QPushButton,
-    QScrollArea, QSizePolicy, QSpacerItem, QTabWidget,
-    QTableWidget, QTableWidgetItem, QVBoxLayout, QWidget)
+    QScrollArea, QSizePolicy, QSpacerItem, QSpinBox,
+    QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
+    QWidget)
 import icons_rc
 
 class Ui_DialogSettings(object):
@@ -71,7 +72,7 @@ class Ui_DialogSettings(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 629, 501))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 615, 597))
         self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(3, 3, 3, 3)
@@ -183,9 +184,117 @@ class Ui_DialogSettings(object):
 
         self.gridLayout.addWidget(self.groupBox, 0, 0, 1, 1)
 
+        self.gbox_inference = QGroupBox(self.scrollAreaWidgetContents)
+        self.gbox_inference.setObjectName(u"gbox_inference")
+        self.grid_inference = QGridLayout(self.gbox_inference)
+        self.grid_inference.setObjectName(u"grid_inference")
+        self.label_inf_mode = QLabel(self.gbox_inference)
+        self.label_inf_mode.setObjectName(u"label_inf_mode")
+
+        self.grid_inference.addWidget(self.label_inf_mode, 0, 0, 1, 1)
+
+        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
+        self.cmbox_inference_mode.addItem("")
+        self.cmbox_inference_mode.addItem("")
+        self.cmbox_inference_mode.setObjectName(u"cmbox_inference_mode")
+
+        self.grid_inference.addWidget(self.cmbox_inference_mode, 0, 1, 1, 1)
+
+        self.label_backend = QLabel(self.gbox_inference)
+        self.label_backend.setObjectName(u"label_backend")
+
+        self.grid_inference.addWidget(self.label_backend, 1, 0, 1, 1)
+
+        self.cmbox_backend = QComboBox(self.gbox_inference)
+        self.cmbox_backend.addItem("")
+        self.cmbox_backend.addItem("")
+        self.cmbox_backend.addItem("")
+        self.cmbox_backend.addItem("")
+        self.cmbox_backend.addItem("")
+        self.cmbox_backend.setObjectName(u"cmbox_backend")
+
+        self.grid_inference.addWidget(self.cmbox_backend, 1, 1, 1, 1)
+
+        self.label_model = QLabel(self.gbox_inference)
+        self.label_model.setObjectName(u"label_model")
+
+        self.grid_inference.addWidget(self.label_model, 2, 0, 1, 1)
+
+        self.cmbox_model_name = QComboBox(self.gbox_inference)
+        self.cmbox_model_name.addItem("")
+        self.cmbox_model_name.addItem("")
+        self.cmbox_model_name.addItem("")
+        self.cmbox_model_name.addItem("")
+        self.cmbox_model_name.addItem("")
+        self.cmbox_model_name.setObjectName(u"cmbox_model_name")
+
+        self.grid_inference.addWidget(self.cmbox_model_name, 2, 1, 1, 1)
+
+        self.label_model_folder = QLabel(self.gbox_inference)
+        self.label_model_folder.setObjectName(u"label_model_folder")
+
+        self.grid_inference.addWidget(self.label_model_folder, 3, 0, 1, 1)
+
+        self.ledit_model_dir = QLineEdit(self.gbox_inference)
+        self.ledit_model_dir.setObjectName(u"ledit_model_dir")
+
+        self.grid_inference.addWidget(self.ledit_model_dir, 3, 1, 1, 1)
+
+        self.btn_model_dir = QPushButton(self.gbox_inference)
+        self.btn_model_dir.setObjectName(u"btn_model_dir")
+
+        self.grid_inference.addWidget(self.btn_model_dir, 3, 2, 1, 1)
+
+        self.label_upload_size = QLabel(self.gbox_inference)
+        self.label_upload_size.setObjectName(u"label_upload_size")
+
+        self.grid_inference.addWidget(self.label_upload_size, 4, 0, 1, 1)
+
+        self.spin_upload_size = QSpinBox(self.gbox_inference)
+        self.spin_upload_size.setObjectName(u"spin_upload_size")
+        self.spin_upload_size.setMinimum(64)
+        self.spin_upload_size.setMaximum(8192)
+        self.spin_upload_size.setSingleStep(64)
+        self.spin_upload_size.setValue(1024)
+
+        self.grid_inference.addWidget(self.spin_upload_size, 4, 1, 1, 1)
+
+        self.ckbox_auto_dish = QCheckBox(self.gbox_inference)
+        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
+
+        self.grid_inference.addWidget(self.ckbox_auto_dish, 5, 0, 1, 2)
+
+        self.ckbox_ocr_skip = QCheckBox(self.gbox_inference)
+        self.ckbox_ocr_skip.setObjectName(u"ckbox_ocr_skip")
+
+        self.grid_inference.addWidget(self.ckbox_ocr_skip, 6, 0, 1, 2)
+
+        self.label_ocr_dir = QLabel(self.gbox_inference)
+        self.label_ocr_dir.setObjectName(u"label_ocr_dir")
+
+        self.grid_inference.addWidget(self.label_ocr_dir, 7, 0, 1, 1)
+
+        self.ledit_ocr_dir = QLineEdit(self.gbox_inference)
+        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
+
+        self.grid_inference.addWidget(self.ledit_ocr_dir, 7, 1, 1, 1)
+
+        self.btn_ocr_dir = QPushButton(self.gbox_inference)
+        self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
+
+        self.grid_inference.addWidget(self.btn_ocr_dir, 7, 2, 1, 1)
+
+        self.ckbox_copy_prev = QCheckBox(self.gbox_inference)
+        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
+
+        self.grid_inference.addWidget(self.ckbox_copy_prev, 8, 0, 1, 2)
+
+
+        self.gridLayout.addWidget(self.gbox_inference, 1, 0, 1, 1)
+
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout.addItem(self.verticalSpacer, 1, 0, 1, 1)
+        self.gridLayout.addItem(self.verticalSpacer, 2, 0, 1, 1)
 
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
 
@@ -201,7 +310,7 @@ class Ui_DialogSettings(object):
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 609, 506))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, -18, 607, 506))
         self.gridLayout_8 = QGridLayout(self.scrollAreaWidgetContents_2)
         self.gridLayout_8.setObjectName(u"gridLayout_8")
         self.gridLayout_8.setContentsMargins(3, 3, 3, 3)
@@ -218,20 +327,69 @@ class Ui_DialogSettings(object):
         self.gridLayout_11.setContentsMargins(5, 5, 5, 5)
         self.gridLayout_12 = QGridLayout()
         self.gridLayout_12.setObjectName(u"gridLayout_12")
+        self.btn_new_project = QPushButton(self.groupBox_5)
+        self.btn_new_project.setObjectName(u"btn_new_project")
+
+        self.gridLayout_12.addWidget(self.btn_new_project, 0, 1, 1, 1)
+
+        self.status_btns = QVBoxLayout()
+        self.status_btns.setObjectName(u"status_btns")
+        self.btn_add_status = QPushButton(self.groupBox_5)
+        self.btn_add_status.setObjectName(u"btn_add_status")
+
+        self.status_btns.addWidget(self.btn_add_status)
+
+        self.btn_del_status = QPushButton(self.groupBox_5)
+        self.btn_del_status.setObjectName(u"btn_del_status")
+
+        self.status_btns.addWidget(self.btn_del_status)
+
+        self.status_spacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.status_btns.addItem(self.status_spacer)
+
+
+        self.gridLayout_12.addLayout(self.status_btns, 6, 2, 1, 1)
+
+        self.label_statuses = QLabel(self.groupBox_5)
+        self.label_statuses.setObjectName(u"label_statuses")
+
+        self.gridLayout_12.addWidget(self.label_statuses, 6, 0, 1, 1)
+
+        self.ledit_prjdesc = QLineEdit(self.groupBox_5)
+        self.ledit_prjdesc.setObjectName(u"ledit_prjdesc")
+
+        self.gridLayout_12.addWidget(self.ledit_prjdesc, 3, 1, 1, 2)
+
         self.label_14 = QLabel(self.groupBox_5)
         self.label_14.setObjectName(u"label_14")
 
-        self.gridLayout_12.addWidget(self.label_14, 2, 0, 1, 1)
+        self.gridLayout_12.addWidget(self.label_14, 5, 0, 1, 1)
+
+        self.table_labels = QTableWidget(self.groupBox_5)
+        if (self.table_labels.columnCount() < 4):
+            self.table_labels.setColumnCount(4)
+        __qtablewidgetitem = QTableWidgetItem()
+        self.table_labels.setHorizontalHeaderItem(0, __qtablewidgetitem)
+        __qtablewidgetitem1 = QTableWidgetItem()
+        self.table_labels.setHorizontalHeaderItem(1, __qtablewidgetitem1)
+        __qtablewidgetitem2 = QTableWidgetItem()
+        self.table_labels.setHorizontalHeaderItem(2, __qtablewidgetitem2)
+        __qtablewidgetitem3 = QTableWidgetItem()
+        self.table_labels.setHorizontalHeaderItem(3, __qtablewidgetitem3)
+        self.table_labels.setObjectName(u"table_labels")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.table_labels.sizePolicy().hasHeightForWidth())
+        self.table_labels.setSizePolicy(sizePolicy2)
+
+        self.gridLayout_12.addWidget(self.table_labels, 5, 1, 1, 1)
 
         self.label_15 = QLabel(self.groupBox_5)
         self.label_15.setObjectName(u"label_15")
 
-        self.gridLayout_12.addWidget(self.label_15, 1, 0, 1, 1)
-
-        self.label_16 = QLabel(self.groupBox_5)
-        self.label_16.setObjectName(u"label_16")
-
-        self.gridLayout_12.addWidget(self.label_16, 0, 0, 1, 1)
+        self.gridLayout_12.addWidget(self.label_15, 3, 0, 1, 1)
 
         self.verticalLayout_2 = QVBoxLayout()
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
@@ -255,39 +413,54 @@ class Ui_DialogSettings(object):
         self.verticalLayout_2.addItem(self.verticalSpacer_2)
 
 
-        self.gridLayout_12.addLayout(self.verticalLayout_2, 2, 2, 1, 1)
+        self.gridLayout_12.addLayout(self.verticalLayout_2, 5, 2, 1, 1)
+
+        self.btn_delete_project = QPushButton(self.groupBox_5)
+        self.btn_delete_project.setObjectName(u"btn_delete_project")
+
+        self.gridLayout_12.addWidget(self.btn_delete_project, 0, 2, 1, 1)
 
         self.ledit_projname = QLineEdit(self.groupBox_5)
         self.ledit_projname.setObjectName(u"ledit_projname")
-        self.ledit_projname.setEnabled(False)
 
-        self.gridLayout_12.addWidget(self.ledit_projname, 0, 1, 1, 2)
+        self.gridLayout_12.addWidget(self.ledit_projname, 2, 1, 1, 2)
 
-        self.ledit_prjdesc = QLineEdit(self.groupBox_5)
-        self.ledit_prjdesc.setObjectName(u"ledit_prjdesc")
-        self.ledit_prjdesc.setEnabled(False)
+        self.table_statuses = QTableWidget(self.groupBox_5)
+        if (self.table_statuses.columnCount() < 1):
+            self.table_statuses.setColumnCount(1)
+        __qtablewidgetitem4 = QTableWidgetItem()
+        self.table_statuses.setHorizontalHeaderItem(0, __qtablewidgetitem4)
+        self.table_statuses.setObjectName(u"table_statuses")
+        self.table_statuses.setMaximumSize(QSize(16777215, 160))
 
-        self.gridLayout_12.addWidget(self.ledit_prjdesc, 1, 1, 1, 2)
+        self.gridLayout_12.addWidget(self.table_statuses, 6, 1, 1, 1)
 
-        self.table_labels = QTableWidget(self.groupBox_5)
-        if (self.table_labels.columnCount() < 4):
-            self.table_labels.setColumnCount(4)
-        __qtablewidgetitem = QTableWidgetItem()
-        self.table_labels.setHorizontalHeaderItem(0, __qtablewidgetitem)
-        __qtablewidgetitem1 = QTableWidgetItem()
-        self.table_labels.setHorizontalHeaderItem(1, __qtablewidgetitem1)
-        __qtablewidgetitem2 = QTableWidgetItem()
-        self.table_labels.setHorizontalHeaderItem(2, __qtablewidgetitem2)
-        __qtablewidgetitem3 = QTableWidgetItem()
-        self.table_labels.setHorizontalHeaderItem(3, __qtablewidgetitem3)
-        self.table_labels.setObjectName(u"table_labels")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.table_labels.sizePolicy().hasHeightForWidth())
-        self.table_labels.setSizePolicy(sizePolicy2)
+        self.label_16 = QLabel(self.groupBox_5)
+        self.label_16.setObjectName(u"label_16")
 
-        self.gridLayout_12.addWidget(self.table_labels, 2, 1, 1, 1)
+        self.gridLayout_12.addWidget(self.label_16, 2, 0, 1, 1)
+
+        self.label_projects = QLabel(self.groupBox_5)
+        self.label_projects.setObjectName(u"label_projects")
+
+        self.gridLayout_12.addWidget(self.label_projects, 1, 0, 1, 1)
+
+        self.combo_projects = QComboBox(self.groupBox_5)
+        self.combo_projects.setObjectName(u"combo_projects")
+
+        self.gridLayout_12.addWidget(self.combo_projects, 1, 1, 1, 2)
+
+        self.label_preset = QLabel(self.groupBox_5)
+        self.label_preset.setObjectName(u"label_preset")
+
+        self.gridLayout_12.addWidget(self.label_preset, 4, 0, 1, 1)
+
+        self.combo_preset = QComboBox(self.groupBox_5)
+        self.combo_preset.addItem("")
+        self.combo_preset.addItem("")
+        self.combo_preset.setObjectName(u"combo_preset")
+
+        self.gridLayout_12.addWidget(self.combo_preset, 4, 1, 1, 2)
 
 
         self.gridLayout_11.addLayout(self.gridLayout_12, 0, 0, 1, 1)
@@ -331,14 +504,40 @@ class Ui_DialogSettings(object):
         self.label_2.setText(QCoreApplication.translate("DialogSettings", u"Random:", None))
         self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Catmull-Rom:", None))
         self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
+        self.gbox_inference.setTitle(QCoreApplication.translate("DialogSettings", u"Inference", None))
+        self.label_inf_mode.setText(QCoreApplication.translate("DialogSettings", u"Inference Mode:", None))
+        self.cmbox_inference_mode.setItemText(0, QCoreApplication.translate("DialogSettings", u"Remote", None))
+        self.cmbox_inference_mode.setItemText(1, QCoreApplication.translate("DialogSettings", u"Local", None))
+
+        self.label_backend.setText(QCoreApplication.translate("DialogSettings", u"Backend:", None))
+        self.cmbox_backend.setItemText(0, QCoreApplication.translate("DialogSettings", u"AUTO", None))
+        self.cmbox_backend.setItemText(1, QCoreApplication.translate("DialogSettings", u"CPU", None))
+        self.cmbox_backend.setItemText(2, QCoreApplication.translate("DialogSettings", u"CUDA", None))
+        self.cmbox_backend.setItemText(3, QCoreApplication.translate("DialogSettings", u"Metal", None))
+        self.cmbox_backend.setItemText(4, QCoreApplication.translate("DialogSettings", u"OpenCL", None))
+
+        self.label_model.setText(QCoreApplication.translate("DialogSettings", u"Model:", None))
+        self.cmbox_model_name.setItemText(0, QCoreApplication.translate("DialogSettings", u"SAM", None))
+        self.cmbox_model_name.setItemText(1, QCoreApplication.translate("DialogSettings", u"EdgeSAM", None))
+        self.cmbox_model_name.setItemText(2, QCoreApplication.translate("DialogSettings", u"SlimSAM", None))
+        self.cmbox_model_name.setItemText(3, QCoreApplication.translate("DialogSettings", u"SAM2", None))
+        self.cmbox_model_name.setItemText(4, QCoreApplication.translate("DialogSettings", u"SAM3", None))
+
+        self.label_model_folder.setText(QCoreApplication.translate("DialogSettings", u"Model Folder:", None))
+        self.btn_model_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
+        self.label_upload_size.setText(QCoreApplication.translate("DialogSettings", u"Upload Image Size:", None))
+        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish (SAM + ellipse)", None))
+        self.ckbox_ocr_skip.setText(QCoreApplication.translate("DialogSettings", u"Skip manual timestamp input when OCR fails", None))
+        self.label_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"WeChat OCR Folder:", None))
+        self.btn_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
+        self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Enable copy previous frame", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
         self.groupBox_5.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
+        self.btn_new_project.setText(QCoreApplication.translate("DialogSettings", u"New", None))
+        self.btn_add_status.setText(QCoreApplication.translate("DialogSettings", u"Add", None))
+        self.btn_del_status.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
+        self.label_statuses.setText(QCoreApplication.translate("DialogSettings", u"Instances:", None))
         self.label_14.setText(QCoreApplication.translate("DialogSettings", u"Labels:", None))
-        self.label_15.setText(QCoreApplication.translate("DialogSettings", u"Description:", None))
-        self.label_16.setText(QCoreApplication.translate("DialogSettings", u"Name:", None))
-        self.btn_add_label.setText(QCoreApplication.translate("DialogSettings", u"Add", None))
-        self.btn_delete_label.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
-        self.btn_clear.setText(QCoreApplication.translate("DialogSettings", u"Clear", None))
         ___qtablewidgetitem = self.table_labels.horizontalHeaderItem(0)
         ___qtablewidgetitem.setText(QCoreApplication.translate("DialogSettings", u"ID", None))
         ___qtablewidgetitem1 = self.table_labels.horizontalHeaderItem(1)
@@ -347,6 +546,19 @@ class Ui_DialogSettings(object):
         ___qtablewidgetitem2.setText(QCoreApplication.translate("DialogSettings", u"Color", None))
         ___qtablewidgetitem3 = self.table_labels.horizontalHeaderItem(3)
         ___qtablewidgetitem3.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
+        self.label_15.setText(QCoreApplication.translate("DialogSettings", u"Description:", None))
+        self.btn_add_label.setText(QCoreApplication.translate("DialogSettings", u"Add", None))
+        self.btn_delete_label.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
+        self.btn_clear.setText(QCoreApplication.translate("DialogSettings", u"Clear", None))
+        self.btn_delete_project.setText(QCoreApplication.translate("DialogSettings", u"Delete", None))
+        ___qtablewidgetitem4 = self.table_statuses.horizontalHeaderItem(0)
+        ___qtablewidgetitem4.setText(QCoreApplication.translate("DialogSettings", u"Status", None))
+        self.label_16.setText(QCoreApplication.translate("DialogSettings", u"Name:", None))
+        self.label_projects.setText(QCoreApplication.translate("DialogSettings", u"Project:", None))
+        self.label_preset.setText(QCoreApplication.translate("DialogSettings", u"Load default:", None))
+        self.combo_preset.setItemText(0, QCoreApplication.translate("DialogSettings", u"Empty", None))
+        self.combo_preset.setItemText(1, QCoreApplication.translate("DialogSettings", u"Germination", None))
+
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab), QCoreApplication.translate("DialogSettings", u"Project", None))
     # retranslateUi
 

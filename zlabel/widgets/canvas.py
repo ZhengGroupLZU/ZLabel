@@ -1,4 +1,5 @@
 import functools
+import math
 import os
 from collections import OrderedDict
 from typing import Any
@@ -8,7 +9,7 @@ import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.Qt.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
-from pyqtgraph.Qt.QtGui import QKeyEvent, QMouseEvent
+from pyqtgraph.Qt.QtGui import QKeyEvent, QMouseEvent, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
@@ -27,6 +28,7 @@ class Canvas(pg.PlotWidget):
     sigItemStateChangeFinished = Signal(object)
     sigItemStateChangeStarted = Signal(object)
     sigItemsRemoved = Signal(object)
+    sigSelectionChanged = Signal()
 
     sigMouseMoved = Signal(QPointF)
 
@@ -61,15 +63,25 @@ class Canvas(pg.PlotWidget):
         self._is_manual_set_state = False
         # track signal block state to avoid redundant (dis)connections
         self._signals_blocked: bool = False
+        # items whose state-change signals are currently connected (idempotent
+        # connect/disconnect so update_by_anno can't double-connect items)
+        self._state_signal_items: set[int] = set()
         self._last_point_zoom: float = 0.0
         self.view_box.sigRangeChanged.connect(self._update_points_scale)
+        self.view_box.sigRightClickFit.connect(self.fit_view)
 
         self._image_backup: np.ndarray | None = None
         # cache flipped image for rgb channel rendering
         self._image_flipped: np.ndarray | None = None
+        # view rotation: image + annotations are rotated inside this group; the
+        # mouse mapping undoes it so saved coords stay in image space.
+        self._rotation: int = 0
+        self._rotation_tr = QTransform()
+        self._content_group = pg.ItemGroup()
+        self.addItem(self._content_group)
         self.image_item = pg.ImageItem()
         self.image_item.setZValue(-10)
-        self.addItem(self.image_item)
+        self.image_item.setParentItem(self._content_group)
 
         self.current_item: Rectangle | Point | Polygon | None = None
         self.selecting_item: Rectangle | None = None
@@ -167,7 +179,7 @@ class Canvas(pg.PlotWidget):
     def selected_items(self) -> list[Rectangle | Point | Polygon]:
         items_selected = list(
             filter(
-                lambda it: it.isSelected() and isinstance(it, (Rectangle, Point, Polygon)),
+                lambda it: it.isSelected() and it.isVisible() and isinstance(it, (Rectangle, Point, Polygon)),
                 self.items(),
             )
         )
@@ -249,6 +261,7 @@ class Canvas(pg.PlotWidget):
             self._image_flipped = None
 
         self.image_item.setImage(img)
+        self._apply_rotation()
 
     def copy_item(self, item: Rectangle):
         state = item.getState()
@@ -344,17 +357,28 @@ class Canvas(pg.PlotWidget):
         # logger.debug(f"{self.mouse_down_pos=}, {self.mouse_up_pos=}")
         if not (self.mouse_down_pos and self.mouse_up_pos):
             return {}
-        dpos = self.mouse_up_pos - self.mouse_down_pos
+        # Drawing rect lives in scene space (window-aligned): map the pressed /
+        # current image-pixel points into the (rotated) content group's scene.
+        d0 = self._img_to_scene(self.mouse_down_pos)
+        d1 = self._img_to_scene(self.mouse_up_pos)
+        dpos = d1 - d0
         w, h = abs(dpos.x()), abs(dpos.y())
         if w < 1e-3 or h < 1e-3:
             return {}
-        x = min(self.mouse_down_pos.x(), self.mouse_up_pos.x())
-        y = min(self.mouse_down_pos.y(), self.mouse_up_pos.y())
+        # min/max keeps the press point as one fixed corner and the opposite
+        # corner exactly under the mouse, in any drag direction.
+        x = min(d0.x(), d1.x())
+        y = min(d0.y(), d1.y())
         return {
             "pos": pg.Point(x, y),
             "size": pg.Point(w, h),
             "angle": 0,
         }
+
+    def _img_to_scene(self, p: QPointF) -> QPointF:
+        """Map an image-pixel point into view/data coordinates (matches the
+        crosshair, which uses ViewBox.mapSceneToView) via the rotation transform."""
+        return self._rotation_tr.map(QPointF(p.x(), p.y()))
 
     def get_drawing_polygon_state(self) -> dict[str, Any]:
         """Build polygon state using committed points plus a live preview point.
@@ -393,18 +417,32 @@ class Canvas(pg.PlotWidget):
             case _:
                 return {}
 
+    def _connect_item_state_signals(self, item: Rectangle | Point | Polygon):
+        if id(item) in self._state_signal_items:
+            return
+        item.sigRegionChanged.connect(self.on_item_state_changed)
+        item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
+        item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
+        self._state_signal_items.add(id(item))
+
+    def _disconnect_item_state_signals(self, item: Rectangle | Point | Polygon):
+        if id(item) not in self._state_signal_items:
+            return
+        item.sigRegionChanged.disconnect(self.on_item_state_changed)
+        item.sigRegionChangeStarted.disconnect(self.on_item_state_change_started)
+        item.sigRegionChangeFinished.disconnect(self.on_item_state_change_finished)
+        self._state_signal_items.discard(id(item))
+
     def block_item_state_changed(self, v: bool = True):
         # avoid redundant (dis)connections if state unchanged
         if v == self._signals_blocked:
             return
         if v:
             for item in self.showing_items.values():
-                item.sigRegionChangeStarted.disconnect(self.on_item_state_change_started)
-                item.sigRegionChangeFinished.disconnect(self.on_item_state_change_finished)
+                self._disconnect_item_state_signals(item)
         else:
             for item in self.showing_items.values():
-                item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
-                item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
+                self._connect_item_state_signals(item)
         self._signals_blocked = v
 
     def new_rectangle(
@@ -487,6 +525,10 @@ class Canvas(pg.PlotWidget):
         if self.current_item is not None:
             # self.create_item(self.current_item)
             self.addItem(self.current_item)
+            # Rectangle is drawn in scene space so its edges stay parallel to the
+            # window under view rotation; points/polygons stay in the rotated group.
+            if not isinstance(self.current_item, Rectangle):
+                self.current_item.setParentItem(self._content_group)
         self._drawing = True
 
     def update_drawing(self):
@@ -527,6 +569,14 @@ class Canvas(pg.PlotWidget):
             match self.current_item:
                 case Rectangle():
                     if state["size"].x() > 1 and state["size"].y() > 1:
+                        # Drawing rect is in scene/data space (window-aligned); the
+                        # formal item lives in the rotated content group and rotates
+                        # around its anchor, so map the data top-left back to image
+                        # coords as the anchor (size is preserved by rotation).
+                        inv, _ = self._rotation_tr.inverted()
+                        anchor = inv.map(QPointF(state["pos"].x(), state["pos"].y()))
+                        state["pos"] = pg.Point(anchor.x(), anchor.y())
+                        state["angle"] = -self._rotation
                         self.sigRectangleCreated.emit(state)
                 case Point():
                     self.sigPointCreated.emit(state)
@@ -541,7 +591,61 @@ class Canvas(pg.PlotWidget):
 
     def map_scene_to_view(self, point: QPointF):
         pos = self.view_box.mapSceneToView(point)
+        if not self._rotation_tr.isIdentity():
+            inv, _ = self._rotation_tr.inverted()
+            p = inv.map(QPointF(pos.x(), pos.y()))
+            return QPointF(p.x(), p.y())
         return QPointF(pos.x(), pos.y())
+
+    # region rotation
+    def set_rotation(self, angle: int):
+        """Rotate the displayed image+annotations around the image center.
+
+        Stored coords stay in the un-rotated image space; only the view changes.
+        """
+        self._rotation = int(angle) % 360
+        self._apply_rotation()
+
+    def _apply_rotation(self):
+        if self._image_backup is not None:
+            # keep the data coordinate system fixed so mouse mapping stays stable
+            self.view_box.disableAutoRange()
+        if self._rotation:
+            rect = self.image_item.boundingRect()
+            cx = rect.x() + rect.width() / 2
+            cy = rect.y() + rect.height() / 2
+            self._rotation_tr = QTransform().translate(cx, cy).rotate(self._rotation).translate(-cx, -cy)
+        else:
+            self._rotation_tr = QTransform()
+        self._content_group.setTransform(self._rotation_tr)
+
+    def fit_view(self):
+        """Zoom/pan so the whole image (including any view rotation) fills the canvas."""
+        if self._image_backup is None:
+            return
+        # Map the image corners through the (possibly rotated) content group into
+        # view/data coordinates. Explicit corner mapping avoids ItemGroup bounds
+        # caching issues after switching images/rotations.
+        rect = self.image_item.boundingRect()
+        corners = [
+            QPointF(rect.x(), rect.y()),
+            QPointF(rect.x() + rect.width(), rect.y()),
+            QPointF(rect.x() + rect.width(), rect.y() + rect.height()),
+            QPointF(rect.x(), rect.y() + rect.height()),
+        ]
+        pts = []
+        for c in corners:
+            d = self.view_box.mapSceneToView(self.image_item.mapToScene(c))
+            pts.append((d.x(), d.y()))
+        xs = [p[0] for p in pts]
+        ys = [p[1] for p in pts]
+        self.view_box.setRange(
+            xRange=[min(xs), max(xs)],
+            yRange=[min(ys), max(ys)],
+            padding=0.05,
+        )
+
+    # endregion
 
     # region update
     def update_by_anno(self, anno: Annotation | None):
@@ -685,12 +789,11 @@ class Canvas(pg.PlotWidget):
     def create_item(self, item: Rectangle | Point | Polygon):
         item.setZValue(self._z_value)
         item.sigClicked.connect(self.on_item_clicked)
-        item.sigRegionChanged.connect(self.on_item_state_changed)
-        item.sigRegionChangeStarted.connect(self.on_item_state_change_started)
-        item.sigRegionChangeFinished.connect(self.on_item_state_change_finished)
+        self._connect_item_state_signals(item)
         if isinstance(item, (Rectangle, Point, Polygon)):
             self.showing_items[item.id_] = item
         self.addItem(item)
+        item.setParentItem(self._content_group)
         self._z_value += 1
         self.logger.debug(f"Added {item=}")
 
@@ -703,24 +806,27 @@ class Canvas(pg.PlotWidget):
         return None
 
     def create_item_by_result(self, result: PointResult | RectangleResult | PolygonResult):
+        color = result.labels[0].color if result.labels else None
         if isinstance(result, PointResult):
             point = Point(
                 pos=(result.x, result.y),
                 radius=self._point_scene_radius(),
-                color=result.labels[0].color,
+                color=color,
                 id_=result.id,
             )
             point.set_visible(result.visible)
             self.create_item(point)
+            point.set_instance_label(result.instance_id, color)
         elif isinstance(result, PolygonResult):
             polygon = self.new_polygon(
                 positions=result.points,
                 closed=True,
                 id_=result.id,
                 movable=True,
-                color=result.labels[0].color,
+                color=color,
             )
             self.create_item(polygon)
+            polygon.set_instance_label(result.instance_id, color)
         elif isinstance(result, RectangleResult):
             # if result.id existed in self.rects, get the item and set state
             # else if invisible item existed,
@@ -732,12 +838,15 @@ class Canvas(pg.PlotWidget):
                 state["pos"] = QPointF(result.x, result.y)
                 state["size"] = QPointF(result.w, result.h)
                 state["id"] = result.id
+                if result.rotation:
+                    state["angle"] = result.rotation
                 item.setState(state)
                 # item.set_fill_color(result.labels[0].color)
                 item.setFillColor(self.default_color)
                 self.showing_items[state["id"]] = item
                 self.logger.debug(f"Find existed rect not visible {result.id=}")
                 item.setVisible(True)
+                item.set_instance_label(result.instance_id, color)
                 return
 
             rectangle = self.new_rectangle(
@@ -749,7 +858,12 @@ class Canvas(pg.PlotWidget):
                 movable=True,
                 color=result.labels[0].color,
             )
+            if result.rotation:
+                st = rectangle.getState()
+                st["angle"] = result.rotation
+                rectangle.setState(st)
             self.create_item(rectangle)
+            rectangle.set_instance_label(result.instance_id, color)
         else:
             raise NotImplementedError
 
@@ -788,6 +902,7 @@ class Canvas(pg.PlotWidget):
             return
         if isinstance(item, (Point, Polygon, Rectangle)) and item.id_ in self.showing_items:
             self.showing_items.pop(item.id_)
+            self._disconnect_item_state_signals(item)
             self.logger.debug(f"remove item: {item.id_}")
         return self.removeItem(item)
 
@@ -807,6 +922,7 @@ class Canvas(pg.PlotWidget):
         for item in self.showing_items.values():
             self.removeItem(item)
         self.showing_items.clear()
+        self._state_signal_items.clear()
 
     def clear_selections(self, exclude: list[str] | None = None):
         for item in self.showing_items.values():
@@ -830,23 +946,76 @@ class Canvas(pg.PlotWidget):
                 item.setSelected(item.id_ == id_)
         self.update()
 
+    def select_items(self, ids: list[str]):
+        """Select exactly the given annotation items (clears the rest)."""
+        id_set = set(ids)
+        for item in self.items():
+            if isinstance(item, (Rectangle, Point, Polygon)):
+                item.setSelected(item.id_ in id_set)
+        self.update()
+
     def item_at_point(self, point: QPoint | QPointF):
-        if isinstance(point, QPointF):
-            point = point.toPoint()
-        point = self.view_box.mapViewToScene(point)
-        point = self.mapFromScene(point)
-        items: list = self.items(point)
-        # we need to firstly consider ZHandle for resizing
-        items_ = []
-        for item in items:
-            match item:
-                case ZHandle() | Handle():  # return the top most handle if found
+        """Return the topmost annotation item under an image-pixel point.
+
+        Hit-testing runs in image space against ``showing_items`` (items store
+        image coordinates and live in the rotated content group), which stays
+        reliable under view rotation where scene-space hit tests drift.
+        """
+        p = QPointF(point.x(), point.y())
+        for item in reversed(list(self.showing_items.values())):
+            if not item.isVisible():
+                continue
+            if isinstance(item, Rectangle):
+                st = item.getState()
+                # handles first: Rectangle only creates them while selected; if we
+                # hit a handle, return it so canvas skips clearing the selection.
+                if item.handles:
+                    ang = math.radians(st["angle"])
+                    cos, sin = math.cos(ang), math.sin(ang)
+                    hw, hh = st["size"].x(), st["size"].y()
+                    radius = max(4.0, getattr(item, "handleSize", 8.0))
+                    for hinfo in item.handles:
+                        hitem = hinfo.get("item")
+                        if hitem is None:
+                            continue
+                        hp = hinfo.get("pos", (0.0, 0.0))
+                        hx = hp[0] * hw
+                        hy = hp[1] * hh
+                        ix = st["pos"].x() + hx * cos - hy * sin
+                        iy = st["pos"].y() + hx * sin + hy * cos
+                        if (p.x() - ix) ** 2 + (p.y() - iy) ** 2 <= radius * radius:
+                            return hitem
+                dx = p.x() - st["pos"].x()
+                dy = p.y() - st["pos"].y()
+                ang = math.radians(st["angle"])
+                cos, sin = math.cos(-ang), math.sin(-ang)
+                lx = dx * cos - dy * sin
+                ly = dx * sin + dy * cos
+                if 0.0 <= lx <= st["size"].x() and 0.0 <= ly <= st["size"].y():
                     return item
-                case Rectangle() | Point() | Polygon():
-                    items_.append(item)
-                case _:
-                    ...
-        return items_[0] if len(items_) > 0 else None
+            elif isinstance(item, Polygon):
+                pts = [(float(x), float(y)) for x, y in item.getState()["points"]]
+                if self._point_in_polygon(p.x(), p.y(), pts):
+                    return item
+            elif isinstance(item, Point):
+                st = item.getState()
+                r = getattr(item, "radius", 8.0)
+                if (p.x() - st["pos"].x()) ** 2 + (p.y() - st["pos"].y()) ** 2 <= r * r:
+                    return item
+        return None
+
+    @staticmethod
+    def _point_in_polygon(x: float, y: float, pts: list[tuple[float, float]]) -> bool:
+        inside = False
+        n = len(pts)
+        j = n - 1
+        for i in range(n):
+            xi, yi = pts[i]
+            xj, yj = pts[j]
+            if (yi > y) != (yj > y) and x < (xj - xi) * (y - yi) / ((yj - yi) + 1e-12) + xi:
+                inside = not inside
+            j = i
+        return inside
 
     def set_items_movable(self, movable: bool):
         for item in self.showing_items.values():
@@ -952,6 +1121,13 @@ class Canvas(pg.PlotWidget):
                 else:
                     self.selecting_item = self.new_rectangle(0, 0, 0, 0)
                     self.addItem(self.selecting_item)
+                    # selecting box is scene-space (window-aligned) like drawing rects
+                    self.clear_selections_if_no_ctrl(ev)
+                    # consume the press so it never reaches a (possibly hidden)
+                    # item underneath or the ViewBox, which would drag/pan the
+                    # canvas instead of drawing the selection box.
+                    ev.accept()
+                    return
                 if not self._is_editing_handle:
                     self.clear_selections_if_no_ctrl(ev)
                 # here, we can't accept or return event
@@ -963,10 +1139,13 @@ class Canvas(pg.PlotWidget):
         return super().mousePressEvent(ev)
 
     def mouseMoveEvent(self, ev: QMouseEvent):
+        # Crosshair lives in the (un-rotated) ViewBox data space, so it tracks the
+        # mouse on screen; pos below is the rotated image pixel coordinate.
+        raw = self.view_box.mapSceneToView(ev.position())
+        self.hline.setPos(raw.y())
+        self.vline.setPos(raw.x())
         pos: QPointF = self.map_scene_to_view(ev.position())
         self.last_mouse_pos_view = pos
-        self.hline.setPos(pos.y())
-        self.vline.setPos(pos.x())
         self.sigMouseMoved.emit(pos)
 
         if ev.buttons() & Qt.MouseButton.MiddleButton:
@@ -1045,13 +1224,16 @@ class Canvas(pg.PlotWidget):
                 )
                 selected_items = []
                 for item in items:
-                    if isinstance(item, (Point, Rectangle, Polygon)):
+                    if isinstance(item, (Point, Rectangle, Polygon)) and item.isVisible():
                         item.setSelected(True)
                         selected_items.append(item)
                     # self.logger.debug(f"Release: {item=}, {item.isSelected()=}")
 
                 for item in selected_items:
                     item.update()
+
+                # let the main window sync the annos tree / group-button state
+                self.sigSelectionChanged.emit()
 
                 # self.logger.debug(f"{items=}, {rect=}")
                 self.remove_item(self.selecting_item)
@@ -1118,13 +1300,15 @@ class Canvas(pg.PlotWidget):
 
 
 class ZViewBox(pg.ViewBox):
+    sigRightClickFit = Signal()
+
     def __init__(self, enableMenu=False, defaultPadding=0.0):
         pg.ViewBox.__init__(self, enableMenu=enableMenu, defaultPadding=defaultPadding)
         self.setMouseMode(self.PanMode)
 
     def mouseClickEvent(self, ev):
         if ev.button() == Qt.MouseButton.RightButton:
-            self.autoRange()
+            self.sigRightClickFit.emit()
         super().mouseClickEvent(ev)
 
     # reimplement mouseDragEvent to disable continuous axis zoom

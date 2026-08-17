@@ -1,6 +1,7 @@
 import sys
 
 import pyqtgraph as pg
+from pyqtgraph.Qt.QtCore import Qt
 from pyqtgraph.Qt.QtGui import QFont
 from pyqtgraph.Qt.QtWidgets import QApplication
 
@@ -10,6 +11,7 @@ pg.setConfigOptions(useOpenGL=True, useCupy=False, useNumba=False)
 
 
 def main():
+    QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps)
     app = QApplication()
     font = app.font()
     font.setStyleStrategy(QFont.StyleStrategy.PreferAntialias)

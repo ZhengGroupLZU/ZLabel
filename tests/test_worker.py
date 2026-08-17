@@ -58,12 +58,41 @@ def test_sam_empty_mask_returns_empty():
     """A click on background (all-zero mask) yields no detection, not an error."""
 
     class _ZeroModel:
-        def predict(self, img, prompts):
+        def predict(self, points=None, labels=None, bboxes=None):
             from zlabel.models.ztypes import SamOnnxResult
 
-            return SamOnnxResult(mask=np.zeros(img.shape[:2], dtype=np.uint8), score=0.0)
+            return [SamOnnxResult(mask=np.zeros((64, 64), np.float32), score=0.0)]
 
     results = _worker(auto_mode=AutoMode.SAM, model=_ZeroModel()).run_point(
         [Point(x=32, y=32)], [1.0]
     )
     assert results == []
+
+
+def test_sam_rect_keeps_only_best_candidate():
+    """SAM box prompts return several overlapping candidate masks; only the
+    highest-scoring one should be turned into annotations (no near-duplicate)."""
+
+    class _MultiMaskModel:
+        def predict(self, points=None, labels=None, bboxes=None):
+            from zlabel.models.ztypes import SamOnnxResult
+
+            def mask(x0, y0):
+                m = np.zeros((64, 64), np.float32)
+                m[y0 : y0 + 30, x0 : x0 + 30] = 255
+                return m
+
+            return [
+                SamOnnxResult(mask=mask(16, 16), score=0.9),
+                SamOnnxResult(mask=mask(18, 18), score=0.5),
+                SamOnnxResult(mask=mask(20, 20), score=0.2),
+            ]
+
+    results = _worker(auto_mode=AutoMode.SAM, model=_MultiMaskModel()).run_rect(
+        [Rect(x=10, y=10, w=40, h=40)]
+    )
+    # Only the score-0.9 candidate (single contour) survives
+    assert len(results) == 1
+    r = results[0]
+    # mask starts at (16,16); dilate(1) -> 15, smoothing keeps it near there
+    assert abs(r.x - 15) <= 1 and abs(r.y - 15) <= 1, (r.x, r.y)

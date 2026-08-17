@@ -4,6 +4,7 @@ from zlabel.utils.project import (
     Annotation,
     Label,
     PointResult,
+    PolygonResult,
     Project,
     RectangleResult,
     ResultType,
@@ -126,6 +127,33 @@ def test_point_result_equal_v():
     assert not a.equal_v(c)
 
 
+def test_polygon_result_equal_v_tracks_geometry():
+    """Polygon equality must detect position/size/rotation changes, not just
+    vertex points - a body move on the canvas changes the ROI origin which the
+    saved points no longer reflect."""
+    lab = Label.new("A")
+    pts = [(10, 10), (40, 10), (40, 30), (10, 30)]
+    base = PolygonResult.new(labels=[lab], points=pts, closed=True)
+    moved = PolygonResult.new(labels=[lab], points=pts, closed=True)
+    moved.x, moved.y = 5.0, 5.0
+    assert base.equal_v(moved) is False
+
+    resized = PolygonResult.new(labels=[lab], points=pts, closed=True)
+    resized.w, resized.h = 3.0, 4.0
+    assert base.equal_v(resized) is False
+
+    rotated = PolygonResult.new(labels=[lab], points=pts, closed=True)
+    rotated.rotation = 30.0
+    assert base.equal_v(rotated) is False
+
+    # vertex moves are still detected too
+    vertex_moved = PolygonResult.new(labels=[lab], points=[(15, 10), (40, 10), (40, 30), (10, 30)], closed=True)
+    assert base.equal_v(vertex_moved) is False
+
+    # identical geometry stays equal
+    assert base.equal_v(PolygonResult.new(labels=[lab], points=pts, closed=True))
+
+
 def test_annotation_with_point_result_roundtrip(tmp_path):
     anno = Annotation(id="a1", image_path="a.png", original_width=10, original_height=10)
     r = PointResult.new(labels=[Label.new("A")], x=1.5, y=2.5, visible=2, category_id=1)
@@ -136,3 +164,53 @@ def test_annotation_with_point_result_roundtrip(tmp_path):
     r2 = anno2.results[r.id]
     assert isinstance(r2, PointResult)
     assert r2.x == 1.5 and r2.y == 2.5 and r2.visible == 2 and r2.category_id == 1
+
+
+def test_reconcile_result_labels_maps_foreign_ids():
+    """Legacy annos embed labels whose ids differ from the project's labels;
+    they must be re-pointed at the project labels so id-based lookups (e.g.
+    the label show/hide eye buttons) work."""
+    p = _project()
+    label_a = p.crt_label
+    p.add_label(Label.new("B", "#00ff00"))
+    label_b = next(lbl for lbl in p.labels.values() if lbl.id != label_a.id)
+    anno = Annotation(id="a1", image_path="a.png", original_width=10, original_height=10)
+    # same names/colors, foreign ids (as saved by older versions / other projects)
+    anno.add_result(RectangleResult.new(labels=[Label(id="deadbeef1", name="A", color="#ff0000")], x=1, y=1, w=2, h=2))
+    anno.add_result(RectangleResult.new(labels=[Label(id="deadbeef2", name="B", color="#00ff00")], x=5, y=5, w=2, h=2))
+    # already matching ids are kept
+    anno.add_result(RectangleResult.new(labels=[label_a], x=9, y=9, w=2, h=2))
+
+    p.reconcile_result_labels(anno)
+
+    by_name = {r.labels[0].name: r.labels[0] for r in anno.results.values()}
+    assert by_name["A"].id == label_a.id
+    assert by_name["B"].id == label_b.id
+    assert by_name["A"] is label_a  # existing project object, not a copy
+
+
+def test_reconcile_result_labels_keeps_unmatched():
+    """Labels with no id/name match in the project are left untouched."""
+    p = _project()
+    anno = Annotation(id="a1", image_path="a.png", original_width=10, original_height=10)
+    unknown = Label(id="deadbeef9", name="NoSuchLabel", color="#123456")
+    anno.add_result(RectangleResult.new(labels=[unknown], x=1, y=1, w=2, h=2))
+
+    p.reconcile_result_labels(anno)
+
+    r = anno.results[list(anno.results)[0]]
+    assert r.labels[0] is unknown
+
+
+def test_add_annotation_reconciles_labels():
+    """Every anno entering the project gets its result labels reconciled."""
+    p = _project()
+    label_a = p.crt_label
+    anno = Annotation(id="a1", image_path="a.png", original_width=10, original_height=10)
+    anno.add_result(RectangleResult.new(labels=[Label(id="deadbeef1", name="A", color="#ff0000")], x=1, y=1, w=2, h=2))
+
+    p.add_annotation(anno)
+
+    r = anno.results[list(anno.results)[0]]
+    assert r.labels[0].id == label_a.id
+    assert r.labels[0] is label_a

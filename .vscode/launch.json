@@ -8,7 +8,7 @@
             "name": "zlabel",
             "type": "debugpy",
             "request": "launch",
-            "program": "main.py",
+            "program": "zlabel.py",
             "console": "integratedTerminal",
             "justMyCode": true
         },

@@ -28,9 +28,14 @@ class ZSettings(BaseModel):
     sam_enabled: bool = False
 
     inference_mode: Literal["remote", "local"] = "remote"
-    model_name: Literal["SAM", "EdgeSAM", "SAM2"] = "EdgeSAM"
-    encoder_path: str = ""
-    decoder_path: str = ""
+    inference_backend: Literal["AUTO", "CPU", "CUDA", "Metal", "OpenCL"] = "AUTO"
+    model_name: Literal["SAM", "EdgeSAM", "SlimSAM", "SAM2", "SAM3"] = "EdgeSAM"
+    model_dir: str = ""
+    upload_image_size: int = 1024
+    auto_fit_dish: bool = False  # auto-segment + ellipse-fit the dish on frame open
+    ocr_skip_manual: bool = False  # don't prompt for manual timestamp text when OCR fails
+    ocr_wx_dir: str = ""  # folder with the WeChat OCR engine (WeChatOCR.exe + mmmojo dll)
+    enable_copy_prev: bool = True  # enable the "copy previous frame" feature
 
     geometry: str = ""  # base64 encoded
     window_state: str = ""  # base64 encoded

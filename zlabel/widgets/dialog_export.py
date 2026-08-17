@@ -1,10 +1,11 @@
 from collections.abc import Callable
 
 from PIL import Image
-from pyqtgraph.Qt.QtWidgets import QDialog, QFileDialog
+from pyqtgraph.Qt.QtWidgets import QComboBox, QDialog, QFileDialog, QLabel
 
 from zlabel.utils.exporters import (
     ExportFormat,
+    ExportInstance,
     ExportTask,
     export_coco,
     export_yolo,
@@ -26,6 +27,12 @@ class DialogExport(QDialog, Ui_DialogExport):
         self.setupUi(self)
         self.project: Project | None = project
         self.get_image = get_image
+
+        self.label_inst = QLabel(self.tr("Instance mode:"), self)
+        self.cmbox_inst = QComboBox(self)
+        self.cmbox_inst.addItems([self.tr("Split by part"), self.tr("Merge by instance")])
+        self.gridLayout.addWidget(self.label_inst, 4, 0)
+        self.gridLayout.addWidget(self.cmbox_inst, 4, 1)
 
         self.btn_output.clicked.connect(self.on_btn_output)
         self.btn_export.clicked.connect(self.on_export)
@@ -51,12 +58,13 @@ class DialogExport(QDialog, Ui_DialogExport):
             return
         fmt = ExportFormat(self.cmbox_format.currentIndex())
         task = ExportTask(self.cmbox_task.currentIndex())
+        inst_mode = ExportInstance(self.cmbox_inst.currentIndex())
         self.progressBar.setValue(10)
         try:
             if fmt == ExportFormat.COCO:
-                stats = export_coco(self.project, output, task)
+                stats = export_coco(self.project, output, task, inst_mode)
             else:
-                stats = export_yolo(self.project, output, task, self.get_image)
+                stats = export_yolo(self.project, output, task, self.get_image, inst_mode)
         except Exception as e:
             self.textBrowser.append(self.tr(f"Export failed: {e}"))
             self.progressBar.setValue(0)

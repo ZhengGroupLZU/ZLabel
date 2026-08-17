@@ -263,6 +263,7 @@
    <addaction name="actionPoint"/>
    <addaction name="actionPolygon"/>
    <addaction name="separator"/>
+   <addaction name="actionGroup"/>
    <addaction name="actionMerge"/>
    <addaction name="separator"/>
    <addaction name="actionFinish"/>
@@ -1099,6 +1100,21 @@
     <string>G</string>
    </property>
   </action>
+  <action name="actionGroup">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/group.svg</normaloff>:/icon/icons/group.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Group</string>
+   </property>
+   <property name="toolTip">
+    <string>Group selected annotations into one instance (Ctrl+G); split (Ctrl+G)</string>
+   </property>
+  </action>
   <action name="actionAnnoTypeRectangle">
    <property name="enabled">
     <bool>false</bool>
@@ -1239,3 +1255,4 @@
  </resources>
  <connections/>
 </ui>
+

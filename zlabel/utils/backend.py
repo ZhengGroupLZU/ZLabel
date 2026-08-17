@@ -52,8 +52,19 @@ class Storage(Protocol):
 class RemoteInference:
     requires_server = True
 
-    def __init__(self, api: ZLServerApiHelper) -> None:
+    def __init__(
+        self,
+        api: ZLServerApiHelper,
+        storage: Storage | None = None,
+        upload_image_size: int = 1024,
+    ) -> None:
         self.api = api
+        self.storage = storage
+        self.upload_image_size = upload_image_size
+        self._last_image: str | None = None
+
+    def login(self, username: str = "", password: str = "") -> str | None:
+        return self.api.login(username, password)
 
     def predict(
         self,
@@ -66,7 +77,38 @@ class RemoteInference:
         mode: int = 1,
         return_type: int = 1,
     ) -> dict[str, Any]:
-        return self.api.predict(
+        # With local storage the image only exists on this machine, so upload it
+        # along with every predict (the server uses the uploaded file directly).
+        # set_image is still called when the image changes to pre-warm the model
+        # and cache the bytes server-side. The image is resized (long edge capped
+        # at upload_image_size) before upload to bound bandwidth.
+        image = None
+        scale = None
+        is_local = self.storage is not None and not getattr(self.storage, "requires_server", True)
+        if is_local:
+            from zlabel.models.ztypes import SamReturn
+
+            orig = self.storage.get_image(image_name)
+            if orig is None:
+                return SamReturn(
+                    anno_id=anno_id,
+                    status=False,
+                    mode="",
+                    msg=f"image not found: {image_name}",
+                ).model_dump()
+            image = _resize_long_edge(orig, self.upload_image_size)
+            if image.size != orig.size:
+                scale = (orig.size[0] / image.size[0], orig.size[1] / image.size[1])
+            if image_name != self._last_image:
+                if not self.api.set_image(image_name, image):
+                    return SamReturn(
+                        anno_id=anno_id,
+                        status=False,
+                        mode="",
+                        msg=f"failed to upload image: {image_name}",
+                    ).model_dump()
+                self._last_image = image_name
+        resp = self.api.predict(
             anno_id=anno_id,
             image_name=image_name,
             points=points,
@@ -75,7 +117,11 @@ class RemoteInference:
             threshold=threshold,
             mode=mode,
             return_type=return_type,
+            image=image,
         )
+        if scale is not None and resp.get("data"):
+            resp = {**resp, "data": _scale_results(resp["data"], scale, image.size, orig.size)}
+        return resp
 
 
 class RemoteStorage:
@@ -173,14 +219,9 @@ class LocalStorage:
     ) -> list[dict[str, Any]]:
         if not self.image_dir.exists():
             return []
-        files = sorted(
-            p
-            for p in self.image_dir.iterdir()
-            if p.is_file() and p.suffix.lower() in (".png", ".jpg", ".jpeg")
-        )
         tasks: list[dict[str, Any]] = []
-        for f in files:
-            anno_id = id_md5(f"{self.project_name}/{f.name}")
+        for rel, group, day in self._iter_images():
+            anno_id = id_md5(f"{self.project_name}/{rel}")
             is_finished = (self.anno_dir / f"{anno_id}.zlabel").exists()
             if finished == -1:
                 pass
@@ -197,16 +238,39 @@ class LocalStorage:
                     "id": len(tasks),
                     "project_id": project_id,
                     "anno_id": anno_id,
-                    "filename": f.name,
+                    "filename": rel,
                     "labels": [],
                     "finished": is_finished,
+                    "group": group,
+                    "day": day,
                 }
             )
         if random_select:
             random.shuffle(tasks)
         else:
-            tasks.sort(key=lambda t: t["filename"])
+            tasks.sort(key=lambda t: (t["group"], t["day"], t["filename"]))
         return tasks[:num]
+
+    def _iter_images(self):
+        """Yield (rel_path, group, day) for images under image_dir.
+
+        Sequence layout `species/dish/D{n}.png` (two subdirs + D-numbered
+        filename) is recognized as a group: group = "species/dish", day = n.
+        Anything else yields group="" / day=0.
+        """
+        import re as _re
+
+        for p in sorted(self.image_dir.rglob("*")):
+            if not p.is_file() or p.suffix.lower() not in (".png", ".jpg", ".jpeg"):
+                continue
+            rel = p.relative_to(self.image_dir).as_posix()
+            m = _re.fullmatch(r"D(\d+)\.(?:png|jpe?g)", p.name, _re.IGNORECASE)
+            parts = rel.split("/")
+            group, day = "", 0
+            if m is not None and len(parts) >= 3:
+                group = "/".join(parts[:-1])
+                day = int(m.group(1))
+            yield rel, group, day
 
     def get_image(self, name: str) -> Image.Image | None:
         p = self.image_dir / name
@@ -243,13 +307,13 @@ class LocalInference:
         self,
         storage: Storage,
         model_name: str = "EdgeSAM",
-        encoder_path: str = "",
-        decoder_path: str = "",
+        model_dir: str = "",
+        backend: str = "AUTO",
     ) -> None:
         self.storage = storage
         self.model_name = model_name
-        self.encoder_path = encoder_path or str(resource_dir() / "edge_sam_3x_encoder.onnx")
-        self.decoder_path = decoder_path or str(resource_dir() / "edge_sam_3x_decoder.onnx")
+        self.model_dir = model_dir or str(resource_dir() / "models" / "mnn")
+        self.backend = backend
         self.logger = ZLogger("LocalInference")
         self._model: Any = None
         self._lock = threading.Lock()
@@ -262,20 +326,22 @@ class LocalInference:
                 if self.model_status == "error":
                     raise RuntimeError(self.model_error)
                 try:
-                    from zlabel.models.sam_onnx import SAM2, EdgeSam, SamOnnxModel
+                    from zlabel.models.process_backend import ProcessPredictor
 
-                    cls = {"SAM": SamOnnxModel, "EdgeSAM": EdgeSam, "SAM2": SAM2}.get(
-                        self.model_name, EdgeSam
-                    )
                     self.logger.info(
-                        f"Loading local model {cls.__name__}: encoder={self.encoder_path}, decoder={self.decoder_path}"
+                        f"Setting up local inference {self.model_name} from {self.model_dir} "
+                        f"(backend={self.backend})"
                     )
-                    self._model = cls(self.encoder_path, self.decoder_path)
+                    self._model = ProcessPredictor(
+                        model_dir=self.model_dir,
+                        model_name=self.model_name,
+                        backend=self.backend,
+                    )
                     self.model_status = "ready"
                 except Exception as e:
                     self.model_status = "error"
                     self.model_error = str(e)
-                    self.logger.error(f"Failed to load local model, {e=}")
+                    self.logger.error(f"Failed to set up local inference, {e=}")
                     raise
         return self._model
 
@@ -304,7 +370,7 @@ class LocalInference:
             ).model_dump()
 
         try:
-            # zlabel.models.worker imports cv2 + onnxruntime at module level,
+            # zlabel.models.worker imports cv2 + MNN lazily at module level,
             # so it may not be importable on remote-only installs.
             from zlabel.models.worker import ZSamWorker
         except ImportError as e:
@@ -326,7 +392,8 @@ class LocalInference:
                 msg=str(e),
             ).model_dump()
 
-        np_img = np.asarray(img.convert("RGB"), dtype=np.uint8)
+        np_img = np.asarray(img.convert("RGB"), dtype=np.uint8)[..., ::-1].copy()  # RGB -> BGR
+        model.set_image(np_img)
         worker = ZSamWorker(
             model=model,
             anno_id=anno_id,
@@ -395,7 +462,11 @@ class ZLabelBackend:
         return getattr(self.storage, "anno_dir", None)
 
     def login(self, username: str = "", password: str = "") -> str | None:
-        return self.storage.login(username, password)
+        token = self.storage.login(username, password)
+        infer_login = getattr(self.inference, "login", None)
+        if infer_login is not None:
+            token = infer_login(username, password) or token
+        return token
 
     def get_projects(self) -> list[dict[str, int | str]] | None:
         return self.storage.get_projects()
@@ -444,21 +515,82 @@ class ZLabelBackend:
         )
 
 
+def _resize_long_edge(image: Image.Image, max_side: int) -> Image.Image:
+    """Aspect-preserving resize so the long edge is at most ``max_side`` px.
+
+    Images already smaller are returned unchanged (no upscaling).
+    """
+    w, h = image.size
+    if max(w, h) <= max_side:
+        return image
+    r = max_side / max(w, h)
+    return image.resize((max(1, round(w * r)), max(1, round(h * r))), Image.Resampling.LANCZOS)
+
+
+def _scale_results(
+    data: list[Any],
+    scale: tuple[float, float],
+    upload_hw: tuple[int, int],
+    orig_hw: tuple[int, int],
+) -> list[Any]:
+    """Map Rect/Polygon/RLE results from the uploaded (resized) image back to the
+    original image pixel coordinates by multiplying by the resize scale."""
+    from zlabel.models.ztypes import Polygon
+
+    sx, sy = scale
+    out: list[Any] = []
+    for item in data:
+        if isinstance(item, str):
+            out.append(_scale_rle(item, upload_hw, orig_hw))
+        elif isinstance(item, dict) and "points" in item:
+            out.append(
+                {"points": [{"x": p["x"] * sx, "y": p["y"] * sy} for p in item["points"]]}
+            )
+        elif isinstance(item, dict) and {"x", "y", "w", "h"} <= set(item):
+            out.append(
+                {
+                    "x": item["x"] * sx,
+                    "y": item["y"] * sy,
+                    "w": item["w"] * sx,
+                    "h": item["h"] * sy,
+                }
+            )
+        else:
+            out.append(item)
+    return out
+
+
+def _scale_rle(
+    rle: str,
+    upload_hw: tuple[int, int],
+    orig_hw: tuple[int, int],
+) -> str:
+    """Decode an RLE mask at upload size, resize to the original size, re-encode."""
+    from zlabel.models.ztypes import Polygon
+
+    uw, uh = upload_hw
+    ow, oh = orig_hw
+    mask = Polygon.rle_decode(rle, (uh, uw))
+    img = Image.fromarray((mask * 255).astype(np.uint8))
+    img = img.resize((ow, oh), Image.Resampling.NEAREST)
+    return Polygon.rle_encode((np.asarray(img) > 127).astype(np.uint8))
+
+
 def build_backend(settings: Any) -> ZLabelBackend:
     """Build a backend from settings.
 
     inference_mode and storage are independent axes:
-    - remote/remote: today's behavior (HTTP predict + OpenList storage)
+    - remote/remote: HTTP predict + remote OpenList storage
     - local/remote: in-process inference + remote OpenList storage
     - local/local: fully offline
-
-    remote inference + local storage is invalid (the server cannot fetch the
-    local image), so it silently falls back to local inference.
+    - remote/local: local images are uploaded via set_image before each predict
+      (server caches them by image_name); login goes through the inference API.
     """
     storage_mode = getattr(settings.project, "storage_mode", "remote")
     inference_mode = getattr(settings, "inference_mode", "remote")
 
-    api: ZLServerApiHelper | None = None
+    api = ZLServerApiHelper(settings.username, settings.password, settings.host)
+
     if storage_mode == "local":
         storage: Storage = LocalStorage(
             root_dir=settings.root_dir,
@@ -466,17 +598,19 @@ def build_backend(settings: Any) -> ZLabelBackend:
             local_dir=getattr(settings.project, "local_dir", ""),
         )
     else:
-        api = ZLServerApiHelper(settings.username, settings.password, settings.host)
         storage = RemoteStorage(api)
 
-    if inference_mode == "local" or storage_mode == "local":
+    if inference_mode == "local":
         inference: Inference = LocalInference(
             storage=storage,
             model_name=getattr(settings, "model_name", "EdgeSAM"),
-            encoder_path=getattr(settings, "encoder_path", ""),
-            decoder_path=getattr(settings, "decoder_path", ""),
+            model_dir=getattr(settings, "model_dir", ""),
+            backend=getattr(settings, "inference_backend", "AUTO"),
         )
     else:
-        assert api is not None
-        inference = RemoteInference(api)
+        inference = RemoteInference(
+            api=api,
+            storage=storage,
+            upload_image_size=getattr(settings, "upload_image_size", 1024),
+        )
     return ZLabelBackend(inference=inference, storage=storage)

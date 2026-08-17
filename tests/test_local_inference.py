@@ -73,17 +73,16 @@ def test_fake_model_sam(tmp_path, make_image, fake_model):
 
 @pytest.mark.models
 def test_real_edge_sam(tmp_path, make_image):
-    """End-to-end local SAM with the bundled EdgeSAM onnx models."""
+    """End-to-end local SAM with the bundled EdgeSAM MNN models."""
     from zlabel.utils.paths import resource_dir
 
-    enc = resource_dir() / "edge_sam_3x_encoder.onnx"
-    dec = resource_dir() / "edge_sam_3x_decoder.onnx"
-    if not (enc.exists() and dec.exists()):
-        pytest.skip("onnx models not present in data/ (gitignored)")
+    d = resource_dir() / "models" / "mnn"
+    if not ((d / "edge_sam_3x_encoder.mnn").exists() and (d / "edge_sam_3x_decoder.mnn").exists()):
+        pytest.skip("MNN models not present in data/models/mnn (gitignored)")
     try:
-        import onnxruntime  # noqa: F401, E402
+        import MNN  # noqa: F401, E402
     except ImportError:
-        pytest.skip("onnxruntime not installed (uv sync --extra local)")
+        pytest.skip("MNN not installed (uv sync --extra local)")
     inf = _inference(tmp_path, make_image)
     resp = inf.predict(
         "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1

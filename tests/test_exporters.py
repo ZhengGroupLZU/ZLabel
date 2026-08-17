@@ -4,12 +4,14 @@ import numpy as np
 from PIL import Image
 
 from zlabel.utils.exporters import (
+    ExportInstance,
     ExportTask,
     export_coco,
     export_yolo,
 )
 from zlabel.utils.project import (
     Annotation,
+    GermStatus,
     Label,
     PointResult,
     PolygonResult,
@@ -36,10 +38,10 @@ def _project() -> Project:
     )
     nose = p.labels[list(p.labels)[2]]
     anno.add_result(
-        PointResult.new(labels=[nose], x=30, y=40, visible=1, category_id=2, instance_id="inst_1")
+        PointResult.new(labels=[nose], x=30, y=40, visible=1, category_id=2, instance_id=1)
     )
     anno.add_result(
-        PointResult.new(labels=[nose], x=50, y=40, visible=2, category_id=2, instance_id="inst_2")
+        PointResult.new(labels=[nose], x=50, y=40, visible=2, category_id=2, instance_id=2)
     )
     p.tasks["a1"].anno = anno
     return p
@@ -141,3 +143,85 @@ def test_yolo_copies_images(tmp_path):
     export_yolo(p, str(out), ExportTask.DETECTION, get_image=get_image)
     assert (out / "images" / "a.png").exists()
     assert seen == ["a.png"]
+
+
+def _germ_project() -> Project:
+    """Project with two seed instances: seed+root+seedling parts and a dish."""
+    p = Project(id="g", name="germ")
+    for name, color in [("Seed", "#f00"), ("Root", "#0f0"), ("Seedling", "#00f"), ("Dish", "#808")]:
+        p.add_label(Label.new(name, color))
+    p.add_task(
+        Task(id=1, anno_id="g1", filename="wheat/dish1/D1.png", labels=[], group="wheat/dish1", day=1)
+    )
+    anno = Annotation(
+        id="g1",
+        image_path="wheat/dish1/D1.png",
+        original_width=100,
+        original_height=100,
+        group="wheat/dish1",
+        day=1,
+        instances={1: GermStatus.NORMAL_SEED.value, 2: GermStatus.NORMAL_SEEDLING.value},
+    )
+    names = {lbl.name: lbl for lbl in p.labels.values()}
+    anno.add_result(
+        PolygonResult.new(labels=[names["Seed"]], points=[(1, 1), (9, 1), (9, 9), (1, 9)], instance_id=1)
+    )
+    anno.add_result(
+        PolygonResult.new(labels=[names["Root"]], points=[(9, 5), (18, 5), (18, 8), (9, 8)], instance_id=1)
+    )
+    anno.add_result(
+        PolygonResult.new(labels=[names["Seedling"]], points=[(20, 20), (28, 20), (28, 28), (20, 28)], instance_id=2)
+    )
+    anno.add_result(
+        PolygonResult.new(labels=[names["Dish"]], points=[(40, 40), (80, 40), (80, 80), (40, 80)])
+    )
+    p.tasks["g1"].anno = anno
+    return p
+
+
+def test_coco_merged_instances(tmp_path):
+    p = _germ_project()
+    out = tmp_path / "merged.json"
+    stats = export_coco(p, str(out), ExportTask.SEGMENTATION, ExportInstance.MERGED)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    # categories: 5 statuses + 4 labels
+    assert len(data["categories"]) == 5 + 4
+    status_names = [s.value for s in GermStatus]
+    cats = {c["id"]: c["name"] for c in data["categories"]}
+    assert cats[0] == status_names[0]
+    assert cats[5] == "Seed"
+    assert stats["annotations"] == 3  # two instances + dish
+    anns = sorted(data["annotations"], key=lambda a: a["id"])
+    inst1 = anns[0]
+    assert inst1["category_id"] == status_names.index("normal_seed")
+    assert inst1["instance_id"] == 1
+    assert len(inst1["segmentation"]) == 2  # seed + root merged
+    assert data["images"][0]["group"] == "wheat/dish1"
+    assert data["images"][0]["day"] == 1
+    dish = anns[2]
+    assert dish["category_id"] == 5 + 3  # Dish label id
+
+
+def test_coco_split_has_instance_fields(tmp_path):
+    p = _germ_project()
+    out = tmp_path / "split.json"
+    export_coco(p, str(out), ExportTask.SEGMENTATION, ExportInstance.SPLIT)
+    data = json.loads(out.read_text(encoding="utf-8"))
+    seed = [a for a in data["annotations"] if a.get("instance_id") == 1][0]
+    assert seed["attributes"]["status"] == "normal_seed"
+    dish = [a for a in data["annotations"] if "instance_id" not in a][0]
+    assert dish["category_id"] == data["categories"].index({"id": 3, "name": "Dish"})
+
+
+def test_yolo_merged_instances(tmp_path):
+    p = _germ_project()
+    out = tmp_path / "yolo"
+    export_yolo(p, str(out), ExportTask.SEGMENTATION, instance_mode=ExportInstance.MERGED)
+    txt = (out / "labels" / "D1.txt").read_text(encoding="utf-8").strip().splitlines()
+    assert len(txt) == 3  # 2 instances + dish
+    status_names = [s.value for s in GermStatus]
+    first = txt[0].split()
+    assert int(first[0]) == status_names.index("normal_seed")
+    # seed(4 pts) + root(4 pts) -> 1 + 16 coords
+    assert len(first) == 1 + 16
+    assert all(0.0 <= float(v) <= 1.0 for v in first[1:])

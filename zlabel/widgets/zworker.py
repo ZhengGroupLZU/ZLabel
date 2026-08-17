@@ -236,6 +236,41 @@ class GetProjectsEmitter(QObject):
     fail = Signal(object)
 
 
+class OcrEmitter(QObject):
+    finished = Signal(str, object)  # result_id, text_or_None
+    failed = Signal(str)
+
+
+class ZOcrWorker(QRunnable):
+    """OCR a cropped image region in a background thread (RapidOCR)."""
+
+    def __init__(
+        self,
+        image: Image.Image,
+        box: tuple[int, int, int, int],
+        result_id: str,
+    ) -> None:
+        super().__init__()
+        self.image = image
+        self.box = box
+        self.result_id = result_id
+        self.emitter = OcrEmitter()
+        self.setAutoDelete(True)
+
+    def run(self):
+        from zlabel.utils.ocr import extract_datetime, ocr_image
+
+        try:
+            crop = self.image.crop(self.box).convert("RGB")
+            import numpy as np
+
+            text = ocr_image(np.asarray(crop, dtype=np.uint8))
+            self.emitter.finished.emit(self.result_id, extract_datetime(text) if text else None)
+        except Exception as e:
+            print(f"OCR failed: {e}")
+            self.emitter.failed.emit(self.result_id)
+
+
 class GetProjectsWorker(QRunnable):
     def __init__(
             self,

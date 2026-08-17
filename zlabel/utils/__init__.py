@@ -17,6 +17,7 @@ from .enums import (
 from .logger import ZLogger
 from .project import (
     Annotation,
+    GermStatus,
     Label,
     PointResult,
     PolygonResult,
@@ -27,6 +28,7 @@ from .project import (
     ResultType,
     Task,
     User,
+    germ_preset_labels,
     id_md5,
     id_uuid4,
 )
@@ -56,6 +58,8 @@ __all__ = [
     "PolygonResult",
     "Annotation",
     "User",
+    "GermStatus",
+    "germ_preset_labels",
     "id_md5",
     "id_uuid4",
 ]

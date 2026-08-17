@@ -15,6 +15,8 @@ dependencies = [
     "pyqtgraph<1.0.0,>=0.14.0",
     "numpy>=2.2.6",
     "shapely>=2.1.2",
+    "opencv-python>=5.0.0.93",
+    "protobuf>=7.35.1",
 ]
 
 [project.scripts]
@@ -31,12 +33,12 @@ build-backend = "uv_build"
 
 [project.optional-dependencies]
 local = [
-    "onnxruntime>=1.19.0",
-    "opencv-python-headless>=4.11.0.86",
+    "MNN>=3.6.0",
+    "regex",
 ]
 local-gpu = [
-    "onnxruntime-gpu>=1.22.0",
-    "opencv-python-headless>=4.11.0.86",
+    "MNN>=3.6.0",
+    "regex",
 ]
 
 [dependency-groups]
@@ -47,6 +49,7 @@ dev = [
     "py7zr>=1.0.0",
     "pytest>=8.4.2",
     "pytest-cov>=6.0.0",
+    "pytest-qt>=4.4.0",
     "typed-argument-parser>=1.11.0",
     # "pyinstaller<7.0.0,>=6.3.0",
     "tqdm>=4.67.1",
@@ -89,6 +92,10 @@ ignore = [
     "F401",
 ]
 
+[tool.ruff.lint.per-file-ignores]
+# ported ctypes bindings from WeChat-Local-OCR-Serve (keep upstream style)
+"zlabel/utils/wechat_ocr/**" = ["E", "W", "F", "I", "UP", "B", "C4", "ARG001"]
+
 [tool.pyright]
 defineConstant = { PYQT5 = false, PYSIDE6 = true, PYSIDE2 = false, PYQT6 = false }
 reportUnannotatedClassAttribute = false
@@ -105,6 +112,7 @@ reportMissingTypeStubs = false
 exclude = [
     "^zlabel/widgets/ui/",
     "^zlabel/models/",
+    "^zlabel/utils/wechat_ocr/",
     "^tests/",
     "^dist/",
     "^build/",

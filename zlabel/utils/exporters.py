@@ -15,6 +15,7 @@ from PIL import Image
 
 from zlabel.utils.project import (
     Annotation,
+    GermStatus,
     PointResult,
     PolygonResult,
     Project,
@@ -31,6 +32,13 @@ class ExportTask(IntEnum):
     DETECTION = 0
     SEGMENTATION = 1
     KEYPOINTS = 2
+
+
+class ExportInstance(IntEnum):
+    """How to export seed instances: split by part or merged per instance."""
+
+    SPLIT = 0
+    MERGED = 1
 
 
 def _annotated_tasks(project: Project):
@@ -105,8 +113,15 @@ def _group_keypoints(
 # ---------------------------------------------------------------------------
 # COCO
 # ---------------------------------------------------------------------------
-def export_coco(project: Project, output: str, task: ExportTask) -> dict[str, Any]:
+def export_coco(
+    project: Project,
+    output: str,
+    task: ExportTask,
+    instance_mode: ExportInstance = ExportInstance.SPLIT,
+) -> dict[str, Any]:
     label_names = _label_names(project)
+    if instance_mode == ExportInstance.MERGED:
+        return _export_coco_merged(project, output, task, label_names)
     categories: list[dict[str, Any]] = []
     for i, name in enumerate(label_names):
         cat: dict[str, Any] = {"id": i, "name": name}
@@ -161,6 +176,10 @@ def export_coco(project: Project, output: str, task: ExportTask) -> dict[str, An
                     "area": round(bbox[2] * bbox[3], 2),
                     "iscrowd": 0,
                 }
+                iid = getattr(result, "instance_id", 0)
+                if iid:
+                    ann["instance_id"] = iid
+                    ann["attributes"] = {"status": anno.instances.get(iid, "")}
                 if task == ExportTask.SEGMENTATION:
                     flat = [v for p in _polygon_points(result) for v in p]
                     ann["segmentation"] = [[round(v, 2) for v in flat]]
@@ -189,6 +208,110 @@ def _label_id(project: Project, result: RectangleResult | PolygonResult) -> int:
 
 
 # ---------------------------------------------------------------------------
+# Merged (per-instance) COCO
+# ---------------------------------------------------------------------------
+def _group_instances(anno: Annotation):
+    """Split annotation results into (instances, independent).
+
+    instances: instance_id -> list[PolygonResult] (part polygons sharing the id)
+    independent: results without an instance_id (dish polygon, timestamp rects).
+    """
+    groups: OrderedDict[str, list[PolygonResult]] = OrderedDict()
+    independent: list[RectangleResult | PolygonResult] = []
+    for r in anno.results.values():
+        if isinstance(r, PointResult):
+            continue
+        if isinstance(r, PolygonResult) and r.instance_id:
+            groups.setdefault(r.instance_id, []).append(r)
+        else:
+            independent.append(r)
+    return groups, independent
+
+
+def _export_coco_merged(
+    project: Project,
+    output: str,
+    task: ExportTask,
+    label_names: list[str],
+) -> dict[str, Any]:
+    if task != ExportTask.SEGMENTATION:
+        raise ValueError("merged instance export requires the segmentation task")
+    status_names = [s.value for s in GermStatus]
+    label_start = len(status_names)
+    categories = [{"id": i, "name": n} for i, n in enumerate(status_names)]
+    categories += [{"id": label_start + i, "name": n} for i, n in enumerate(label_names)]
+
+    images: list[dict[str, Any]] = []
+    annotations: list[dict[str, Any]] = []
+    ann_id = 1
+    for img_id, task_ in enumerate(_annotated_tasks(project)):
+        anno = task_.anno
+        assert anno is not None
+        images.append(
+            {
+                "id": img_id,
+                "file_name": task_.filename,
+                "width": int(anno.original_width),
+                "height": int(anno.original_height),
+                "group": anno.group,
+                "day": anno.day,
+            }
+        )
+        groups, independent = _group_instances(anno)
+        for iid, polys in groups.items():
+            status = anno.instances.get(iid, "")
+            if status not in status_names:
+                continue
+            all_pts = [p for poly in polys for p in poly.points]
+            xs = [p[0] for p in all_pts]
+            ys = [p[1] for p in all_pts]
+            if not xs:
+                continue
+            bbox = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+            segmentation = [[round(v, 2) for p in poly.points for v in p] for poly in polys]
+            annotations.append(
+                {
+                    "id": ann_id,
+                    "image_id": img_id,
+                    "category_id": status_names.index(status),
+                    "bbox": [round(v, 2) for v in bbox],
+                    "area": round(bbox[2] * bbox[3], 2),
+                    "iscrowd": 0,
+                    "segmentation": segmentation,
+                    "instance_id": iid,
+                }
+            )
+            ann_id += 1
+        for r in independent:
+            if not r.labels or r.labels[0].name not in label_names:
+                continue
+            bbox = _result_bbox(r)
+            annotations.append(
+                {
+                    "id": ann_id,
+                    "image_id": img_id,
+                    "category_id": label_start + label_names.index(r.labels[0].name),
+                    "bbox": [round(v, 2) for v in bbox],
+                    "area": round(bbox[2] * bbox[3], 2),
+                    "iscrowd": 0,
+                    "segmentation": [[round(v, 2) for p in _polygon_points(r) for v in p]],
+                }
+            )
+            ann_id += 1
+
+    data = {
+        "info": {"description": "ZLabel export (segmentation, merged instances)", "version": "1.0"},
+        "images": images,
+        "annotations": annotations,
+        "categories": categories,
+    }
+    out = Path(output)
+    out.parent.mkdir(parents=True, exist_ok=True)
+    out.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {"images": len(images), "annotations": len(annotations)}
+
+
+# ---------------------------------------------------------------------------
 # Ultralytics YOLO
 # ---------------------------------------------------------------------------
 def export_yolo(
@@ -196,6 +319,7 @@ def export_yolo(
     output_dir: str,
     task: ExportTask,
     get_image: Callable[[str], Image.Image | None] | None = None,
+    instance_mode: ExportInstance = ExportInstance.SPLIT,
 ) -> dict[str, Any]:
     """Write `images/` + `labels/` to output_dir, one txt per image."""
     out = Path(output_dir)
@@ -205,6 +329,8 @@ def export_yolo(
     labels_dir.mkdir(parents=True, exist_ok=True)
 
     label_names = _label_names(project)
+    if instance_mode == ExportInstance.MERGED:
+        return _export_yolo_merged(project, images_dir, labels_dir, task, label_names, get_image)
     n_images = 0
     n_annos = 0
     for task_ in _annotated_tasks(project):
@@ -245,6 +371,57 @@ def export_yolo(
                     )
                     lines.append(f"{label_id} {pts}".rstrip())
                 n_annos += 1
+
+        stem = filename.rsplit(".", 1)[0]
+        (labels_dir / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+        if get_image is not None:
+            img = get_image(task_.filename)
+            if img is not None:
+                img.save(images_dir / filename)
+        n_images += 1
+
+    return {"images": n_images, "annotations": n_annos}
+
+
+def _export_yolo_merged(
+    project: Project,
+    images_dir: Path,
+    labels_dir: Path,
+    task: ExportTask,
+    label_names: list[str],
+    get_image: Callable[[str], Image.Image | None] | None,
+) -> dict[str, Any]:
+    if task != ExportTask.SEGMENTATION:
+        raise ValueError("merged instance export requires the segmentation task")
+    status_names = [s.value for s in GermStatus]
+    label_start = len(status_names)
+    n_images = 0
+    n_annos = 0
+    for task_ in _annotated_tasks(project):
+        anno = task_.anno
+        assert anno is not None
+        w = float(anno.original_width) or 1.0
+        h = float(anno.original_height) or 1.0
+        filename = Path(task_.filename).name
+        lines: list[str] = []
+        groups, independent = _group_instances(anno)
+        for iid, polys in groups.items():
+            status = anno.instances.get(iid, "")
+            if status not in status_names:
+                continue
+            pts = [p for poly in polys for p in poly.points]
+            txt = " ".join(f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in pts)
+            lines.append(f"{status_names.index(status)} {txt}".rstrip())
+            n_annos += 1
+        for r in independent:
+            if not r.labels or r.labels[0].name not in label_names:
+                continue
+            pts = " ".join(
+                f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in _polygon_points(r)
+            )
+            lines.append(f"{label_start + label_names.index(r.labels[0].name)} {pts}".rstrip())
+            n_annos += 1
 
         stem = filename.rsplit(".", 1)[0]
         (labels_dir / f"{stem}.txt").write_text("\n".join(lines) + "\n", encoding="utf-8")

@@ -35,6 +35,10 @@ output_dir = f"build/exe.{uname.system.lower()}-{uname.machine.lower()}"
 
 # onnx model files in data/ are intentionally NOT bundled.
 include_files = [["i18n/zh_CN.qm", "i18n/zh_CN.qm"]]
+# WeChat OCR engine: bundle only when the wxocr component is present in the tree.
+_wxocr_src = "data/WeChat-Local-OCR-Serve/wxocr"
+if os.path.isdir(_wxocr_src):
+    include_files.append([_wxocr_src, "data/WeChat-Local-OCR-Serve/wxocr"])
 
 includes = [
     "PySide6.QtOpenGL",
@@ -42,11 +46,10 @@ includes = [
 ]
 try:
     import cv2  # noqa: F401
-    import onnxruntime  # noqa: F401
 
-    includes += ["onnxruntime", "cv2"]
+    includes += ["cv2"]
 except ImportError:
-    print("Warning: onnxruntime/cv2 not installed, local inference disabled in this build")
+    print("Warning: cv2 not installed, local inference disabled in this build")
 
 build_exe_options = {
     "build_exe": output_dir,

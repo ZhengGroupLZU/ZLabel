@@ -2,13 +2,9 @@ from pyqtgraph.Qt.QtCore import Qt, Signal
 from pyqtgraph.Qt.QtGui import QIcon
 from pyqtgraph.Qt.QtWidgets import (
     QColorDialog,
-    QComboBox,
     QDialog,
     QFileDialog,
-    QGridLayout,
-    QGroupBox,
-    QLabel,
-    QLineEdit,
+    QInputDialog,
     QPushButton,
     QTableWidgetItem,
 )
@@ -25,6 +21,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
     sigSettingsChanged = Signal()
     sigApplyClicked = Signal()
     sigCancelClicked = Signal()
+    sigProjectChanged = Signal(int)
 
     def __init__(
         self,
@@ -40,59 +37,181 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.table_labels.setRowCount(0)
 
         self._loading: bool = True
-        self.init_inference_widgets()
 
         if self.settings:
             self.load_settings()
         self.init_signals()
         self._loading = False
 
-    def init_inference_widgets(self):
-        self.gbox_inference = QGroupBox(self.tr("Inference"), self)
-        grid = QGridLayout(self.gbox_inference)
-        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
-        self.cmbox_inference_mode.addItems(["Remote", "Local"])
-        self.cmbox_model_name = QComboBox(self.gbox_inference)
-        self.cmbox_model_name.addItems(["SAM", "EdgeSAM", "SAM2"])
-        self.ledit_encoder_path = QLineEdit(self.gbox_inference)
-        self.ledit_decoder_path = QLineEdit(self.gbox_inference)
-        self.btn_encoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
-        self.btn_decoder_path = QPushButton(self.tr("Browse..."), self.gbox_inference)
-        self.btn_encoder_path.clicked.connect(lambda: self.on_browse_model_path("encoder"))
-        self.btn_decoder_path.clicked.connect(lambda: self.on_browse_model_path("decoder"))
-        grid.addWidget(QLabel(self.tr("Inference Mode:")), 0, 0)
-        grid.addWidget(self.cmbox_inference_mode, 0, 1)
-        grid.addWidget(QLabel(self.tr("Model:")), 1, 0)
-        grid.addWidget(self.cmbox_model_name, 1, 1)
-        grid.addWidget(QLabel(self.tr("Encoder Path:")), 2, 0)
-        grid.addWidget(self.ledit_encoder_path, 2, 1)
-        grid.addWidget(self.btn_encoder_path, 2, 2)
-        grid.addWidget(QLabel(self.tr("Decoder Path:")), 3, 0)
-        grid.addWidget(self.ledit_decoder_path, 3, 1)
-        grid.addWidget(self.btn_decoder_path, 3, 2)
-        self.gridLayout.addWidget(self.gbox_inference, 2, 0)
-        self.update_inference_widgets_enabled()
+    def _load_statuses(self):
+        from zlabel.widgets.dock_anno import humanize_status
 
-    def on_browse_model_path(self, which: str):
-        path, _ = QFileDialog.getOpenFileName(
-            self, self.tr("Select onnx model"), "", self.tr("ONNX (*.onnx)")
-        )
+        self.table_statuses.setRowCount(0)
+        if self.settings is None:
+            return
+        for val in self.settings.project.instance_statuses:
+            row = self.table_statuses.rowCount()
+            self.table_statuses.insertRow(row)
+            item = QTableWidgetItem(humanize_status(val))
+            item.setData(Qt.ItemDataRole.UserRole, val)
+            self.table_statuses.setItem(row, 0, item)
+
+    def on_add_status(self):
+        if self.settings is None:
+            return
+        text, ok = QInputDialog.getText(self, self.tr("Add status"), self.tr("Status value:"))
+        if not ok or not text.strip():
+            return
+        val = text.strip().lower().replace(" ", "_")
+        if val not in self.settings.project.instance_statuses:
+            self.settings.project.instance_statuses.append(val)
+            self._load_statuses()
+            self.sigSettingsChanged.emit()
+
+    def on_del_status(self):
+        if self.settings is None:
+            return
+        row = self.table_statuses.currentRow()
+        if row < 0:
+            return
+        item = self.table_statuses.item(row, 0)
+        if item is not None:
+            val = item.data(Qt.ItemDataRole.UserRole)
+            if val in self.settings.project.instance_statuses:
+                self.settings.project.instance_statuses.remove(val)
+        self._load_statuses()
+        self.sigSettingsChanged.emit()
+
+    def _refresh_projects_combo(self):
+        if self.settings is None:
+            return
+        self.combo_projects.blockSignals(True)
+        self.combo_projects.clear()
+        self.combo_projects.addItems([name for _, name in self.settings.projects])
+        self.combo_projects.setCurrentIndex(self.settings.project_idx)
+        self.combo_projects.blockSignals(False)
+
+    def on_project_selected(self, index: int):
+        if self._loading or self.settings is None:
+            return
+        if index < 0 or index >= len(self.settings.projects):
+            return
+        if index != self.settings.project_idx:
+            self.settings.project_idx = index
+            self.sigProjectChanged.emit(index)
+
+    def on_new_project(self):
+        if self.settings is None:
+            return
+        name, ok = QInputDialog.getText(self, self.tr("New Project"), self.tr("Project name:"))
+        if not ok or not name.strip():
+            return
+        name = name.strip()
+        from zlabel.utils.project import Project, id_uuid4
+
+        project = Project(id=id_uuid4(), name=name)
+        project.storage_mode = self.settings.project.storage_mode
+        project.save_json(self.settings.project_root / name / f"{name}.json")
+        self.settings.projects.append((len(self.settings.projects), name))
+        self.settings.project_idx = len(self.settings.projects) - 1
+        self.settings.project = project
+        self._refresh_projects_combo()
+        self.load_settings(self.settings)
+        self.sigProjectChanged.emit(self.settings.project_idx)
+
+    def on_delete_project(self):
+        if self.settings is None or len(self.settings.projects) <= 1:
+            return
+        idx = self.settings.project_idx
+        self.settings.projects.pop(idx)
+        self.settings.project_idx = min(idx, len(self.settings.projects) - 1)
+        self.settings.reload_project()
+        self._refresh_projects_combo()
+        self.load_settings(self.settings)
+        self.sigProjectChanged.emit(self.settings.project_idx)
+
+    def _rename_project(self, new_name: str):
+        if self.settings is None:
+            return
+        old_name = self.settings.project.name
+        if not new_name or new_name == old_name:
+            return
+        old_dir = self.settings.project_root / old_name
+        new_dir = self.settings.project_root / new_name
+        if old_dir.exists() and not new_dir.exists() and old_name:
+            try:
+                old_dir.rename(new_dir)
+            except OSError:
+                pass
+        self.settings.project.name = new_name
+        if 0 <= self.settings.project_idx < len(self.settings.projects):
+            self.settings.projects[self.settings.project_idx] = (
+                self.settings.projects[self.settings.project_idx][0],
+                new_name,
+            )
+        self._refresh_projects_combo()
+
+    def on_preset_selected(self, index: int):
+        if index == 1:
+            self.on_germ_preset()
+        elif index == 0:
+            self.on_empty_preset()
+
+    def on_empty_preset(self):
+        """Clear the project's labels and instance statuses."""
+        if self.settings is None:
+            return
+        self.settings.project.labels.clear()
+        self.settings.project.instance_statuses = []
+        self.settings.project.key_label = None
+        self.set_labels({})
+        self._load_statuses()
+        self.sigSettingsChanged.emit()
+
+    def on_browse_model_dir(self):
+        path = QFileDialog.getExistingDirectory(self, self.tr("Select MNN model folder"))
         if not path:
             return
-        if which == "encoder":
-            self.ledit_encoder_path.setText(path)
-            self.on_settings_changed("encoder_path")
-        else:
-            self.ledit_decoder_path.setText(path)
-            self.on_settings_changed("decoder_path")
+        self.ledit_model_dir.setText(path)
+        self.on_settings_changed("model_dir")
+
+    def on_germ_preset(self):
+        """Load the germination preset: default labels (merged with existing) and
+        default instance statuses (replaced)."""
+        if self.settings is None:
+            return
+        from zlabel.utils import germ_preset_labels
+        from zlabel.utils.project import GermStatus
+
+        existing = {lbl.name for lbl in self.settings.project.labels.values()}
+        for lbl in germ_preset_labels().values():
+            if lbl.name not in existing:
+                self.settings.project.labels[lbl.id] = lbl
+        self.settings.project.key_label = next(iter(self.settings.project.labels), None)
+        self.settings.project.instance_statuses = [s.value for s in GermStatus] + ["dish", "text"]
+        self.set_labels(self.settings.project.labels)
+        self._load_statuses()
+        self.sigSettingsChanged.emit()
+
+    def on_browse_ocr_dir(self):
+        path = QFileDialog.getExistingDirectory(self, self.tr("Select WeChat OCR folder (wxocr)"))
+        if not path:
+            return
+        self.ledit_ocr_dir.setText(path)
+        self.on_settings_changed("ocr_wx_dir")
+
+    def on_ocr_dir_changed(self):
+        """Push the chosen wxocr folder to the OCR engine (resets its cache)."""
+        from zlabel.utils.ocr import set_wxocr_dir
+
+        set_wxocr_dir(self.settings.ocr_wx_dir if self.settings else "")
 
     def update_inference_widgets_enabled(self):
         is_local = self.cmbox_inference_mode.currentIndex() == 1
+        self.cmbox_backend.setEnabled(is_local)
         self.cmbox_model_name.setEnabled(is_local)
-        self.ledit_encoder_path.setEnabled(is_local)
-        self.ledit_decoder_path.setEnabled(is_local)
-        self.btn_encoder_path.setEnabled(is_local)
-        self.btn_decoder_path.setEnabled(is_local)
+        self.ledit_model_dir.setEnabled(is_local)
+        self.btn_model_dir.setEnabled(is_local)
 
     def load_settings(self, settings: ZSettings | None = None):
         self.settings = settings or self.settings
@@ -110,14 +229,21 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.cmbox_inference_mode.setCurrentIndex(
             0 if self.settings.inference_mode == "remote" else 1
         )
+        self.cmbox_backend.setCurrentText(self.settings.inference_backend)
         self.cmbox_model_name.setCurrentText(self.settings.model_name)
-        self.ledit_encoder_path.setText(self.settings.encoder_path)
-        self.ledit_decoder_path.setText(self.settings.decoder_path)
+        self.ledit_model_dir.setText(self.settings.model_dir)
+        self.spin_upload_size.setValue(self.settings.upload_image_size)
+        self.ckbox_auto_dish.setChecked(self.settings.auto_fit_dish)
+        self.ckbox_ocr_skip.setChecked(self.settings.ocr_skip_manual)
+        self.ledit_ocr_dir.setText(self.settings.ocr_wx_dir)
+        self.ckbox_copy_prev.setChecked(self.settings.enable_copy_prev)
         self.update_inference_widgets_enabled()
 
         self.set_labels(self.settings.project.labels)
         self.ledit_projname.setText(str(self.settings.project.name))
         self.ledit_prjdesc.setText(str(self.settings.project.description))
+        self._refresh_projects_combo()
+        self._load_statuses()
 
     def init_signals(self):
         # here the k passed to on_settings_changed is the attribute name in ZSettings
@@ -146,9 +272,24 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.cmbox_loglevel.currentIndexChanged.connect(lambda: self.on_settings_changed("log_level"))
 
         self.cmbox_inference_mode.currentIndexChanged.connect(self.on_inference_mode_changed)
+        self.cmbox_backend.currentIndexChanged.connect(lambda: self.on_settings_changed("inference_backend"))
         self.cmbox_model_name.currentIndexChanged.connect(lambda: self.on_settings_changed("model_name"))
-        self.ledit_encoder_path.editingFinished.connect(lambda: self.on_settings_changed("encoder_path"))
-        self.ledit_decoder_path.editingFinished.connect(lambda: self.on_settings_changed("decoder_path"))
+        self.ledit_model_dir.editingFinished.connect(lambda: self.on_settings_changed("model_dir"))
+        self.spin_upload_size.valueChanged.connect(lambda: self.on_settings_changed("upload_image_size"))
+        self.ckbox_auto_dish.toggled.connect(lambda: self.on_settings_changed("auto_fit_dish"))
+        self.ckbox_ocr_skip.toggled.connect(lambda: self.on_settings_changed("ocr_skip_manual"))
+        self.ledit_ocr_dir.editingFinished.connect(lambda: self.on_settings_changed("ocr_wx_dir"))
+        self.ckbox_copy_prev.toggled.connect(lambda: self.on_settings_changed("enable_copy_prev"))
+
+        self.combo_projects.currentIndexChanged.connect(self.on_project_selected)
+        self.btn_new_project.clicked.connect(self.on_new_project)
+        self.btn_delete_project.clicked.connect(self.on_delete_project)
+
+        self.combo_preset.currentIndexChanged.connect(self.on_preset_selected)
+        self.btn_add_status.clicked.connect(self.on_add_status)
+        self.btn_del_status.clicked.connect(self.on_del_status)
+        self.btn_model_dir.clicked.connect(self.on_browse_model_dir)
+        self.btn_ocr_dir.clicked.connect(self.on_browse_ocr_dir)
 
     def on_inference_mode_changed(self):
         self.update_inference_widgets_enabled()
@@ -174,17 +315,27 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.inference_mode = (
                 "local" if self.cmbox_inference_mode.currentIndex() == 1 else "remote"
             )
+        elif k == "inference_backend":
+            self.settings.inference_backend = self.cmbox_backend.currentText()
         elif k == "model_name":
             self.settings.model_name = self.cmbox_model_name.currentText()
-        elif k == "encoder_path":
-            self.settings.encoder_path = self.ledit_encoder_path.text().strip()
-        elif k == "decoder_path":
-            self.settings.decoder_path = self.ledit_decoder_path.text().strip()
-        # elif k == "project_name":
-        #     self.settings.project.name = str(v)
-        #     self.settings.project_name = str(v)
-        # elif k == "project_desc":
-        #     self.settings.project.description = str(v)
+        elif k == "model_dir":
+            self.settings.model_dir = self.ledit_model_dir.text().strip()
+        elif k == "upload_image_size":
+            self.settings.upload_image_size = self.spin_upload_size.value()
+        elif k == "auto_fit_dish":
+            self.settings.auto_fit_dish = self.ckbox_auto_dish.isChecked()
+        elif k == "ocr_skip_manual":
+            self.settings.ocr_skip_manual = self.ckbox_ocr_skip.isChecked()
+        elif k == "ocr_wx_dir":
+            self.settings.ocr_wx_dir = self.ledit_ocr_dir.text().strip()
+            self.on_ocr_dir_changed()
+        elif k == "enable_copy_prev":
+            self.settings.enable_copy_prev = self.ckbox_copy_prev.isChecked()
+        elif k == "project_name":
+            self._rename_project(self.ledit_projname.text().strip())
+        elif k == "project_desc":
+            self.settings.project.description = self.ledit_prjdesc.text().strip()
         elif k == "log_level":
             self.settings.log_level = LogLevel(self.cmbox_loglevel.currentIndex())
         else:

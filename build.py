@@ -7,6 +7,7 @@ LastEditTime: 2025-11-13
 import os
 import platform
 import re
+import shutil
 from argparse import ArgumentParser
 from pathlib import Path
 
@@ -180,6 +181,14 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
     if code != 0:
         print(f"Error: {code}")
         return
+
+    # Bundle the WeChat OCR engine next to the app when present in the tree
+    _wxocr_src = Path("data/WeChat-Local-OCR-Serve/wxocr")
+    if _wxocr_src.is_dir():
+        _target = Path(f"{nuitka_build_dir}/{__proj_name__}.dist/data/WeChat-Local-OCR-Serve/wxocr")
+        _target.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copytree(_wxocr_src, _target, dirs_exist_ok=True)
+        print(f"Bundled WeChat OCR engine into {_target}")
 
     # For release builds, compress the result
     if not enable_debug:

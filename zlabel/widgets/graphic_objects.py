@@ -8,7 +8,7 @@ from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent, MouseDragEvent
 from pyqtgraph.Qt.QtCore import QCoreApplication, QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF, QTransform
-from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QMenu, QStyleOptionGraphicsItem, QWidget
+from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QGraphicsSimpleTextItem, QMenu, QStyleOptionGraphicsItem, QWidget
 from rich import print  # noqa: F401
 
 from zlabel.utils import ZLogger, id_uuid4
@@ -61,6 +61,37 @@ class ZROI(pg.ROI):
             aspectLocked,
             antialias,
         )
+        self._init_instance_label()
+        self.sigRegionChanged.connect(self._update_instance_label)
+
+    # region instance id label
+    def _init_instance_label(self):
+        self.instance_id: int = 0
+        self.label_color: str | None = None
+        self.label_text: QGraphicsSimpleTextItem | None = None
+
+    def set_instance_label(self, instance_id: int, color: str | None):
+        self.instance_id = instance_id
+        self.label_color = color
+        self._update_instance_label()
+
+    def _instance_label_pos(self) -> tuple[float, float]:
+        return 0.0, 0.0
+
+    def _update_instance_label(self):
+        if self.instance_id:
+            if self.label_text is None:
+                self.label_text = QGraphicsSimpleTextItem(self)
+                self.label_text.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+            self.label_text.setText(str(self.instance_id))
+            if self.label_color:
+                self.label_text.setBrush(QColor(self.label_color))
+            self.label_text.setPos(*self._instance_label_pos())
+            self.label_text.setVisible(True)
+        elif self.label_text is not None:
+            self.label_text.setVisible(False)
+
+    # endregion
 
     @property
     def handles_created(self):
@@ -125,6 +156,9 @@ class Rectangle(ZROI):
             self.setCursor(Qt.CursorShape.PointingHandCursor)
         else:
             self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def _instance_label_pos(self) -> tuple[float, float]:
+        return 2.0, 2.0
 
     def mouseClickEvent(self, ev: MouseClickEvent):
         if ev.button() == Qt.MouseButton.LeftButton:
@@ -372,11 +406,25 @@ class Polygon(ZROI):
         return state
 
     def setState(self, state: dict[str, Any], update: bool = True):
-        self.setPos(state["pos"], update=False)
+        pos = state["pos"]
+        points = [pg.Point(p) if not hasattr(p, "x") else pg.Point(p.x(), p.y()) for p in state["points"]]
+        if pos.x() != 0 or pos.y() != 0:
+            # legacy/moved ROIs may carry a non-zero origin; fold it back into
+            # the points so stored data stays in absolute image coordinates
+            points = [pg.Point(p.x() + pos.x(), p.y() + pos.y()) for p in points]
+            pos = pg.Point(0, 0)
+        was_selected = self.isSelected()
+        if was_selected:
+            # Drop stale handles first: removeHandles() would capture their
+            # (now out-of-date) local positions back into self.points, so clear
+            # them explicitly and re-create from the new vertex list below.
+            while self.handles:
+                self.removeHandle(0)
+        self.setPos(pos, update=False)
         self.setSize(state["size"], update=False)
         self.setAngle(state["angle"], update=False)
-        self.setPoints(state["points"], closed=state["closed"], update=False)
-        if self.isSelected():
+        self.setPoints(points, closed=state["closed"], update=False)
+        if was_selected:
             self.createHandles()
         else:
             self.removeHandles()
@@ -471,6 +519,14 @@ class Polygon(ZROI):
         for h in self.handles:
             h["item"].show()
 
+    def _instance_label_pos(self) -> tuple[float, float]:
+        pts = self.getState().get("points") or []
+        if pts:
+            xs = [p[0] for p in pts]
+            ys = [p[1] for p in pts]
+            return float(min(xs)), float(min(ys))
+        return 0.0, 0.0
+
     def paint(self, p: QPainter, opt, widget=None):
         # w: float, h: float
         w, h = self.state["size"]  # type: ignore
@@ -498,6 +554,21 @@ class Polygon(ZROI):
                 p.drawPolygon(polygon, fillRule=Qt.FillRule.WindingFill)
             else:
                 p.drawPolyline(polygon)
+
+        # dashed axis-aligned bounding box (cosmetic pen -> constant screen width)
+        if self.instance_id and len(points) >= 1:
+            xs = [pt.x() for pt in points]
+            ys = [pt.y() for pt in points]
+            x0, y0 = min(xs) / r.width(), min(ys) / r.height()
+            x1, y1 = max(xs) / r.width(), max(ys) / r.height()
+            p.save()
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            pen = QPen(QColor(self.label_color or "#888888"))
+            pen.setStyle(Qt.PenStyle.DashLine)
+            pen.setWidth(0)  # cosmetic
+            p.setPen(pen)
+            p.drawRect(QRectF(x0, y0, x1 - x0, y1 - y0))
+            p.restore()
 
     def boundingRect(self):
         return self.shape().boundingRect()
@@ -752,6 +823,9 @@ class Point(ZROI):
                 return
         super().mouseClickEvent(ev)
 
+    def _instance_label_pos(self) -> tuple[float, float]:
+        return 0.0, 0.0
+
     def set_visible(self, v: int):
         self.visible = int(v)
         if self.visible == 2:  # occluded: hollow
@@ -807,7 +881,7 @@ class Point(ZROI):
     def setState(self, state: dict[str, Any], update: bool = True):
         self.id_ = state.get("id", self.id_)
         self.set_visible(state.get("visible", self.visible))
-        if update and "pos" in state:
+        if "pos" in state:
             p = state["pos"]
             self.setPos(QPointF(p.x() - self.radius, p.y() - self.radius))
         self.update()
@@ -1172,7 +1246,7 @@ class ZHandle(pg.UIGraphicsItem):
         return self._shape
 
     def boundingRect(self):
-        s1 = self.shape()  # noqa: avoid problems with shape invalidation
+        self.shape()  # ensure shape is valid before measuring
         return self.shape().boundingRect()
 
     def generateShape(self):

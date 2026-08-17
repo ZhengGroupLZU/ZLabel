@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Any, Literal, NamedTuple, TypeAlias
 
 import pyqtgraph as pg
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from rich import print  # noqa: F401
 
 IncEx: TypeAlias = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
@@ -72,6 +72,36 @@ class ResultType(Enum):
     POLYGON = 2
 
 
+class GermStatus(Enum):
+    """Germination status of a seed instance (per-frame instance attribute)."""
+
+    NORMAL_SEED = "normal_seed"
+    MOLDY_SEED = "moldy_seed"
+    DEAD_SEED = "dead_seed"
+    NORMAL_SEEDLING = "normal_seedling"
+    ABNORMAL_SEEDLING = "abnormal_seedling"
+
+
+# Seed-germination preset labels (part tags + special tags). Status is NOT a
+# Label: it lives on Annotation.instances[instance_id].
+GERM_PRESET_LABELS: dict[str, str] = {
+    "Seed": "#e6194b",
+    "Root": "#3cb44b",
+    "Seedling": "#4363d8",
+    "Dish": "#911eb4",
+    "Timestamp": "#808080",
+}
+
+
+def germ_preset_labels() -> OrderedDict[str, Label]:
+    """One-click preset: part labels (seed/root/seedling) + dish/timestamp tags."""
+    labels: OrderedDict[str, Label] = OrderedDict()
+    for name, color in GERM_PRESET_LABELS.items():
+        lbl = Label.new(name=name, color=color)
+        labels[lbl.id] = lbl
+    return labels
+
+
 class Result(BaseModel):
     id: str
     type_id: ResultType
@@ -107,7 +137,16 @@ class PointResult(Result):
     y: float = 0.0
     visible: int = 1  # COCO keypoint visibility: 0=not labeled, 1=labeled, 2=occluded
     category_id: int = 0  # COCO keypoint category index
-    instance_id: str = ""  # shared id groups keypoints of the same instance
+    instance_id: int = 0  # groups keypoints of the same instance (0 = none)
+
+    @field_validator("instance_id", mode="before")
+    @classmethod
+    def _coerce_instance_id(cls, v):
+        if isinstance(v, str) and v.isdigit():
+            return int(v)
+        if isinstance(v, str):
+            return 0  # legacy uuid strings are dropped
+        return v
 
     @staticmethod
     def new(
@@ -120,7 +159,7 @@ class PointResult(Result):
         y: float = 0.0,
         visible: int = 1,
         category_id: int = 0,
-        instance_id: str = "",
+        instance_id: int = 0,
     ):
         r = PointResult(
             id=id_ or id_uuid4(),
@@ -166,6 +205,17 @@ class RectangleResult(Result):
     w: float = 0.0
     h: float = 0.0
     rotation: float = 0
+    text: str = ""  # OCR'ed timestamp / label text
+    instance_id: int = 0  # instance this rect belongs to (0 = none)
+
+    @field_validator("instance_id", mode="before")
+    @classmethod
+    def _coerce_instance_id(cls, v):
+        if isinstance(v, str) and v.isdigit():
+            return int(v)
+        if isinstance(v, str):
+            return 0  # legacy uuid strings are dropped
+        return v
 
     @staticmethod
     def new(
@@ -179,6 +229,8 @@ class RectangleResult(Result):
         w: float = 0.0,
         h: float = 0.0,
         rotation: float = 0,
+        text: str = "",
+        instance_id: int = 0,
     ):
         r = RectangleResult(
             id=id_ or id_uuid4(),
@@ -191,6 +243,8 @@ class RectangleResult(Result):
             w=w,
             h=h,
             rotation=rotation,
+            text=text,
+            instance_id=instance_id,
         )
 
         return r
@@ -207,6 +261,8 @@ class RectangleResult(Result):
             and self.w == r.w
             and self.h == r.h
             and self.rotation == r.rotation
+            and self.text == r.text
+            and self.instance_id == r.instance_id
         )
 
     def getState(self) -> dict[str, Any]:
@@ -226,6 +282,16 @@ class PolygonResult(Result):
     rotation: float = 0
     closed: bool
     points: list[tuple[float, float]] = []
+    instance_id: int = 0  # groups seed/root/seedling polygons of one seed (0 = none)
+
+    @field_validator("instance_id", mode="before")
+    @classmethod
+    def _coerce_instance_id(cls, v):
+        if isinstance(v, str) and v.isdigit():
+            return int(v)
+        if isinstance(v, str):
+            return 0  # legacy uuid strings are dropped
+        return v
 
     @staticmethod
     def new(
@@ -241,6 +307,7 @@ class PolygonResult(Result):
         rotation: float = 0,
         closed: bool = True,
         points: list[tuple[float, float]] | None = None,
+        instance_id: int = 0,
     ):
         r = PolygonResult(
             id=id_ or id_uuid4(),
@@ -255,6 +322,7 @@ class PolygonResult(Result):
             rotation=rotation,
             closed=closed,
             points=points or [],
+            instance_id=instance_id,
         )
 
         return r
@@ -271,12 +339,9 @@ class PolygonResult(Result):
             and self.w == r.w
             and self.h == r.h
             and self.rotation == r.rotation
-            and self.type_id == r.type_id
-            and self.labels == r.labels
-            and self.origin == r.origin
-            and self.score == r.score
             and self.closed == r.closed
             and self.points == r.points
+            and self.instance_id == r.instance_id
         )
 
     def getState(self) -> dict[str, Any]:
@@ -287,6 +352,7 @@ class PolygonResult(Result):
             "angle": self.rotation,
             "points": self.points,
             "closed": self.closed,
+            "instance_id": self.instance_id,
         }
 
 
@@ -304,6 +370,23 @@ class Annotation(BaseModel):
     original_height: float
     image_rotation: int = 0
     note: str = ""
+
+    group: str = ""  # sequence group name (e.g. "species/dish01")
+    day: int = 0  # D{n} day index within the sequence
+    instances: dict[int, str] = {}  # instance_id -> GermStatus value (per frame)
+
+    @field_validator("instances", mode="before")
+    @classmethod
+    def _coerce_instances(cls, v):
+        if isinstance(v, dict):
+            out: dict[int, str] = {}
+            for k, val in v.items():
+                try:
+                    out[int(k)] = val
+                except (TypeError, ValueError):
+                    continue
+            return out
+        return v
 
     results: OrderedDict[str, PointResult | RectangleResult | PolygonResult] = OrderedDict()
 
@@ -358,6 +441,8 @@ class Task(BaseModel):
     filename: str
     labels: list[str]
     finished: bool = False
+    group: str = ""  # sequence group (e.g. "species/dish01")
+    day: int = 0  # D{n} day index within the sequence
 
     anno: Annotation | None = Field(None, exclude=True)
 
@@ -377,6 +462,10 @@ class Project(BaseModel):
     draft: Annotation | None = None
     tasks: OrderedDict[str, Task] = OrderedDict()
     labels: OrderedDict[str, Label] = OrderedDict()
+    groups: dict[str, list[str]] = {}  # manual sequence groups: name -> anno_ids
+    instance_statuses: list[str] = Field(
+        default_factory=lambda: [s.value for s in GermStatus] + ["dish", "text"]
+    )  # editable per-instance status values (stored in Annotation.instances)
 
     # region functions
     def save_json(self, path: str | Path, include: IncEx | None = None, exclude: IncEx | None = None):
@@ -398,8 +487,34 @@ class Project(BaseModel):
         self.key_task = task.anno_id
 
     def add_annotation(self, anno: Annotation):
+        self.reconcile_result_labels(anno)
         self.tasks[anno.id].anno = anno
         self.key_task = anno.id
+
+    def reconcile_result_labels(self, anno: Annotation):
+        """Re-point result labels at this project's Label objects.
+
+        Results saved by older versions / other projects may embed Label
+        objects whose ``id`` differs from this project's labels (same
+        name/color, different id). Id-based lookups then fail - e.g. the
+        label show/hide eye buttons in the Labels dock can't find any item.
+        Map each result label to the project label with the same id, falling
+        back to the same name; unmatched labels are left untouched.
+        """
+        if not self.labels:
+            return
+        by_name: dict[str, Label] = {}
+        for lbl in self.labels.values():
+            by_name.setdefault(lbl.name, lbl)
+        for r in anno.results.values():
+            if not r.labels:
+                continue
+            for i, lbl in enumerate(r.labels):
+                if lbl.id in self.labels:
+                    continue
+                match = by_name.get(lbl.name)
+                if match is not None:
+                    r.labels[i] = match
 
     def add_label(self, label: Label):
         self.labels[label.id] = label

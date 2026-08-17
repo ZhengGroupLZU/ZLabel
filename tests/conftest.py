@@ -1,5 +1,17 @@
+import os
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
+
+# GUI tests run headless; set before any QApplication is created.
+os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
+
+# Redirect the user home used by ZSettings/MainWindow default paths BEFORE any
+# zlabel import, so constructing widgets never touches the real ~/.zlabel.
+_TEST_HOME = Path(tempfile.mkdtemp(prefix="zlabel-test-home-"))
+from pyqtgraph.Qt.QtCore import QDir
+
+QDir.homePath = staticmethod(lambda: str(_TEST_HOME))  # type: ignore[method-assign]
 
 import numpy as np
 import pytest
@@ -15,28 +27,27 @@ def _have(pkg: str) -> bool:
 
 
 HAVE_CV = _have("cv2")
-HAVE_ORT = _have("onnxruntime")
+HAVE_MNN = _have("MNN")
 
 
 def _have_models() -> bool:
-    if not (HAVE_CV and HAVE_ORT):
+    if not (HAVE_CV and HAVE_MNN):
         return False
     from zlabel.utils.paths import resource_dir
 
-    return (resource_dir() / "edge_sam_3x_encoder.onnx").exists() and (
-        resource_dir() / "edge_sam_3x_decoder.onnx"
-    ).exists()
+    d = resource_dir() / "models" / "mnn"
+    return (d / "edge_sam_3x_encoder.mnn").exists() and (d / "edge_sam_3x_decoder.mnn").exists()
 
 
 HAVE_MODELS = _have_models()
 
 skip_no_local = pytest.mark.skipif(
-    not (HAVE_CV and HAVE_ORT),
+    not (HAVE_CV and HAVE_MNN),
     reason="local inference deps not installed (uv sync --extra local)",
 )
 skip_no_models = pytest.mark.skipif(
     not HAVE_MODELS,
-    reason="onnx models not present in data/ (gitignored)",
+    reason="MNN models not present in data/models/mnn (gitignored)",
 )
 
 
@@ -98,15 +109,17 @@ def local_backend(settings_local):
 
 @pytest.fixture
 def fake_model():
-    """Duck-typed SAM model returning a full-size mask, so the ZSamWorker
-    SAM branch can be tested without a real onnx model."""
+    """Duck-typed predictor returning a full-size mask, so the ZSamWorker
+    SAM branch can be tested without loading an MNN model."""
     from zlabel.models.ztypes import SamOnnxResult
 
     class _FakeSamModel:
-        def predict(self, img: np.ndarray, prompts):
-            h, w = img.shape[:2]
-            mask = np.zeros((h, w), dtype=np.uint8)
-            mask[h // 4 : 3 * h // 4, w // 4 : 3 * w // 4] = 255
-            return SamOnnxResult(mask=mask, score=1.0)
+        def set_image(self, img: np.ndarray):
+            pass
+
+        def predict(self, points=None, labels=None, bboxes=None):
+            mask = np.zeros((64, 64), dtype=np.float32)
+            mask[16:48, 16:48] = 255
+            return [SamOnnxResult(mask=mask, score=1.0)]
 
     return _FakeSamModel()

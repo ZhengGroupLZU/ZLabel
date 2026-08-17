@@ -6,8 +6,33 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
-from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
-from pyqtgraph.Qt.QtWidgets import QApplication, QComboBox, QFileDialog, QLabel, QMainWindow, QMenu, QMessageBox
+from pyqtgraph.Qt.QtGui import (
+    QAction,
+    QCloseEvent,
+    QIcon,
+    QKeySequence,
+    QShortcut,
+    QSurfaceFormat,
+    QUndoStack,
+)
+from pyqtgraph.Qt.QtWidgets import (
+    QApplication,
+    QCheckBox,
+    QComboBox,
+    QDialog,
+    QDialogButtonBox,
+    QDockWidget,
+    QFileDialog,
+    QInputDialog,
+    QLabel,
+    QMainWindow,
+    QMenu,
+    QMessageBox,
+    QPushButton,
+    QSizePolicy,
+    QSpinBox,
+    QVBoxLayout,
+)
 
 from zlabel.utils import (
     Annotation,
@@ -15,6 +40,7 @@ from zlabel.utils import (
     AutoMode,
     DrawMode,
     FetchType,
+    GermStatus,
     KeypointVisible,
     Label,
     Language,
@@ -43,12 +69,14 @@ from zlabel.widgets import (
     ZGetImageWorker,
     ZGetTasksWorker,
     ZLoginThread,
+    ZOcrWorker,
     ZResultUndoCmd,
     ZSamPredictWorker,
     ZSettings,
     ZSlider,
     ZUploadFileWorker,
 )
+from zlabel.widgets.dock_anno import ID_ROLE
 from zlabel.widgets.zworker import GetProjectsWorker
 
 from .ui import Ui_MainWindow
@@ -79,6 +107,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.threadpool = QThreadPool()
         self.login_thread: ZLoginThread | None = None
 
+        self.current_instance_id: int = 0
+        self._instance_auto_new: bool = True  # canvas annotations always get a new instance
+        self._syncing_selection: bool = False  # guard annos<->canvas selection feedback
+        self._group_shortcuts: list[QShortcut] = []
+        self._point_visible_shortcuts: list[QShortcut] = []
+
         self.anno_suffix = "zlabel"
         self.last_path = "."
         self._image_cache: dict[str, Image.Image] = {}
@@ -90,6 +124,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._label_shortcuts: list[QShortcut] = []
         self._translator: QTranslator | None = None
         self._is_initing: bool = True
+        self._skip_copy_anno: str = ""
+        self._label_visibility: dict[str, bool] = {}
 
         self.init_ui()
         self.init_statusbar()
@@ -170,6 +206,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         self.user.name = self.settings.username
         self.backend = build_backend(self.settings)
+        from zlabel.utils.ocr import set_wxocr_dir
+
+        set_wxocr_dir(self.settings.ocr_wx_dir)
         if self.backend.needs_login:
             if self.settings.host:
                 self.dialog_processing.show()
@@ -210,6 +249,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
         self.canvas.alpha = self.settings.alpha
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
+        self.update_label_visibility_buttons()
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.dockcnt_files.set_storage_mode(self.proj.storage_mode)
         self.dockcnt_files.set_local_dir(self.proj.local_dir)
@@ -217,6 +257,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_file_list(list(self.proj.tasks.values()))
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
+        self.action_copy_prev.setEnabled(self.settings.enable_copy_prev)
         title = "ZLabel"
         if self.settings.project_name:
             title += f" - {self.settings.project_name}"
@@ -236,9 +277,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if self.proj.crt_anno and self.proj.labels:
             self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
-            self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
+            self.update_label_visibility_buttons()
+            self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
+            self._refresh_anno_tree()
             self.canvas.create_items_by_anno(self.proj.crt_anno)
+            self.apply_label_visibility()
             self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self._refresh_anno_tree()
         self.update_inference_status()
         self.update_storage_status()
         self.try_set_image()
@@ -264,8 +309,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         status = "not loaded"
         model_status = getattr(infer, "model_status", "idle")
+        if model_status == "idle" and hasattr(infer, "_get_model"):
+            try:
+                infer._get_model()  # initialize the predictor (ready once set up)
+                model_status = infer.model_status
+            except Exception:
+                model_status = "error"
+        model_name = getattr(infer, "model_name", "")
         if model_status == "ready":
-            status = "model ready"
+            status = f"Ready: {model_name}"
         elif model_status == "error":
             err = getattr(infer, "model_error", "")
             status = f"model error: {err}" if err else "model error"
@@ -359,10 +411,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         """Refresh tasks from the storage backend - do not save to local disk"""
         self.proj.tasks.clear()
         for task in tasks:
+            if not task.group:
+                self._assign_remote_group(task)
             self.proj.add_task(task)
         self.proj.reset_task_key()
 
         self.logger.info(f"Refreshed {len(tasks)} tasks")
+
+    @staticmethod
+    def _assign_remote_group(task: Task):
+        """Remote tasks have no directory layout: group by filename prefix
+        (e.g. dishA_001.jpg -> group "dishA", day 1). Unknown layout: no group."""
+        import re as _re
+
+        m = _re.fullmatch(r"(.+?)[_\-\s]*(\d+)\.(?:png|jpe?g)", task.filename, _re.IGNORECASE)
+        if m:
+            task.group = m.group(1)
+            task.day = int(m.group(2))
 
     def load_tasks(self):
         """
@@ -438,6 +503,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.update_image(np.asarray(image, dtype=np.uint8))
         self.canvas.set_rgb(self.rgb_mode)
         self.dialog_processing.close()
+        self.canvas.fit_view()
+        self._maybe_auto_fit_dish()
 
     def on_get_image_fail(self, msg: str):
         self.dialog_processing.close()
@@ -485,13 +552,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def modify_result(self, result: PointResult | RectangleResult | PolygonResult, update: bool = False):
         if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
             return
+        old = self.proj.crt_anno.results.get(result.id)
         self.logger.debug(f"{result=}")
         self.proj.crt_anno.results.update({result.id: result})
-        self.dockcnt_anno.set_row_by_text(result.id)
         self.canvas.set_item_state_by_result(result, update=update)
         item = self.canvas.showing_items.get(result.id, None)
         if item is not None:
             item.setFillColor(result.labels[0].color, self.settings.alpha)
+        # instance regrouping (merge/split/undo) changes the annos tree
+        # structure; rebuild instead of scrolling to the row (which would
+        # collapse the multi-selection via the selection sync)
+        if old is not None and getattr(old, "instance_id", 0) != getattr(result, "instance_id", 0):
+            new_iid = getattr(result, "instance_id", 0)
+            if new_iid:
+                self.proj.crt_anno.instances.setdefault(new_iid, "")
+            self._prune_orphan_instances()
+            self._refresh_anno_tree()
+            self.update_group_button_state()
+        else:
+            self.dockcnt_anno.set_row_by_text(result.id)
 
     def modify_results(
         self,
@@ -602,6 +681,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.sender() == self.dialog_settings:
             self.proj.save_json(self.settings.project_path)
         self.ui_update_settings()
+        self._refresh_anno_tree()
+        self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
 
     def on_dialog_settings_apply_clicked(self):
         self.rebuild_backend()
@@ -702,8 +783,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_qlabels()
         self.on_dock_files_item_clicked(item.id_)
 
-    def on_action_save_triggered(self):
+    def _save_current(self):
+        """Save the project metadata and the current annotation."""
         self.proj.save_json(self.settings.project_path)
+        if self.proj.crt_anno is None:
+            return
+        anno_dir = self.settings.project_anno_dir
+        if self.backend is not None:
+            anno_dir = self.backend.anno_dir or anno_dir
+        filename = f"{anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
+        self.proj.crt_anno.save_json(filename)
+
+    def _save_current_if_annotated(self):
+        """Save project + annotation only when the current annotation has results."""
+        if self.proj.crt_anno is not None and len(self.proj.crt_anno.results) > 0:
+            self._save_current()
+
+    def on_action_save_triggered(self):
+        self._save_current()
 
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
@@ -727,7 +824,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.view_box.scaleBy((1.1, 1.1))
 
     def on_action_fit_window_triggered(self):
-        self.canvas.view_box.autoRange()
+        self.canvas.fit_view()
 
     def on_action_restore_triggered(self):
         self.dock_annos.show()
@@ -762,10 +859,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_finish_triggered(self):
         if self.proj.crt_task is None or self.proj.crt_anno is None or self.backend is None:
             return
-        self.on_action_save_triggered()
-        anno_dir = self.backend.anno_dir or self.settings.project_anno_dir
-        filename = f"{anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
-        self.proj.crt_anno.save_json(filename)
+        self._save_current()
 
         # if triggered by click, set task finished and upload to remote storage
         if self.sender() == self.actionFinish:
@@ -774,6 +868,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # In local-storage mode the annotation is already saved locally;
             # only upload when the storage backend is remote.
             if self.backend is not None and self.backend.needs_login:
+                anno_dir = self.backend.anno_dir or self.settings.project_anno_dir
+                filename = f"{anno_dir}/{self.proj.crt_anno.id}.{self.anno_suffix}"
                 worker_upload = ZUploadFileWorker(
                     self.backend,
                     filename,
@@ -918,6 +1014,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         is_keypoint = self.settings.annotation_type == AnnotationType.POINT
         self.actionRectangle.setEnabled(not is_keypoint)
         self.actionPolygon.setEnabled(not is_keypoint)
+        # keypoint visibility shortcuts (L/O/X) are only meaningful - and only
+        # free of shortcut collisions - while KeyPoint mode is active
+        for sc in self._point_visible_shortcuts:
+            sc.setEnabled(is_keypoint)
         # merge is always enabled: in KeyPoint mode it groups keypoints into instances
         if is_keypoint:
             self.canvas.set_status_mode(StatusMode.VIEW)
@@ -985,6 +1085,46 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.debug(f"Labels color changed: {self.proj.labels[id_]=}")
         self.proj.save_json(self.settings.project_path)
 
+    def on_label_visibility_toggled(self, id_: str):
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        items = [
+            item
+            for rid, item in self.canvas.showing_items.items()
+            if anno.results.get(rid) and anno.results[rid].labels and anno.results[rid].labels[0].id == id_
+        ]
+        if not items:
+            return
+        new_visible = not any(item.isVisible() for item in items)
+        self._label_visibility[id_] = new_visible
+        for item in items:
+            item.setVisible(new_visible)
+        self.update_label_visibility_buttons()
+
+    def update_label_visibility_buttons(self):
+        """Sync the eye buttons in the labels dock with the stored visibility."""
+        for row in range(self.dockcnt_labels.listw_labels.count()):
+            item = self.dockcnt_labels.listw_labels.item(row)
+            if item is None:
+                continue
+            widget = self.dockcnt_labels.listw_labels.itemWidget(item)
+            if hasattr(widget, "set_visible_state"):
+                widget.set_visible_state(self._label_visibility.get(widget.id_, True))
+
+    def apply_label_visibility(self):
+        """Apply stored per-label visibility to the current canvas items."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        for rid, item in self.canvas.showing_items.items():
+            r = anno.results.get(rid)
+            if r and r.labels:
+                visible = self._label_visibility.get(r.labels[0].id, True)
+                item.setVisible(visible)
+                if not visible:
+                    item.setSelected(False)
+
     def on_dock_label_item_double_clicked(self, id_: str):
         if not self.proj.crt_anno:
             return
@@ -1031,18 +1171,22 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionAnnotations.setChecked(visible)
 
     def on_dock_anno_listw_item_clicked(self, item, column: int = 0):
-        id_ = item.data(0, Qt.ItemDataRole.UserRole) if hasattr(item, "data") else getattr(item, "id_", None)
-        if not id_:
+        rid = item.data(0, ID_ROLE) if hasattr(item, "data") else getattr(item, "id_", None)
+        if not rid:
+            # instance branch clicked: use its first member as the current result
+            for i in range(item.childCount()):
+                child = item.child(i)
+                if child.data(0, ID_ROLE):
+                    rid = child.data(0, ID_ROLE)
+                    break
+        if not rid:
             return
-        self.canvas.block_item_state_changed(True)
-        self.canvas.select_item(id_)
-        self.canvas.block_item_state_changed(False)
-
-        if self.proj.crt_anno and id_ in self.proj.crt_anno.results:
-            self.proj.crt_anno.key_result = id_
+        if self.proj.crt_anno and rid in self.proj.crt_anno.results:
+            self.proj.crt_anno.key_result = rid
             if self.proj.crt_result and self.proj.crt_result.labels:
                 self.proj.key_label = self.proj.crt_result.labels[0].id
                 self.dockcnt_labels.select_row_by_id(self.proj.key_label)
+            self.dockcnt_info.set_info_by_result(self.proj.crt_anno, self.proj.crt_result)
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -1050,6 +1194,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno:
             results = [self.proj.crt_anno.results[id_] for id_ in ids]
             self.add_result_undo_cmd(results, ResultUndoMode.REMOVE)
+            self._prune_orphan_instances()
+            self._refresh_anno_tree()
+            self.update_group_button_state()
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -1064,8 +1211,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionFiles.setChecked(visible)
 
     def on_dock_files_item_clicked(self, task_id: str):
-        # save first
-        self.on_action_finish_triggered()
+        # save first (only when the current annotation is not empty)
+        self._save_current_if_annotated()
 
         # set current annotation id to newly clicked
         self.proj.key_task = task_id
@@ -1087,6 +1234,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 if anno_json is None:
                     raise Exception(f"Response of {name} is None")
                 anno = Annotation.model_validate_json(anno_json, strict=True)
+                anno.group = task.group
+                anno.day = task.day
                 self.add_annotation(anno)
                 self.logger.info(f"Got anno from remote, added {name}")
             except Exception as e:
@@ -1102,23 +1251,40 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                         created_by=self.user,
                         updated_by=self.user,
                         id=task.anno_id,
+                        group=task.group,
+                        day=task.day,
                     )
                 )
                 self.logger.warning(f"{task.anno_id=} not found in remote, created, {e=}")
 
+        # apply view rotation before setting the image so the fit view (incl. the
+        # cached-image path) uses this frame's rotation
+        self._apply_annotation_rotation()
         self.try_set_image()
 
         # update ui
         # ^ hereafter, self.proj.crt_anno won't be None
-        self.dockcnt_anno.add_items_by_anno(self.proj.crt_anno)
+        self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
+        self._refresh_anno_tree()
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
+        self.update_label_visibility_buttons()
         # self.dockcnt_labels.set_color(self.settings.default_color)
 
         # clear items in canvas
         if self.canvas_items_visible:
             self.canvas.update_by_anno(self.proj.crt_anno)
+            self.apply_label_visibility()
+        self.current_instance_id = 0
+        self._refresh_anno_tree()
+        self._apply_annotation_rotation()
+        self._maybe_copy_prev_frame()
+
+    def _apply_annotation_rotation(self):
+        angle = self.proj.crt_anno.image_rotation if self.proj.crt_anno else 0
+        self.spin_rotation.setValue(angle)
+        self.canvas.set_rotation(angle)
 
     def on_dock_files_fetch_tasks(self, project_idx: int, num: int, finished: int):
         if self.settings.project_idx != project_idx:
@@ -1133,6 +1299,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.settings.fetch_type = FetchType(finished)
         self.settings.save_json(self.settings_path)
         self.load_tasks()
+
+    def on_project_changed(self, idx: int):
+        """Switch to another project (from the Project tab)."""
+        if self.settings.project_idx != idx:
+            self.settings.project_idx = idx
+            self.settings.reload_project()
+            self.rebuild_backend()
+        self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
+        self.settings.save_json(self.settings_path)
+        self.load_tasks()
+        self.dialog_settings.load_settings(self.settings)
 
     def on_dock_files_storage_changed(self, storage_mode: str):
         """Switch the current project's storage backend (local vs remote)."""
@@ -1175,10 +1352,50 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_inference_status()
         if len(worker_results) == 0:
             return
-        results = [wr.result for wr in worker_results]
+        instance_id = self._ensure_current_instance()
+        dish_candidates: list[PolygonResult] = []
+        kept: list[SamWorkerResult] = []
+        for wr in worker_results:
+            if isinstance(wr.result, PolygonResult):
+                wr.result.instance_id = instance_id
+                if wr.result.labels and wr.result.labels[0].name.lower() in ("dish", "培养皿"):
+                    dish_candidates.append(wr.result)
+                else:
+                    kept.append(wr)
+            else:
+                kept.append(wr)
+        if dish_candidates:
+            best = self._select_best_dish(dish_candidates)
+            if best is not None:
+                self._maybe_fit_dish_ellipse(best)
+                kept.append(next(wr for wr in worker_results if wr.result is best))
+        results = [wr.result for wr in kept]
         self.proj.key_task = worker_results[0].anno_id
         # self.add_results(results)
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
+        self._refresh_anno_tree()
+
+    @staticmethod
+    def _select_best_dish(candidates: list[PolygonResult]) -> PolygonResult | None:
+        """Keep the mask that is largest and most circular (dish-like).
+
+        Ranking favours roundness first (a dish is an ellipse), then area.
+        """
+        from zlabel.utils.geometry import circularity, polygon_area
+
+        if not candidates:
+            return None
+        return max(candidates, key=lambda r: (round(circularity(r.points), 2), polygon_area(r.points)))
+
+    def _maybe_fit_dish_ellipse(self, result: PolygonResult):
+        """Fit an ellipse polygon when the SAM result is a dish."""
+        if not result.labels or result.labels[0].name.lower() not in ("dish", "培养皿"):
+            return
+        from zlabel.utils.geometry import fit_ellipse_polygon
+
+        pts = fit_ellipse_polygon(result.points)
+        if pts:
+            result.points = pts
 
     def on_canvas_point_created(self, item_state: dict[str, Any] | None):
         if item_state is None:
@@ -1219,8 +1436,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 y=pos.y(),
                 visible=KeypointVisible.VISIBLE,
                 category_id=self._label_category_id(self.proj.crt_label),
+                instance_id=self._ensure_current_instance(),
             )
             self.add_result_undo_cmd([result], ResultUndoMode.ADD)
+            self._refresh_anno_tree()
             return
 
         # Legacy SAM/CV prompt path
@@ -1286,6 +1505,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
 
+        # In SAM/CV mode the drawn rect is only a *prompt* (never saved), so it
+        # must not consume an instance id; the real instances are allocated for
+        # the predicted results in on_sam_worker_finished.
+        instance_id = self._ensure_current_instance() if self.auto_mode == AutoMode.MANUAL else 0
         result = RectangleResult.new(
             id_=item_state["id"],
             type_id=ResultType.RECTANGLE,
@@ -1296,12 +1519,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             rotation=item_state["angle"],
             labels=[self.proj.crt_label],
             score=1.0,
+            instance_id=instance_id,
         )
         # self.logger.debug(f"{result=}")
         match self.auto_mode:
             # if neither SAM nor CV selected, means create rect manually
             case AutoMode.MANUAL:
                 self.add_result_undo_cmd([result], ResultUndoMode.ADD)
+                self._maybe_ocr_rect(result)
                 return
             # if either sam or CV selected, create by predict
             case AutoMode.SAM | AutoMode.CV:
@@ -1360,6 +1585,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             return
 
+        instance_id = self._ensure_current_instance()
+
         result = PolygonResult.new(
             id_=item_state["id"],
             type_id=ResultType.POLYGON,
@@ -1372,17 +1599,31 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             closed=item_state["closed"],
             labels=[self.proj.crt_label],
             score=1.0,
+            instance_id=instance_id,
         )
         # self.logger.debug(f"{result=}")
         self.add_result_undo_cmd([result], ResultUndoMode.ADD)
+        self._refresh_anno_tree()
 
     def on_canvas_item_clicked(self, id_: str):
         if self.proj.crt_anno is None:
             return
         self.proj.key_result = id_
-        self.dockcnt_anno.set_row_by_text(id_)
+        # guard: set_row_by_text would trigger the annos selection sync and
+        # collapse a multi-selection; the full selection is mirrored below
+        self._syncing_selection = True
+        try:
+            self.dockcnt_anno.set_row_by_text(id_)
+        finally:
+            self._syncing_selection = False
         if self.proj.crt_result and self.proj.crt_result.labels:
             self.dockcnt_labels.select_row_by_id(self.proj.crt_result.labels[0].id)
+        self.dockcnt_info.set_info_by_result(self.proj.crt_anno, self.proj.crt_result)
+        iid = getattr(self.proj.crt_result, "instance_id", 0)
+        if iid:
+            self.current_instance_id = iid
+        self._sync_annos_selection()
+        self.update_group_button_state()
 
     def on_toggle_point_visible(self, visible: int):
         """Toggle the COCO visibility of the currently selected PointResult."""
@@ -1397,6 +1638,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         result_new.visible = visible
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.show_toast(self.tr(f"Keypoint: {KeypointVisible(visible).name}"))
+        self.dockcnt_info.set_info_by_result(self.proj.crt_anno, result_new)
 
     def _selected_point_results(self) -> list[PointResult]:
         """PointResults of the currently selected canvas items."""
@@ -1414,37 +1656,102 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         pts = self._selected_point_results()
         if not pts:
             return
-        instance_id = pts[0].instance_id or id_uuid4()
+        instance_id = pts[0].instance_id or self._ensure_current_instance()
         result_old = [copy.deepcopy(p) for p in pts]
         result_new = [copy.deepcopy(p) for p in pts]
         for r in result_new:
             r.instance_id = instance_id
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
-        self.dockcnt_anno.update_instance_colors(self.proj.crt_anno)
+        self._refresh_anno_tree()
         self.show_toast(self.tr(f"Grouped {len(pts)} keypoints"))
 
+    def _new_individual_instances(self, results: list[PointResult | RectangleResult | PolygonResult]):
+        """Deep-copy results, each assigned its own fresh, distinct instance id.
+
+        Returns ``(result_new, inherited)`` where ``inherited`` maps each new
+        instance id to the germination status of the result's original instance
+        (falling back to the configured default status). Callers must apply the
+        map to ``anno.instances`` *after* pushing the undo command, because the
+        per-result redo pruning recreates instance entries empty.
+        """
+        anno = self.proj.crt_anno
+        result_new = [copy.deepcopy(r) for r in results]
+        inherited: dict[int, str] = {}
+        used = self._used_instance_ids()
+        for r in result_new:
+            old_iid = r.instance_id
+            iid = self._next_free_instance_id(used)
+            used.add(iid)
+            r.instance_id = iid
+            if anno is not None:
+                inherited[iid] = anno.instances.get(old_iid, "") or self._default_instance_status()
+        return result_new, inherited
+
     def on_ungroup_points(self):
-        """Clear instance_id so each selected keypoint becomes its own instance."""
+        """Split each selected keypoint into its own independent instance (U),
+        inheriting the original group's status."""
         pts = self._selected_point_results()
         if not pts:
             return
+        anno = self.proj.crt_anno
         result_old = [copy.deepcopy(p) for p in pts]
-        result_new = [copy.deepcopy(p) for p in pts]
-        for r in result_new:
-            r.instance_id = ""
+        result_new, inherited = self._new_individual_instances(pts)
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
-        self.dockcnt_anno.update_instance_colors(self.proj.crt_anno)
-        self.show_toast(self.tr(f"Split {len(pts)} keypoints"))
+        if anno is not None:
+            for iid, status in inherited.items():
+                anno.instances[iid] = status
+        self._refresh_anno_tree()
+        self.show_toast(self.tr(f"Split {len(pts)} keypoints into individual instances"))
 
     def on_anno_context_menu(self, pos):
         menu = QMenu(self)
-        act_merge = menu.addAction(self.tr("Merge to instance"))
-        act_split = menu.addAction(self.tr("Split to instances"))
+        item = self.dockcnt_anno.listWidget.itemAt(pos)
+        target_id = item.data(0, ID_ROLE) if item is not None else None
+        anno = self.proj.crt_anno
+        if anno is not None and target_id and target_id in anno.results:
+            sub = menu.addMenu(self.tr("Assign to instance"))
+            for iid in sorted(anno.instances):
+                sub.addAction(
+                    self.tr(f"instance {iid}"),
+                    functools.partial(self.on_assign_instance, target_id, iid),
+                )
+            sub.addSeparator()
+            sub.addAction(
+                self.tr("New instance..."),
+                functools.partial(self.on_assign_instance, target_id, 0),
+            )
+        act_merge = menu.addAction(self.tr("Merge to instance (Ctrl+G)"))
+        act_split = menu.addAction(self.tr("Split from instance (Ctrl+G)"))
         selected = menu.exec(self.dockcnt_anno.listWidget.mapToGlobal(pos))
         if selected == act_merge:
-            self.on_group_points()
+            self.on_group_instances()
         elif selected == act_split:
-            self.on_ungroup_points()
+            self.on_split_instances()
+
+    def on_assign_instance(self, result_id: str, instance_id: int):
+        """Move an annotation to a different instance (or a new one)."""
+        anno = self.proj.crt_anno
+        if anno is None or result_id not in anno.results:
+            return
+        if instance_id == 0:
+            instance_id = self._new_instance_id()
+        result = anno.results[result_id]
+        if getattr(result, "instance_id", 0) == instance_id:
+            return
+        if instance_id not in anno.instances:
+            self._init_instance_status(instance_id)
+        result_old = copy.deepcopy(result)
+        result_new = copy.deepcopy(result)
+        result_new.instance_id = instance_id
+        self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
+        self.current_instance_id = instance_id
+        self._prune_orphan_instances()
+        self._refresh_anno_tree()
+        self.update_group_button_state()
+        item = self.canvas.showing_items.get(result_id)
+        if item is not None:
+            color = result_new.labels[0].color if result_new.labels else None
+            item.set_instance_label(instance_id, color)
 
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
@@ -1478,16 +1785,24 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result.y = state["pos"][1]
             result.visible = state.get("visible", result.visible)
         else:
-            result.x = state["pos"][0]
-            result.y = state["pos"][1]
             result.w = state["size"][0]
             result.h = state["size"][1]
             result.rotation = state["angle"]
             if isinstance(result, PolygonResult):
-                result.points = list(state["points"])
+                # vertices are stored relative to the ROI origin (the origin
+                # moves on a body drag); fold it back in so the result keeps
+                # absolute coordinates with a (0,0) origin
+                px, py = state["pos"][0], state["pos"][1]
+                result.points = [(p[0] + px, p[1] + py) for p in state["points"]]
+                result.x = 0.0
+                result.y = 0.0
+            else:
+                result.x = state["pos"][0]
+                result.y = state["pos"][1]
         if not result.equal_v(result_old):
             self.logger.debug("Adding modify undo command")
             self.add_result_undo_cmd([result], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
+            self.dockcnt_info.set_info_by_result(self.proj.crt_anno, result)
 
     def on_canvas_items_removed(self, ids: list[str]):
         if self.proj.crt_anno is None:
@@ -1497,6 +1812,431 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.remove_results(ids)
         self.dockcnt_anno.remove_items(ids)
         self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        self._prune_orphan_instances()
+        self._refresh_anno_tree()
+        self.update_group_button_state()
+
+    # region Instances (seed-germination)
+    def _default_instance_status(self) -> str:
+        """Status recorded for newly created instances (Annos dock combo)."""
+        return self.dockcnt_anno.default_instance_status()
+
+    def _init_instance_status(self, iid: int):
+        """Record the default germination status for a freshly created instance."""
+        if self.proj.crt_anno is not None:
+            self.proj.crt_anno.instances[iid] = self._default_instance_status()
+
+    def _ensure_current_instance(self) -> int:
+        """Return the instance_id for a new annotation.
+
+        With auto-new enabled (default) every annotation gets a freshly
+        allocated instance; otherwise the currently selected instance is
+        reused, auto-creating one when none is active."""
+        if self._instance_auto_new:
+            self.current_instance_id = self._new_instance_id()
+            self._init_instance_status(self.current_instance_id)
+            return self.current_instance_id
+        if not self.current_instance_id:
+            self.current_instance_id = self._new_instance_id()
+            self._init_instance_status(self.current_instance_id)
+        return self.current_instance_id
+
+    def on_instance_auto_new_toggled(self, checked: bool):
+        self._instance_auto_new = checked
+
+    def _refresh_anno_tree(self):
+        """Rebuild the Annos dock tree from the current annotation.
+
+        Silent: the rebuild clears the tree selection, which would otherwise
+        trigger the annos<->canvas selection sync and wipe the canvas
+        selection; the guard keeps programmatic rebuilds from doing that."""
+        if self.proj.crt_anno is None:
+            return
+        self._syncing_selection = True
+        try:
+            self.dockcnt_anno.rebuild(self.proj.crt_anno)
+        finally:
+            self._syncing_selection = False
+
+    def _prune_orphan_instances(self):
+        """Drop instance entries that no longer have any member annotation."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        used = {getattr(r, "instance_id", 0) for r in anno.results.values()}
+        for iid in [i for i in anno.instances if i not in used]:
+            anno.instances.pop(iid, None)
+
+    def on_instance_status_changed(self, iid: int, status: str):
+        if self.proj.crt_anno is None:
+            return
+        self.proj.crt_anno.instances[iid] = status
+
+    # region instance grouping (merge / split)
+    def _selected_results(self) -> list[PointResult | RectangleResult | PolygonResult]:
+        """Results currently selected on the canvas (fallback: annos tree)."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return []
+        ids = [it.id_ for it in self.canvas.selected_items]
+        if not ids:
+            ids = self.dockcnt_anno.selected_result_ids()
+        return [anno.results[i] for i in ids if i in anno.results]
+
+    def _selection_in_one_instance(self) -> bool:
+        """Rule: the group button is checked iff every selected annotation
+        belongs to the same merged instance (single in-instance annotation
+        counts as grouped)."""
+        results = self._selected_results()
+        if not results:
+            return False
+        iids = {getattr(r, "instance_id", 0) for r in results}
+        return len(iids) == 1 and 0 not in iids
+
+    def update_group_button_state(self):
+        self.actionGroup.setChecked(self._selection_in_one_instance())
+
+    def on_group_instances(self):
+        """Merge the selected annotations into one new instance (Ctrl+G)."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        results = self._selected_results()
+        if len(results) < 2:
+            self.show_toast(self.tr("Select at least 2 annotations to group"), timeout=2000)
+            return
+        iids = {getattr(r, "instance_id", 0) for r in results}
+        if len(iids) == 1 and 0 not in iids:
+            return  # already one instance
+        new_iid = self._new_instance_id()
+        self._init_instance_status(new_iid)
+        result_old = [copy.deepcopy(r) for r in results]
+        result_new = [copy.deepcopy(r) for r in results]
+        for r in result_new:
+            r.instance_id = new_iid
+        self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
+        self.current_instance_id = new_iid
+        self._prune_orphan_instances()
+        self._refresh_anno_tree()
+        self.update_group_button_state()
+        self.show_toast(self.tr(f"Grouped {len(results)} annotations into instance {new_iid}"))
+
+    def on_split_instances(self):
+        """Split the selected annotations out of their instances (Ctrl+G when
+        they form one instance): each annotation becomes its own independent
+        instance inheriting the original group's status; instances left without
+        members are deleted."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        results = [r for r in self._selected_results() if getattr(r, "instance_id", 0)]
+        if not results:
+            return
+        result_old = [copy.deepcopy(r) for r in results]
+        result_new, inherited = self._new_individual_instances(results)
+        self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
+        # the per-result redo pruning recreates instance entries empty; re-apply
+        # the inherited statuses now that every result carries its new id
+        for iid, status in inherited.items():
+            anno.instances[iid] = status
+        self._prune_orphan_instances()
+        self._refresh_anno_tree()
+        self.update_group_button_state()
+        self.show_toast(self.tr(f"Split {len(results)} annotations into individual instances"))
+
+    def on_group_button_triggered(self):
+        # the checkable action already toggled itself; decide from the real
+        # selection state: grouped -> split, otherwise merge
+        if self._selection_in_one_instance():
+            self.on_split_instances()
+        else:
+            self.on_group_instances()
+
+    # endregion
+
+    # region selection sync (annos <-> canvas)
+    def _sync_annos_selection(self):
+        """Mirror the canvas multi-selection into the Annos tree."""
+        if self._syncing_selection:
+            return
+        self._syncing_selection = True
+        try:
+            ids = [it.id_ for it in self.canvas.selected_items]
+            self.dockcnt_anno.set_selected_ids(ids)
+        finally:
+            self._syncing_selection = False
+
+    def on_anno_selection_changed(self):
+        """Annos tree selection -> canvas selection (+ current instance)."""
+        if self._syncing_selection:
+            return
+        self._syncing_selection = True
+        try:
+            ids = self.dockcnt_anno.selected_result_ids()
+            self.canvas.select_items(ids)
+            iid = self.dockcnt_anno.selected_instance_id()
+            if iid:
+                self.current_instance_id = iid
+        finally:
+            self._syncing_selection = False
+        self.update_group_button_state()
+
+    def on_canvas_selection_changed(self):
+        self._sync_annos_selection()
+        self.update_group_button_state()
+
+    # endregion
+
+    def _maybe_auto_fit_dish(self):
+        """Auto-segment + ellipse-fit the dish when auto_fit_dish is enabled and
+        the current frame has no dish annotation yet."""
+        if not self.settings.auto_fit_dish or self.backend is None or self.current_image is None:
+            return
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        has_dish = any(
+            isinstance(r, PolygonResult)
+            and r.labels
+            and r.labels[0].name.lower() in ("dish", "培养皿")
+            for r in anno.results.values()
+        )
+        if has_dish:
+            return
+        dish_label = next(
+            (lbl for lbl in self.proj.labels.values() if lbl.name.lower() in ("dish", "培养皿")), None
+        )
+        if dish_label is None or self.auto_mode == AutoMode.MANUAL:
+            return
+        w, h = self.current_image.size
+        worker = ZSamPredictWorker(
+            api=self.backend,
+            anno_id=anno.id,
+            image=anno.image_path,
+            rects=[(0, 0, w, h)],
+            threshold=self.threshold,
+            mode=self.auto_mode,
+            result_labels=[dish_label],
+            return_type=2,
+        )
+        self.run_sam_api_worker(worker)
+
+    @staticmethod
+    def _crop_box(result: RectangleResult) -> tuple[int, int, int, int]:
+        """Axis-aligned crop region for a rectangle, covering its rotated content."""
+        from zlabel.utils.geometry import rect_crop_box
+
+        return rect_crop_box(result.x, result.y, result.w, result.h, result.rotation)
+
+    def _maybe_ocr_rect(self, result: RectangleResult):
+        """OCR a timestamp rectangle in a background thread."""
+        if not result.labels or result.labels[0].name.lower() not in ("timestamp", "时间戳"):
+            return
+        img = self.current_image
+        if img is None:
+            return
+        box = self._crop_box(result)
+        if box[2] <= box[0] or box[3] <= box[1]:
+            return
+        worker = ZOcrWorker(img, box, result.id)
+        worker.emitter.finished.connect(self.on_ocr_finished)
+        self.threadpool.start(worker)
+
+    def on_ocr_finished(self, result_id: str, text: str | None):
+        anno = self.proj.crt_anno
+        if anno is None or result_id not in anno.results:
+            return
+        r = anno.results[result_id]
+        if not isinstance(r, RectangleResult):
+            return
+        if not text:
+            if self.settings.ocr_skip_manual:
+                return
+            text, ok = QInputDialog.getText(
+                self, self.tr("Timestamp"), self.tr("OCR failed, enter timestamp text:")
+            )
+            if not ok or not text:
+                return
+        r_old = copy.deepcopy(r)
+        r_new = copy.deepcopy(r)
+        r_new.text = text
+        self.add_result_undo_cmd([r_new], ResultUndoMode.MODIFY_NO_UPDATE, [r_old])
+
+    def on_rotation_changed(self, angle: int):
+        self.canvas.set_rotation(angle)
+        if self.proj.crt_anno is not None:
+            self.proj.crt_anno.image_rotation = angle
+
+    def _used_instance_ids(self) -> set[int]:
+        """All positive instance ids currently in use (results + instances map)."""
+        used: set[int] = set()
+        if self.proj.crt_anno is not None:
+            for r in self.proj.crt_anno.results.values():
+                iid = getattr(r, "instance_id", 0)
+                if iid:
+                    used.add(iid)
+            used.update(self.proj.crt_anno.instances.keys())
+        return used
+
+    @staticmethod
+    def _next_free_instance_id(used: set[int]) -> int:
+        """Smallest positive id not in ``used`` (fills gaps from 1 upward)."""
+        iid = 1
+        while iid in used:
+            iid += 1
+        return iid
+
+    def _new_instance_id(self) -> int:
+        """Frame-local instance id: the smallest unused positive id, so gaps
+        left by deleted/ungrouped instances are filled before incrementing."""
+        return self._next_free_instance_id(self._used_instance_ids())
+
+    # endregion
+
+    # region Sequence copy (previous frame)
+    def _prev_task_for_copy(self, task: Task) -> Task | None:
+        """Previous frame in the same group (smaller day, else by filename)."""
+        if not task.group:
+            return None
+        cands = [t for t in self.proj.tasks.values() if t.group == task.group and t.anno_id != task.anno_id]
+        if not cands:
+            return None
+        if task.day > 0:
+            cands = [t for t in cands if t.day < task.day]
+            if not cands:
+                return None
+            return max(cands, key=lambda t: t.day)
+        return max(cands, key=lambda t: (t.day, t.filename))
+
+    def _load_anno_for_task(self, task: Task) -> Annotation | None:
+        if task.anno is not None and task.anno.image_path:
+            return task.anno
+        if self.backend is None:
+            return None
+        anno_json = self.backend.get_zlabel(name=f"{task.anno_id}.{self.anno_suffix}")
+        if anno_json is None:
+            return None
+        try:
+            anno = Annotation.model_validate_json(anno_json, strict=True)
+            self.proj.reconcile_result_labels(anno)
+        except Exception as e:
+            self.logger.warning(f"Failed to load {task.anno_id=} for copy, {e=}")
+            return None
+        task.anno = anno
+        return anno
+
+    def _ask_copy_options(self) -> set[str] | None:
+        dlg = QDialog(self)
+        dlg.setWindowTitle(self.tr("Copy from previous frame"))
+        lay = QVBoxLayout(dlg)
+        cb_dish = QCheckBox(self.tr("Dish"), dlg)
+        cb_dish.setChecked(True)
+        cb_time = QCheckBox(self.tr("Timestamp"), dlg)
+        cb_time.setChecked(True)
+        cb_parts = QCheckBox(self.tr("Instance parts (Seed/Root/Seedling)"), dlg)
+        cb_parts.setChecked(True)
+        lay.addWidget(cb_dish)
+        lay.addWidget(cb_time)
+        lay.addWidget(cb_parts)
+        btnbox = QDialogButtonBox(
+            QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
+            dlg,
+        )
+        btnbox.accepted.connect(dlg.accept)
+        btnbox.rejected.connect(dlg.reject)
+        lay.addWidget(btnbox)
+        if dlg.exec() != QDialog.DialogCode.Accepted:
+            return None
+        opts: set[str] = set()
+        if cb_dish.isChecked():
+            opts.add("dish")
+        if cb_time.isChecked():
+            opts.add("time")
+        if cb_parts.isChecked():
+            opts.add("parts")
+        return opts
+
+    def _copy_from_prev_frame(self, prev: Task, opts: set[str]):
+        if self.proj.crt_anno is None:
+            return
+        prev_anno = self._load_anno_for_task(prev)
+        if prev_anno is None or not prev_anno.results:
+            return
+        results_new = []
+        for r in prev_anno.results.values():
+            name = (r.labels[0].name if r.labels else "").lower()
+            if isinstance(r, RectangleResult):
+                if name in ("timestamp", "时间戳"):
+                    keep = "time" in opts
+                else:
+                    keep = "dish" in opts
+            elif isinstance(r, PolygonResult):
+                if name in ("dish", "培养皿"):
+                    keep = "dish" in opts
+                else:
+                    keep = "parts" in opts
+            else:
+                keep = False
+            if not keep:
+                continue
+            nr = copy.deepcopy(r)
+            nr.id = id_uuid4()
+            results_new.append(nr)
+        if not results_new:
+            return
+        for r in results_new:
+            iid = getattr(r, "instance_id", 0)
+            if iid and iid not in self.proj.crt_anno.instances and iid in prev_anno.instances:
+                self.proj.crt_anno.instances[iid] = prev_anno.instances[iid]
+        self.add_result_undo_cmd(results_new, ResultUndoMode.ADD)
+        self._refresh_anno_tree()
+
+    def _maybe_copy_prev_frame(self):
+        if not self.settings.enable_copy_prev:
+            return
+        task = self.proj.crt_task
+        if task is None or not task.group or self.proj.crt_anno is None:
+            return
+        if self._skip_copy_anno == self.proj.crt_anno.id or self.proj.crt_anno.results:
+            return
+        prev = self._prev_task_for_copy(task)
+        if prev is None:
+            return
+        prev_anno = self._load_anno_for_task(prev)
+        if prev_anno is None or not prev_anno.results:
+            return
+        opts = self._ask_copy_options()
+        if not opts:
+            self._skip_copy_anno = self.proj.crt_anno.id
+            return
+        self._copy_from_prev_frame(prev, opts)
+
+    def on_copy_prev_triggered(self):
+        task = self.proj.crt_task
+        if not self.settings.enable_copy_prev or task is None or self.proj.crt_anno is None:
+            return
+        if not task.group:
+            QMessageBox.information(
+                self,
+                self.tr("Copy"),
+                self.tr("Current frame has no sequence group."),
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        prev = self._prev_task_for_copy(task)
+        if prev is None:
+            QMessageBox.information(
+                self,
+                self.tr("Copy"),
+                self.tr("No previous frame in this sequence."),
+                QMessageBox.StandardButton.Ok,
+            )
+            return
+        opts = self._ask_copy_options()
+        if opts:
+            self._copy_from_prev_frame(prev, opts)
+
+    # endregion
 
     def on_canvas_scene_mouse_moved(self, pos: QPointF):
         x, y = pos.x(), pos.y()
@@ -1554,10 +2294,43 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.slider_threshold.setMaximumSize(150, 15)
         self.toolBar.addWidget(self.slider_threshold)
 
+        self.action_copy_prev = QAction(self.tr("Copy previous frame"), self)
+        self.action_copy_prev.setStatusTip(
+            self.tr("Copy dish/timestamp/instance parts from the previous frame of the same sequence")
+        )
+        self.toolBar.addAction(self.action_copy_prev)
+
+        # view rotation controls (rotate the canvas view, coords stay in image space)
+        self.btn_rot_ccw = QPushButton("90°", self)
+        self.btn_rot_ccw.setToolTip(self.tr("Rotate view counter-clockwise"))
+        self.btn_rot_cw = QPushButton("-90°", self)
+        self.btn_rot_cw.setToolTip(self.tr("Rotate view clockwise"))
+        self.spin_rotation = QSpinBox(self)
+        self.spin_rotation.setRange(-359, 359)
+        self.spin_rotation.setSuffix("°")
+        self.spin_rotation.setToolTip(self.tr("Rotate the view (stored coords stay in image space)"))
+        self.toolBar.addWidget(self.btn_rot_ccw)
+        self.toolBar.addWidget(self.spin_rotation)
+        self.toolBar.addWidget(self.btn_rot_cw)
+        self.btn_rot_ccw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() + 90) % 360))
+        self.btn_rot_cw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() - 90) % 360))
+
+        # right dock vertical height ratio Info:Annos:Labels = 1:2:2
+        for dock, stretch in [
+            (self.dock_infos, 1),
+            (self.dock_annos, 2),
+            (self.dock_labels, 2),
+        ]:
+            sp = dock.sizePolicy()
+            sp.setVerticalStretch(stretch)
+            sp.setVerticalPolicy(QSizePolicy.Policy.Preferred)
+            dock.setSizePolicy(sp)
+
     def init_signals(self):
         # dialog
         self.dialog_settings.sigSettingsChanged.connect(self.on_dialog_settings_changed)
         self.dialog_settings.sigApplyClicked.connect(self.on_dialog_settings_apply_clicked)
+        self.dialog_settings.sigProjectChanged.connect(self.on_project_changed)
         self.dialog_settings.destroyed.connect(self.dialog_processing.close)
 
         # actions
@@ -1633,6 +2406,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_labels.sigItemClicked.connect(self.on_dock_label_listw_item_clicked)
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
         self.dockcnt_labels.sigItemDoubleClicked.connect(self.on_dock_label_item_double_clicked)
+        self.dockcnt_labels.sigItemVisibilityToggled.connect(self.on_label_visibility_toggled)
 
         for n in range(1, 10):
             sc = QShortcut(QKeySequence(str(n)), self)
@@ -1640,12 +2414,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sc.activated.connect(functools.partial(self.on_shortcut_select_label_number, n))
             self._label_shortcuts.append(sc)
 
-        # keypoint visibility shortcuts (apply to the selected PointResult)
+        # keypoint visibility shortcuts (apply to the selected PointResult).
+        # L/O/X = labeled/occluded/excluded (missing); only active in KeyPoint
+        # mode so they never clash with actionMove/actionVisible/actionPolygon
+        # shortcuts or with the canvas V/X/C polygon-drawing keys.
         self._point_visible_shortcuts: list[QShortcut] = []
         for key, vis in [
-            ("V", KeypointVisible.VISIBLE),
+            ("L", KeypointVisible.VISIBLE),
             ("O", KeypointVisible.OCCLUDED),
-            ("M", KeypointVisible.MISSING),
+            ("X", KeypointVisible.MISSING),
         ]:
             sc = QShortcut(QKeySequence(key), self)
             sc.setContext(Qt.ShortcutContext.WindowShortcut)
@@ -1661,6 +2438,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         sc.activated.connect(self.on_ungroup_points)
         self._point_group_shortcuts.append(sc)
 
+        # save shortcuts: S and Ctrl+S
+        self._save_shortcuts: list[QShortcut] = []
+        for seq in ("S", QKeySequence.StandardKey.Save):
+            sc = QShortcut(QKeySequence(seq), self)
+            sc.setContext(Qt.ShortcutContext.WindowShortcut)
+            sc.activated.connect(self.on_action_save_triggered)
+            self._save_shortcuts.append(sc)
+
+        # group selected annotations into one instance (merge) / split (unmerge):
+        # a single Ctrl+G toggles between the two based on the selection state
+        self.actionGroup.triggered.connect(self.on_group_button_triggered)
+        self._group_shortcuts: list[QShortcut] = []
+        sc = QShortcut(QKeySequence("Ctrl+G"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)
+        sc.activated.connect(self.on_group_button_triggered)
+        self._group_shortcuts.append(sc)
+
         # dock annotation context menu
         self.dockcnt_anno.listWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
         self.dockcnt_anno.listWidget.customContextMenuRequested.connect(self.on_anno_context_menu)
@@ -1668,8 +2462,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # dock annotations
         self.dock_annos.visibilityChanged.connect(self.on_dock_anno_visibility_changed)
         self.dockcnt_anno.listWidget.itemClicked.connect(self.on_dock_anno_listw_item_clicked)
+        self.dockcnt_anno.listWidget.itemSelectionChanged.connect(self.on_anno_selection_changed)
         self.dockcnt_anno.sigItemDeleted.connect(self.on_dock_anno_item_deleted)
         self.dockcnt_anno.sigItemCountChanged.connect(self.on_dock_anno_item_count_changed)
+        self.dockcnt_anno.sigInstanceStatusChanged.connect(self.on_instance_status_changed)
+        self.dockcnt_anno.sigAutoNewInstanceToggled.connect(self.on_instance_auto_new_toggled)
+
+        # canvas selection changes (rubber-band multi-select) -> annos sync
+        self.canvas.sigSelectionChanged.connect(self.on_canvas_selection_changed)
+
+        self.action_copy_prev.triggered.connect(self.on_copy_prev_triggered)
+
+        self.spin_rotation.valueChanged.connect(self.on_rotation_changed)
 
     # endregion
 

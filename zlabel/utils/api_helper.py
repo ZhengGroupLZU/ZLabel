@@ -77,6 +77,7 @@ class ZLServerApiHelper:
         threshold: int = 100,
         mode: int = 1,
         return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
+        image: Image.Image | None = None,
     ) -> dict[str, Any]:
         anno = {
             "id": anno_id,
@@ -91,7 +92,12 @@ class ZLServerApiHelper:
             "image_name": image_name,
             "return_type": return_type,
         }
-        resp = requests.post(self.predict_api, data=data, headers=self.headers)
+        files = None
+        if image is not None:
+            buf = BytesIO()
+            image.save(buf, format="png")
+            files = {"image": (image_name, buf.getvalue())}
+        resp = requests.post(self.predict_api, data=data, files=files, headers=self.headers)
         if resp.status_code == 200:
             return resp.json()["data"]
         self.logger.warning(f"Predict Failed, {resp.text=}")
@@ -107,6 +113,25 @@ class ZLServerApiHelper:
             self.logger.info(f"Uploaded image, {resp.text=}")
         except Exception as e:
             self.logger.error(f"Uploaded image Failed, {e=}")
+
+    def set_image(self, name: str, image: Image.Image) -> bool:
+        """Upload a local image to the server under ``name`` (= predict's image_name).
+
+        The server caches it by ``image_name`` and sets it on the SAM model so a later
+        /predict(image_name=name) can fetch it. Returns True on HTTP 200.
+        """
+        img = BytesIO()
+        image.save(img, format="png")
+        files = {"image": (name, img.getvalue())}
+        data = {"image_name": name}
+        try:
+            resp = requests.post(self.set_image_api, data=data, files=files, headers=self.headers)
+            if resp.status_code == 200:
+                return True
+            self.logger.warning(f"Set image failed, {resp.text=}")
+        except Exception as e:
+            self.logger.error(f"Set image failed, {e=}")
+        return False
 
     def login(self, username: str = "", password: str = "") -> str | None:
         self.username = username or self.username
