@@ -108,6 +108,31 @@ class RemoteInference:
                         msg=f"failed to upload image: {image_name}",
                     ).model_dump()
                 self._last_image = image_name
+        # When the uploaded image was resized, the prompt coordinates (given in
+        # the original image space) must be scaled down to match the upload size.
+        if scale is not None and (points or rects):
+            inv = (1.0 / scale[0], 1.0 / scale[1])
+            if points:
+                points = [
+                    (
+                        {"x": p["x"] * inv[0], "y": p["y"] * inv[1]}
+                        if isinstance(p, dict)
+                        else (p[0] * inv[0], p[1] * inv[1])
+                    )
+                    for p in points
+                ]
+            if rects:
+                rects = [
+                    {
+                        "x": r["x"] * inv[0],
+                        "y": r["y"] * inv[1],
+                        "w": r["w"] * inv[0],
+                        "h": r["h"] * inv[1],
+                    }
+                    if isinstance(r, dict)
+                    else (r[0] * inv[0], r[1] * inv[1], r[2] * inv[0], r[3] * inv[1])
+                    for r in rects
+                ]
         resp = self.api.predict(
             anno_id=anno_id,
             image_name=image_name,
@@ -233,18 +258,16 @@ class LocalStorage:
                     continue
             else:
                 raise ValueError("finished must be -1, 0 or 1")
-            tasks.append(
-                {
-                    "id": len(tasks),
-                    "project_id": project_id,
-                    "anno_id": anno_id,
-                    "filename": rel,
-                    "labels": [],
-                    "finished": is_finished,
-                    "group": group,
-                    "day": day,
-                }
-            )
+            tasks.append({
+                "id": len(tasks),
+                "project_id": project_id,
+                "anno_id": anno_id,
+                "filename": rel,
+                "labels": [],
+                "finished": is_finished,
+                "group": group,
+                "day": day,
+            })
         if random_select:
             random.shuffle(tasks)
         else:
@@ -329,8 +352,7 @@ class LocalInference:
                     from zlabel.models.process_backend import ProcessPredictor
 
                     self.logger.info(
-                        f"Setting up local inference {self.model_name} from {self.model_dir} "
-                        f"(backend={self.backend})"
+                        f"Setting up local inference {self.model_name} from {self.model_dir} (backend={self.backend})"
                     )
                     self._model = ProcessPredictor(
                         model_dir=self.model_dir,
@@ -406,10 +428,7 @@ class LocalInference:
             # ZSamPredictWorker sends the wire format ({x,y} / {x,y,w,h} dicts);
             # accept plain tuples too so direct callers/tests keep working.
             if points is not None and labels is not None and len(points) == len(labels):
-                pts = [
-                    Point(x=p["x"], y=p["y"]) if isinstance(p, dict) else Point(x=p[0], y=p[1])
-                    for p in points
-                ]
+                pts = [Point(x=p["x"], y=p["y"]) if isinstance(p, dict) else Point(x=p[0], y=p[1]) for p in points]
                 data = worker.run_point(pts, labels)
                 status, msg = True, "success"
             elif rects is not None:
@@ -543,18 +562,14 @@ def _scale_results(
         if isinstance(item, str):
             out.append(_scale_rle(item, upload_hw, orig_hw))
         elif isinstance(item, dict) and "points" in item:
-            out.append(
-                {"points": [{"x": p["x"] * sx, "y": p["y"] * sy} for p in item["points"]]}
-            )
+            out.append({"points": [{"x": p["x"] * sx, "y": p["y"] * sy} for p in item["points"]]})
         elif isinstance(item, dict) and {"x", "y", "w", "h"} <= set(item):
-            out.append(
-                {
-                    "x": item["x"] * sx,
-                    "y": item["y"] * sy,
-                    "w": item["w"] * sx,
-                    "h": item["h"] * sy,
-                }
-            )
+            out.append({
+                "x": item["x"] * sx,
+                "y": item["y"] * sy,
+                "w": item["w"] * sx,
+                "h": item["h"] * sy,
+            })
         else:
             out.append(item)
     return out

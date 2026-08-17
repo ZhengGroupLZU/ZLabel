@@ -54,6 +54,8 @@ class _FakeApi:
     def __init__(self):
         self.uploads: list[str] = []
         self.predict_images: list[str] = []
+        self.predict_points: list[list] = []
+        self.predict_rects: list[list] = []
         self.return_data: list[dict] | None = None
         self.token = None
 
@@ -63,6 +65,8 @@ class _FakeApi:
 
     def predict(self, **kwargs):
         self.predict_images.append(kwargs.get("image"))
+        self.predict_points.append(kwargs.get("points"))
+        self.predict_rects.append(kwargs.get("rects"))
         return {
             "status": True,
             "data": self.return_data or [],
@@ -142,6 +146,56 @@ def test_remote_local_no_scale_when_not_resized(local_storage):
     assert resp["data"] == [{"x": 3, "y": 4, "w": 1, "h": 1}]
 
 
+def test_remote_local_scales_prompt_coordinates(local_storage):
+    """Regression: when the uploaded image is resized, prompt points/rects
+    (given in original image coordinates) must be scaled down to the upload
+    resolution so the server interprets them against the uploaded image."""
+    fake = _FakeApi()
+    inf = RemoteInference(api=fake, storage=local_storage, upload_image_size=32)
+    inf.predict(
+        anno_id="t",
+        image_name="a.png",  # 64x64 -> uploaded at 32x32 (scale 2)
+        points=[{"x": 10, "y": 20}],
+        labels=[1.0],
+        rects=[{"x": 2, "y": 4, "w": 8, "h": 8}],
+    )
+    # points/rects were scaled down by 1/2 before reaching the server
+    assert fake.predict_points[-1] == [{"x": 5.0, "y": 10.0}]
+    assert fake.predict_rects[-1] == [{"x": 1.0, "y": 2.0, "w": 4.0, "h": 4.0}]
+
+
+def test_remote_local_prompts_unchanged_when_not_resized(local_storage):
+    """No resize -> prompts are forwarded at original coordinates."""
+    fake = _FakeApi()
+    inf = RemoteInference(api=fake, storage=local_storage, upload_image_size=1024)
+    inf.predict(
+        anno_id="t",
+        image_name="a.png",  # 64x64 <= 1024, not resized
+        points=[{"x": 10, "y": 20}],
+        labels=[1.0],
+        rects=[{"x": 2, "y": 4, "w": 8, "h": 8}],
+    )
+    assert fake.predict_points[-1] == [{"x": 10, "y": 20}]
+    assert fake.predict_rects[-1] == [{"x": 2, "y": 4, "w": 8, "h": 8}]
+
+
+def test_remote_remote_prompts_unchanged():
+    """Remote storage: no upload/resize, prompts forwarded unchanged."""
+    from zlabel.utils.backend import RemoteStorage
+
+    fake = _FakeApi()
+    inf = RemoteInference(api=fake, storage=RemoteStorage(fake))
+    inf.predict(
+        anno_id="t",
+        image_name="a.png",
+        points=[{"x": 10, "y": 20}],
+        labels=[1.0],
+        rects=[{"x": 2, "y": 4, "w": 8, "h": 8}],
+    )
+    assert fake.predict_points[-1] == [{"x": 10, "y": 20}]
+    assert fake.predict_rects[-1] == [{"x": 2, "y": 4, "w": 8, "h": 8}]
+
+
 def test_remote_local_missing_image(local_storage):
     fake = _FakeApi()
     inf = RemoteInference(api=fake, storage=local_storage)
@@ -178,9 +232,7 @@ def test_proxy_get_tasks(local_backend, make_image):
 
 
 def test_predict_missing_image(local_backend):
-    resp = local_backend.predict(
-        anno_id="x", image_name="nope.png", points=[(1, 1)], labels=[1.0]
-    )
+    resp = local_backend.predict(anno_id="x", image_name="nope.png", points=[(1, 1)], labels=[1.0])
     assert resp["status"] is False
     assert "not found" in resp["msg"]
 
@@ -201,7 +253,10 @@ def test_instance_id_int_coercion():
     assert PolygonResult.model_validate(raw).instance_id == 0
     # Annotation.instances string keys coerced to int (invalid keys dropped)
     a = Annotation(
-        id="x", image_path="p", original_width=1, original_height=1,
+        id="x",
+        image_path="p",
+        original_width=1,
+        original_height=1,
         instances={"3": "normal_seed", "bad": "dead_seed"},
     )
     assert a.instances == {3: "normal_seed"}

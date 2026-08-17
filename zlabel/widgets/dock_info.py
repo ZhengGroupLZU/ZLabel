@@ -68,6 +68,8 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
         self.ledit_anno_note.textChanged.connect(self.on_ledit_anno_note_textChanged)
         # the generated .ui caps the height at 102px; height is driven by the dock ratio
         self.setMaximumSize(16777215, 16777215)
+        # keep the image note editor compact (a couple of lines)
+        self.ledit_anno_note.setMaximumHeight(48)
 
         # combine image size row + note editor + annotation details into one
         # scrollable content widget; the dock height comes from the layout ratio.
