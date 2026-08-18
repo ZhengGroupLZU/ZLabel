@@ -1,5 +1,8 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/go_backward90.svg</file>
+    <file>icons/go_forward90.svg</file>
+    <file>icons/copy.svg</file>
     <file>icons/points.svg</file>
     <file>icons/dock_bottom.svg</file>
     <file>icons/dock_left.svg</file>

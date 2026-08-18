@@ -275,6 +275,8 @@
    <addaction name="actionFit_wiondow"/>
    <addaction name="actionVisible"/>
    <addaction name="separator"/>
+   <addaction name="action_copy_prev"/>
+   <addaction name="separator"/>
   </widget>
   <widget class="QDockWidget" name="dock_infos">
    <property name="sizePolicy">
@@ -771,6 +773,21 @@
     <string>Convert ISAT jsons to COCO json.</string>
    </property>
   </action>
+  <action name="action_copy_prev">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/copy.svg</normaloff>:/icon/icons/copy.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Copy previous frame</string>
+   </property>
+   <property name="toolTip">
+    <string>Copy previous frame</string>
+   </property>
+   <property name="statusTip">
+    <string>Copy dish/timestamp/instance parts from the previous frame of the same sequence</string>
+   </property>
+  </action>
   <action name="action_import_task">
    <property name="icon">
     <iconset resource="../icons.qrc">
@@ -1255,4 +1272,3 @@
  </resources>
  <connections/>
 </ui>
-

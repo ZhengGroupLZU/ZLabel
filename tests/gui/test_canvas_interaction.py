@@ -396,6 +396,45 @@ def test_rotation_stays_in_image_space(populated_project, canvas_view, qtbot):
     assert anno.results[r.id].y == pytest.approx(25, abs=1.0)
 
 
+def test_rect_prompt_is_unrotated_bbox(populated_project, canvas_view, qtbot, monkeypatch):
+    """Regression: with view rotation the rect prompt sent to the backend must
+    be the axis-aligned bounding box of the drawn box in un-rotated image space,
+    not the raw anchor + size (which is displaced under rotation)."""
+    win, proj, anno, rebuild = populated_project
+
+    captured: dict = {}
+
+    class _FakeWorker:
+        def __init__(self, **kw):
+            captured.update(kw)
+
+    monkeypatch.setattr(win, "run_sam_api_worker", lambda worker: None)
+    monkeypatch.setattr("zlabel.widgets.mainwindow.ZSamPredictWorker", _FakeWorker)
+    win.settings.sam_enabled = True
+
+    # without rotation the prompt is the rect itself
+    win.on_action_rectangle_triggered()
+    canvas_view["drag"](win.canvas, (5, 5), (20, 20), qtbot)
+    x, y, w, h = captured["rects"][0]
+    assert x == pytest.approx(5, abs=1.0)
+    assert y == pytest.approx(5, abs=1.0)
+    assert w == pytest.approx(15, abs=1.0)
+    assert h == pytest.approx(15, abs=1.0)
+
+    # 90° view rotation: the drawn (10,10)-(30,25) window box is stored as
+    # (10,25,15,20,rot=-90); its image-space bbox is (10,10)-(30,25) => (10,10,20,15).
+    # (tolerance 2: the rotated drag drifts ~1-2px offscreen)
+    captured.clear()
+    win.spin_rotation.setValue(90)
+    win.on_action_rectangle_triggered()
+    canvas_view["drag"](win.canvas, (10, 10), (30, 25), qtbot)
+    x, y, w, h = captured["rects"][0]
+    assert x == pytest.approx(10, abs=2.0)
+    assert y == pytest.approx(10, abs=2.0)
+    assert w == pytest.approx(20, abs=2.0)
+    assert h == pytest.approx(15, abs=2.0)
+
+
 def test_undo_redo_keeps_canvas_synced(populated_project, canvas_view, qtbot):
     win, proj, anno, rebuild = populated_project
     win.on_action_rectangle_triggered()

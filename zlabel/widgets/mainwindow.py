@@ -1,20 +1,14 @@
 import copy
 import functools
+import math
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
-from pyqtgraph.Qt.QtGui import (
-    QAction,
-    QCloseEvent,
-    QIcon,
-    QKeySequence,
-    QShortcut,
-    QSurfaceFormat,
-    QUndoStack,
-)
+from pyqtgraph.Qt.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -22,7 +16,9 @@ from pyqtgraph.Qt.QtWidgets import (
     QDialog,
     QDialogButtonBox,
     QDockWidget,
+    QDoubleSpinBox,
     QFileDialog,
+    QHBoxLayout,
     QInputDialog,
     QLabel,
     QMainWindow,
@@ -77,6 +73,7 @@ from zlabel.widgets import (
     ZUploadFileWorker,
 )
 from zlabel.widgets.dock_anno import ID_ROLE
+from zlabel.widgets.dock_tracks import ZDockTracksContent
 from zlabel.widgets.zworker import GetProjectsWorker
 
 from .ui import Ui_MainWindow
@@ -84,6 +81,18 @@ from .ui import Ui_MainWindow
 sfmt = QSurfaceFormat()
 sfmt.setSwapInterval(0)
 QSurfaceFormat.setDefaultFormat(sfmt)
+
+
+@dataclass
+class CopyOptions:
+    """Result of the copy/propagate dialog."""
+
+    direction: int  # -1 = previous frame, +1 = next frame
+    opts: set[str]  # subset of {"dish", "time", "parts"}
+    angle: float = 0.0  # rotation applied to copied annotations (deg)
+    scale: float = 1.0  # uniform scale applied to copied annotations
+    src_center: tuple[float, float] = (0.0, 0.0)  # source frame reference center
+    tgt_center: tuple[float, float] = (0.0, 0.0)  # target frame reference center
 
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -240,6 +249,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             state_data: QByteArray = QByteArray.fromBase64(self.settings.window_state.encode("utf-8"))
             if not state_data.isEmpty():
                 self.restoreState(state_data)
+        # The Tracks timeline always lives at the bottom; saved layouts from
+        # before the move (it used to be a right-side dock) would otherwise
+        # place it back on the right.
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_tracks)
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
@@ -533,8 +546,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         results: list[PointResult | RectangleResult | PolygonResult],
         mode: ResultUndoMode,
         results_old: list[PointResult | RectangleResult | PolygonResult] | None = None,
+        target_anno=None,
+        instances_old: dict[int, str] | None = None,
+        instances_new: dict[int, str] | None = None,
     ):
-        cmd = ZResultUndoCmd(self, results, mode, results_old)
+        cmd = ZResultUndoCmd(
+            self,
+            results,
+            mode,
+            results_old,
+            target_anno=target_anno,
+            instances_old=instances_old,
+            instances_new=instances_new,
+        )
         self.undo_stack.push(cmd)
 
     def remove_result(self, id_: str, update: bool = False):
@@ -805,10 +829,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
             self.undo_stack.undo()
+        self._refresh_tracks()
 
     def on_action_redo_triggered(self):
         if self.undo_stack.canRedo():
             self.undo_stack.redo()
+        self._refresh_tracks()
 
     def on_action_visible_triggered(self):
         self.canvas_items_visible = self.actionVisible.isChecked()
@@ -831,6 +857,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_labels.show()
         self.dock_infos.show()
         self.dock_files.show()
+        self.dock_tracks.show()
 
     def on_action_annotations_triggered(self):
         if self.actionAnnotations.isChecked():
@@ -855,6 +882,103 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dock_labels.show()
         else:
             self.dock_labels.hide()
+
+    def on_action_tracks_triggered(self):
+        if self.actionTracks.isChecked():
+            self.dock_tracks.show()
+        else:
+            self.dock_tracks.hide()
+
+    def on_dock_tracks_visibility_changed(self, visible: bool):
+        self.actionTracks.setChecked(visible)
+
+    def _on_tracks_group_changed(self, group: str):
+        """Append the current sequence group to the Tracks dock title."""
+        title = self.tr("Tracks")
+        if group:
+            title += f" · {group}"
+        self.dock_tracks.setWindowTitle(title)
+
+    def _refresh_tracks(self):
+        """Rebuild the instance timeline for the current frame's sequence group."""
+        task = self.proj.crt_task
+        group = task.group if task else ""
+        tasks = [t for t in self.proj.tasks.values() if t.group == group] if group else []
+        self.dockcnt_tracks.set_group(self.proj, group, tasks)
+
+    def on_instance_open(self, anno_id: str, instance_id: int):
+        """Jump to the frame containing ``instance_id`` and select its members."""
+        if self.proj.crt_anno is not None and self.proj.crt_anno.id == anno_id:
+            self._select_instance(instance_id)
+            return
+        # avoid the auto copy-prev dialog when jumping via the timeline
+        self._skip_copy_anno = anno_id
+        self.on_dock_files_item_clicked(anno_id)
+        self._select_instance(instance_id)
+
+    def _select_instance(self, instance_id: int):
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        ids = [r.id for r in anno.results.values() if getattr(r, "instance_id", 0) == instance_id]
+        if ids:
+            self.canvas.select_items(ids)
+            self.dockcnt_anno.set_selected_ids(ids)
+
+    def _anno_by_id(self, anno_id: str) -> Annotation | None:
+        """The annotation for ``anno_id`` (current frame first, else from disk)."""
+        if self.proj.crt_anno is not None and self.proj.crt_anno.id == anno_id:
+            return self.proj.crt_anno
+        for task in self._group_tasks():
+            if task.anno_id == anno_id:
+                return self._load_anno_for_task(task)
+        return None
+
+    def on_cell_moved(self, src_anno_id: str, src_iid: int, target_row: int):
+        """Drag on the instance timeline: renumber or swap the source instance
+        within its own frame. Only the target row matters (drop column ignored):
+        if the target row is empty in the source frame the instance id becomes
+        that row number, otherwise the two instances swap ids/statuses."""
+        if src_iid <= 0 or src_iid == target_row:
+            return
+        anno = self._anno_by_id(src_anno_id)
+        if anno is None:
+            return
+        affected = [r for r in anno.results.values() if getattr(r, "instance_id", 0) in (src_iid, target_row)]
+        if not any(getattr(r, "instance_id", 0) == src_iid for r in affected):
+            return
+        occupied = (
+            target_row in {getattr(r, "instance_id", 0) for r in anno.results.values()} or target_row in anno.instances
+        )
+
+        result_old = [copy.deepcopy(r) for r in affected]
+        result_new = [copy.deepcopy(r) for r in affected]
+        inst_old = dict(anno.instances)
+        inst_new = dict(inst_old)
+        if occupied:
+            for r in result_new:
+                r.instance_id = target_row if r.instance_id == src_iid else src_iid
+            old_src = inst_new.pop(src_iid, None)
+            old_tgt = inst_new.pop(target_row, None)
+            if old_src is not None:
+                inst_new[target_row] = old_src
+            if old_tgt is not None:
+                inst_new[src_iid] = old_tgt
+        else:
+            for r in result_new:
+                if r.instance_id == src_iid:
+                    r.instance_id = target_row
+            if src_iid in inst_new:
+                inst_new[target_row] = inst_new.pop(src_iid)
+        self.add_result_undo_cmd(
+            result_new,
+            ResultUndoMode.MODIFY_NO_UPDATE,
+            result_old,
+            target_anno=anno,
+            instances_old=inst_old,
+            instances_new=inst_new,
+        )
+        self.show_toast(self.tr(f"Instance {src_iid} → {target_row}" + (" (swap)" if occupied else "")))
 
     def on_action_finish_triggered(self):
         if self.proj.crt_task is None or self.proj.crt_anno is None or self.backend is None:
@@ -1279,6 +1403,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_instance_id = 0
         self._refresh_anno_tree()
         self._apply_annotation_rotation()
+        self._refresh_tracks()
         self._maybe_copy_prev_frame()
 
     def _apply_annotation_rotation(self):
@@ -1374,6 +1499,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.add_results(results)
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
         self._refresh_anno_tree()
+        self._refresh_tracks()
 
     @staticmethod
     def _select_best_dish(candidates: list[PolygonResult]) -> PolygonResult | None:
@@ -1440,6 +1566,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             self.add_result_undo_cmd([result], ResultUndoMode.ADD)
             self._refresh_anno_tree()
+            self._refresh_tracks()
             return
 
         # Legacy SAM/CV prompt path
@@ -1527,6 +1654,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             case AutoMode.MANUAL:
                 self.add_result_undo_cmd([result], ResultUndoMode.ADD)
                 self._maybe_ocr_rect(result)
+                self._refresh_tracks()
                 return
             # if either sam or CV selected, create by predict
             case AutoMode.SAM | AutoMode.CV:
@@ -1558,11 +1686,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
+        # The drawn box may be rotated in image space (view rotation): the
+        # prompt must be the axis-aligned bounding box of the rotated rect,
+        # otherwise the coordinates sent to the backend are displaced.
+        left, top, right, bottom = self._crop_box(result)
         worker = ZSamPredictWorker(
             api=self.backend,
             anno_id=self.proj.key_task,
             image=self.proj.crt_anno.image_path,
-            rects=[(result.x, result.y, result.w, result.h)],
+            rects=[(left, top, right - left, bottom - top)],
             threshold=self.threshold,
             mode=self.auto_mode,
             result_labels=[self.proj.crt_label],
@@ -1604,6 +1736,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.logger.debug(f"{result=}")
         self.add_result_undo_cmd([result], ResultUndoMode.ADD)
         self._refresh_anno_tree()
+        self._refresh_tracks()
 
     def on_canvas_item_clicked(self, id_: str):
         if self.proj.crt_anno is None:
@@ -1746,6 +1879,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.current_instance_id = instance_id
         self._prune_orphan_instances()
+        self._refresh_tracks()
         self._refresh_anno_tree()
         self.update_group_button_state()
         item = self.canvas.showing_items.get(result_id)
@@ -1871,6 +2005,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None:
             return
         self.proj.crt_anno.instances[iid] = status
+        self._refresh_tracks()
 
     # region instance grouping (merge / split)
     def _selected_results(self) -> list[PointResult | RectangleResult | PolygonResult]:
@@ -1918,6 +2053,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_instance_id = new_iid
         self._prune_orphan_instances()
         self._refresh_anno_tree()
+        self._refresh_tracks()
         self.update_group_button_state()
         self.show_toast(self.tr(f"Grouped {len(results)} annotations into instance {new_iid}"))
 
@@ -1941,6 +2077,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             anno.instances[iid] = status
         self._prune_orphan_instances()
         self._refresh_anno_tree()
+        self._refresh_tracks()
         self.update_group_button_state()
         self.show_toast(self.tr(f"Split {len(results)} annotations into individual instances"))
 
@@ -2062,7 +2199,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proj.crt_anno.image_rotation = angle
 
     def _used_instance_ids(self) -> set[int]:
-        """All positive instance ids currently in use (results + instances map)."""
+        """All positive instance ids currently in use in the current frame.
+
+        Instance ids are allocated per frame (each image numbers its instances
+        1..N independently); cross-frame correspondence is by matching id, so
+        the same number across frames denotes the same object by convention."""
         used: set[int] = set()
         if self.proj.crt_anno is not None:
             for r in self.proj.crt_anno.results.values():
@@ -2071,6 +2212,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     used.add(iid)
             used.update(self.proj.crt_anno.instances.keys())
         return used
+
+    def _group_tasks(self) -> list[Task]:
+        """Tasks of the current frame's sequence group (ordered by day)."""
+        group = self.proj.crt_task.group if self.proj.crt_task else ""
+        tasks = [t for t in self.proj.tasks.values() if t.group == group] if group else []
+        return sorted(tasks, key=lambda t: (t.day, t.filename))
 
     @staticmethod
     def _next_free_instance_id(used: set[int]) -> int:
@@ -2081,8 +2228,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         return iid
 
     def _new_instance_id(self) -> int:
-        """Frame-local instance id: the smallest unused positive id, so gaps
-        left by deleted/ungrouped instances are filled before incrementing."""
+        """Per-frame instance id: the smallest unused positive id in the current
+        frame, so gaps are filled before incrementing (each image starts at 1)."""
         return self._next_free_instance_id(self._used_instance_ids())
 
     # endregion
@@ -2102,6 +2249,26 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return max(cands, key=lambda t: t.day)
         return max(cands, key=lambda t: (t.day, t.filename))
 
+    def _next_task_for_copy(self, task: Task) -> Task | None:
+        """Next frame in the same group (larger day, else by filename)."""
+        if not task.group:
+            return None
+        cands = [t for t in self.proj.tasks.values() if t.group == task.group and t.anno_id != task.anno_id]
+        if not cands:
+            return None
+        if task.day > 0:
+            cands = [t for t in cands if t.day > task.day]
+            if not cands:
+                return None
+            return min(cands, key=lambda t: t.day)
+        return min(cands, key=lambda t: (t.day, t.filename))
+
+    def _neighbor_task_for_copy(self, task: Task, direction: int) -> Task | None:
+        """Neighbor frame in the same group: previous (-1) or next (+1)."""
+        if direction > 0:
+            return self._next_task_for_copy(task)
+        return self._prev_task_for_copy(task)
+
     def _load_anno_for_task(self, task: Task) -> Annotation | None:
         if task.anno is not None and task.anno.image_path:
             return task.anno
@@ -2119,19 +2286,78 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         task.anno = anno
         return anno
 
-    def _ask_copy_options(self) -> set[str] | None:
+    def _ask_copy_options(self, task: Task) -> CopyOptions | None:
+        """Dialog to pick copy direction, items, and optional rotation alignment."""
         dlg = QDialog(self)
-        dlg.setWindowTitle(self.tr("Copy from previous frame"))
+        dlg.setWindowTitle(self.tr("Copy / propagate from neighbor frame"))
         lay = QVBoxLayout(dlg)
+
+        lay.addWidget(QLabel(self.tr("Direction:")))
+        cmb_dir = QComboBox()
+        cmb_dir.addItem(self.tr("From previous frame"), -1)
+        cmb_dir.addItem(self.tr("From next frame"), 1)
+        lay.addWidget(cmb_dir)
+
         cb_dish = QCheckBox(self.tr("Dish"), dlg)
         cb_dish.setChecked(True)
         cb_time = QCheckBox(self.tr("Timestamp"), dlg)
         cb_time.setChecked(True)
         cb_parts = QCheckBox(self.tr("Instance parts (Seed/Root/Seedling)"), dlg)
         cb_parts.setChecked(True)
-        lay.addWidget(cb_dish)
-        lay.addWidget(cb_time)
-        lay.addWidget(cb_parts)
+        for cb in (cb_dish, cb_time, cb_parts):
+            lay.addWidget(cb)
+
+        cb_align = QCheckBox(self.tr("Align copied annotations (rotate + scale) to the dish"), dlg)
+        cb_align.setChecked(True)
+        lay.addWidget(cb_align)
+        ang_label = QLabel()
+        ang_label.setWordWrap(True)
+        lay.addWidget(ang_label)
+        spin_angle = QDoubleSpinBox()
+        spin_angle.setRange(-360, 360)
+        spin_angle.setDecimals(1)
+        spin_angle.setSuffix(self.tr("°"))
+        lay.addWidget(spin_angle)
+        scale_label = QLabel(self.tr("Scale:"))
+        lay.addWidget(scale_label)
+        spin_scale = QDoubleSpinBox()
+        spin_scale.setRange(0.1, 10.0)
+        spin_scale.setDecimals(3)
+        spin_scale.setSingleStep(0.05)
+        spin_scale.setValue(1.0)
+        lay.addWidget(spin_scale)
+        center_label = QLabel()
+        lay.addWidget(center_label)
+
+        def _reload_source():
+            direction = cmb_dir.currentData()
+            neighbor = self._neighbor_task_for_copy(task, direction)
+            src_anno = self._load_anno_for_task(neighbor) if neighbor else None
+            angle, scale, src_c, tgt_c, ang_rel, scale_rel = self._estimate_copy_alignment(src_anno, self.proj.crt_anno)
+            if src_anno is not None and self._frame_references(src_anno)[0] is not None:
+                if ang_rel:
+                    ang_label.setText(self.tr(f"Auto-estimated rotation: {angle:.1f}°"))
+                else:
+                    ang_label.setText(
+                        self.tr("Dish orientation unreliable (round dish / no Number label) - enter manually.")
+                    )
+            else:
+                ang_label.setText(self.tr("No dish in both frames - enter rotation/scale manually."))
+            spin_angle.setValue(angle if ang_rel else 0.0)
+            spin_scale.setValue(scale if scale_rel else 1.0)
+            if scale_rel:
+                scale_label.setText(self.tr(f"Scale: (auto-estimated {scale:.3f})"))
+            else:
+                scale_label.setText(self.tr("Scale: (no auto estimate - enter manually)"))
+            center_label.setText(
+                self.tr(
+                    f"Dish centers: source ({src_c[0]:.0f}, {src_c[1]:.0f}) -> target ({tgt_c[0]:.0f}, {tgt_c[1]:.0f})"
+                )
+            )
+
+        cmb_dir.currentIndexChanged.connect(lambda *_: _reload_source())
+        _reload_source()
+
         btnbox = QDialogButtonBox(
             QDialogButtonBox.StandardButton.Ok | QDialogButtonBox.StandardButton.Cancel,
             dlg,
@@ -2141,6 +2367,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         lay.addWidget(btnbox)
         if dlg.exec() != QDialog.DialogCode.Accepted:
             return None
+
         opts: set[str] = set()
         if cb_dish.isChecked():
             opts.add("dish")
@@ -2148,42 +2375,162 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             opts.add("time")
         if cb_parts.isChecked():
             opts.add("parts")
-        return opts
+        direction = cmb_dir.currentData()
+        neighbor = self._neighbor_task_for_copy(task, direction)
+        src_anno = self._load_anno_for_task(neighbor) if neighbor else None
+        _angle, _scale, src_c, tgt_c, _, _ = self._estimate_copy_alignment(src_anno, self.proj.crt_anno)
+        return CopyOptions(
+            direction=direction,
+            opts=opts,
+            angle=spin_angle.value() if cb_align.isChecked() else 0.0,
+            scale=spin_scale.value() if cb_align.isChecked() else 1.0,
+            src_center=src_c,
+            tgt_center=tgt_c,
+        )
 
-    def _copy_from_prev_frame(self, prev: Task, opts: set[str]):
-        if self.proj.crt_anno is None:
+    @staticmethod
+    def _frame_references(anno: Annotation | None) -> tuple[tuple | None, tuple | None]:
+        """Reference features of a frame: (dish_ellipse, number_center).
+
+        ``dish_ellipse`` is the (cx, cy, angle_deg, (ma, mi)) fit of the dish
+        polygon (None if no dish); ``number_center`` is the center of the
+        Number/编号 rectangle (None if not annotated). Together they define the
+        similarity transform that maps this frame's dish onto another frame's.
+        """
+        if anno is None:
+            return None, None
+        from zlabel.utils.geometry import fit_ellipse_params
+
+        dish = None
+        number = None
+        for r in anno.results.values():
+            name = (r.labels[0].name if r.labels else "").lower()
+            if isinstance(r, PolygonResult) and name in ("dish", "培养皿") and dish is None:
+                dish = fit_ellipse_params(r.points)
+            elif isinstance(r, RectangleResult) and name in ("number", "编号") and number is None:
+                number = (r.x + r.w / 2.0, r.y + r.h / 2.0)
+        return dish, number
+
+    def _estimate_copy_alignment(
+        self, src_anno: Annotation | None, tgt_anno: Annotation | None
+    ) -> tuple[float, float, tuple[float, float], tuple[float, float], bool, bool]:
+        """Estimate the similarity transform (rotation + uniform scale + center
+        mapping) aligning source-frame annotations onto the target frame.
+
+        With a dish and a Number label in both frames the dish-center ->
+        number-center vector gives an unambiguous rotation and a scale (vector /
+        dish-size ratio). Without a Number label the dish ellipse orientation is
+        used (180 deg ambiguous -> not reliable). Without a dish in both frames
+        nothing can be auto-estimated.
+
+        Returns ``(angle, scale, src_center, tgt_center, angle_reliable, scale_reliable)``.
+        """
+        src = self._frame_references(src_anno)
+        tgt = self._frame_references(tgt_anno)
+        if src is None or tgt is None or src[0] is None or tgt[0] is None:
+            return 0.0, 1.0, (0.0, 0.0), (0.0, 0.0), False, False
+        (s_cx, s_cy, _sang, (sa, sb)), (t_cx, t_cy, _tang, (ta, tb)) = src[0], tgt[0]
+        src_center = (s_cx, s_cy)
+        tgt_center = (t_cx, t_cy)
+
+        s_area, t_area = sa * sb, ta * tb
+        scale = math.sqrt(t_area / s_area) if s_area > 0 and t_area > 0 else 1.0
+        scale_reliable = s_area > 0 and t_area > 0
+
+        angle = 0.0
+        angle_reliable = False
+        if src[1] is not None and tgt[1] is not None:
+            vs = (src[1][0] - s_cx, src[1][1] - s_cy)
+            vt = (tgt[1][0] - t_cx, tgt[1][1] - t_cy)
+            if math.hypot(*vs) > 1e-6 and math.hypot(*vt) > 1e-6:
+                angle = math.degrees(math.atan2(vt[1], vt[0]) - math.atan2(vs[1], vs[0]))
+                angle_reliable = True
+        if not angle_reliable:
+            # fall back to the dish ellipse orientation (ambiguous by 180 deg)
+            angle = (_tang - _sang + 180.0) % 360.0 - 180.0
+            angle_reliable = max(sa / sb, sb / sa) > 1.2 and max(ta / tb, tb / ta) > 1.2
+        return angle, scale, src_center, tgt_center, angle_reliable, scale_reliable
+
+    @staticmethod
+    def _transform_result(
+        result,
+        angle: float,
+        scale: float,
+        src_center: tuple[float, float],
+        tgt_center: tuple[float, float],
+    ):
+        """Apply the similarity transform (rotation + scale + translation) to a
+        copied result's geometry."""
+        from zlabel.utils.geometry import similarity_transform
+
+        if isinstance(result, PolygonResult):
+            result.points = [similarity_transform(p, angle, scale, src_center, tgt_center) for p in result.points]
+        elif isinstance(result, RectangleResult):
+            x, y = similarity_transform((result.x, result.y), angle, scale, src_center, tgt_center)
+            result.x, result.y = x, y
+            result.w *= scale
+            result.h *= scale
+            result.rotation = (result.rotation + angle) % 360
+
+    def _copy_from_frame(self, neighbor: Task, opts: CopyOptions):
+        """Copy (and optionally similarity-align) annotations from a neighbor
+        frame, keeping the cross-frame instance identity (`instance_id`).
+
+        The similarity transform (rotation + uniform scale + dish-center
+        mapping) is estimated from the dish / Number references of both frames
+        (see ``_estimate_copy_alignment``)."""
+        anno = self.proj.crt_anno
+        if anno is None:
             return
-        prev_anno = self._load_anno_for_task(prev)
-        if prev_anno is None or not prev_anno.results:
+        src_anno = self._load_anno_for_task(neighbor)
+        if src_anno is None or not src_anno.results:
             return
+
+        # Per-frame numbering: skip source instances whose id already exists in
+        # the target frame (same id = same object, already present) to avoid
+        # duplicate ids within one frame.
+        target_iids = set(anno.instances) | {getattr(r, "instance_id", 0) for r in anno.results.values()}
+
         results_new = []
-        for r in prev_anno.results.values():
+        for r in src_anno.results.values():
             name = (r.labels[0].name if r.labels else "").lower()
             if isinstance(r, RectangleResult):
-                if name in ("timestamp", "时间戳"):
-                    keep = "time" in opts
+                if name in ("timestamp", "时间戳", "number", "编号"):
+                    keep = "time" in opts.opts
                 else:
-                    keep = "dish" in opts
+                    keep = "dish" in opts.opts
             elif isinstance(r, PolygonResult):
                 if name in ("dish", "培养皿"):
-                    keep = "dish" in opts
+                    keep = "dish" in opts.opts
                 else:
-                    keep = "parts" in opts
+                    keep = "parts" in opts.opts
             else:
                 keep = False
             if not keep:
                 continue
+            if getattr(r, "instance_id", 0) and r.instance_id in target_iids:
+                continue
+
             nr = copy.deepcopy(r)
             nr.id = id_uuid4()
+            # printed labels (number/timestamp) are attached to the dish, so they
+            # move with it; apply the similarity transform to everything copied.
+            # `instance_id` is the cross-frame identity: copied parts keep the
+            # source instance id, so the same seed keeps its number across frames.
+            if opts.angle or opts.scale != 1.0:
+                self._transform_result(nr, opts.angle, opts.scale, opts.src_center, opts.tgt_center)
             results_new.append(nr)
+
         if not results_new:
             return
+        # carry the per-instance status from the source frame (fall back to default)
         for r in results_new:
             iid = getattr(r, "instance_id", 0)
-            if iid and iid not in self.proj.crt_anno.instances and iid in prev_anno.instances:
-                self.proj.crt_anno.instances[iid] = prev_anno.instances[iid]
+            if iid and iid not in anno.instances:
+                anno.instances[iid] = src_anno.instances.get(iid, "") or self._default_instance_status()
         self.add_result_undo_cmd(results_new, ResultUndoMode.ADD)
         self._refresh_anno_tree()
+        self._refresh_tracks()
 
     def _maybe_copy_prev_frame(self):
         if not self.settings.enable_copy_prev:
@@ -2193,17 +2540,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         if self._skip_copy_anno == self.proj.crt_anno.id or self.proj.crt_anno.results:
             return
-        prev = self._prev_task_for_copy(task)
-        if prev is None:
-            return
-        prev_anno = self._load_anno_for_task(prev)
-        if prev_anno is None or not prev_anno.results:
-            return
-        opts = self._ask_copy_options()
-        if not opts:
+        opts = self._ask_copy_options(task)
+        if opts is None:
             self._skip_copy_anno = self.proj.crt_anno.id
             return
-        self._copy_from_prev_frame(prev, opts)
+        neighbor = self._neighbor_task_for_copy(task, opts.direction)
+        if neighbor is None:
+            self._skip_copy_anno = self.proj.crt_anno.id
+            return
+        self._copy_from_frame(neighbor, opts)
 
     def on_copy_prev_triggered(self):
         task = self.proj.crt_task
@@ -2217,18 +2562,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 QMessageBox.StandardButton.Ok,
             )
             return
-        prev = self._prev_task_for_copy(task)
-        if prev is None:
+        opts = self._ask_copy_options(task)
+        if opts is None:
+            return
+        neighbor = self._neighbor_task_for_copy(task, opts.direction)
+        if neighbor is None:
             QMessageBox.information(
                 self,
                 self.tr("Copy"),
-                self.tr("No previous frame in this sequence."),
+                self.tr("No neighbor frame in this sequence."),
                 QMessageBox.StandardButton.Ok,
             )
             return
-        opts = self._ask_copy_options()
-        if opts:
-            self._copy_from_prev_frame(prev, opts)
+        self._copy_from_frame(neighbor, opts)
 
     # endregion
 
@@ -2288,26 +2634,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.slider_threshold.setMaximumSize(150, 15)
         self.toolBar.addWidget(self.slider_threshold)
 
-        self.action_copy_prev = QAction(self.tr("Copy previous frame"), self)
-        self.action_copy_prev.setStatusTip(
-            self.tr("Copy dish/timestamp/instance parts from the previous frame of the same sequence")
-        )
-        self.toolBar.addAction(self.action_copy_prev)
-
-        # view rotation controls (rotate the canvas view, coords stay in image space)
-        self.btn_rot_ccw = QPushButton("90°", self)
+        # view rotation controls, placed right after the copy-prev action
+        self.btn_rot_ccw = QPushButton(self)
+        self.btn_rot_ccw.setObjectName("btn_rot_ccw")
+        self.btn_rot_ccw.setIcon(QIcon(":/icon/icons/go_backward90.svg"))
         self.btn_rot_ccw.setToolTip(self.tr("Rotate view counter-clockwise"))
-        self.btn_rot_cw = QPushButton("-90°", self)
-        self.btn_rot_cw.setToolTip(self.tr("Rotate view clockwise"))
         self.spin_rotation = QSpinBox(self)
+        self.spin_rotation.setObjectName("spin_rotation")
         self.spin_rotation.setRange(-359, 359)
         self.spin_rotation.setSuffix("°")
         self.spin_rotation.setToolTip(self.tr("Rotate the view (stored coords stay in image space)"))
-        self.toolBar.addWidget(self.btn_rot_ccw)
-        self.toolBar.addWidget(self.spin_rotation)
-        self.toolBar.addWidget(self.btn_rot_cw)
-        self.btn_rot_ccw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() + 90) % 360))
-        self.btn_rot_cw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() - 90) % 360))
+        self.btn_rot_cw = QPushButton(self)
+        self.btn_rot_cw.setObjectName("btn_rot_cw")
+        self.btn_rot_cw.setIcon(QIcon(":/icon/icons/go_forward90.svg"))
+        self.btn_rot_cw.setToolTip(self.tr("Rotate view clockwise"))
+        # insert immediately after action_copy_prev (before whatever follows it)
+        acts = self.toolBar.actions()
+        insert_before = None
+        for i, a in enumerate(acts):
+            if a is self.action_copy_prev and i + 1 < len(acts):
+                insert_before = acts[i + 1]
+                break
+        for w in (self.btn_rot_ccw, self.spin_rotation, self.btn_rot_cw):
+            if insert_before is not None:
+                self.toolBar.insertWidget(insert_before, w)
+            else:
+                self.toolBar.addWidget(w)
 
         # right dock vertical height ratio Info:Annos:Labels = 1:2:2
         for dock, stretch in [
@@ -2319,6 +2671,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sp.setVerticalStretch(stretch)
             sp.setVerticalPolicy(QSizePolicy.Policy.Preferred)
             dock.setSizePolicy(sp)
+
+        # Tracks dock: cross-frame timeline (video-editor style) at the bottom
+        self.dockcnt_tracks = ZDockTracksContent(
+            self._load_anno_for_task,
+            lambda name: self.backend.get_image(name) if self.backend is not None else None,
+            self,
+        )
+        self.dock_tracks = QDockWidget(self.tr("Tracks"), self)
+        self.dock_tracks.setObjectName("dock_tracks")
+        self.dock_tracks.setWidget(self.dockcnt_tracks)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_tracks)
+        self.actionTracks = QAction(self.tr("Tracks"), self)
+        self.actionTracks.setObjectName("actionTracks")
+        self.actionTracks.setCheckable(True)
+        self.actionTracks.setChecked(True)
+        self.menuDocks.addAction(self.actionTracks)
+
+        # keep the side docks compact so the canvas keeps most of the width
+        # (explicit min/max override the inflated minimumSizeHints)
+        for content, lo, hi in [
+            (self.dockcnt_files, 1, 541),
+            (self.dockcnt_info, 1, 541),
+            (self.dockcnt_anno, 1, 541),
+            (self.dockcnt_labels, 1, 541),
+        ]:
+            content.setMinimumWidth(lo)
+            content.setMaximumWidth(hi)
+        # the bottom timeline stays a horizontal strip but tall enough for
+        # several instance rows (rows run 1..max instance id)
+        self.dockcnt_tracks.setMinimumHeight(1)
+        self.dockcnt_tracks.setMaximumHeight(600)
 
     def init_signals(self):
         # dialog
@@ -2465,7 +2848,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.action_copy_prev.triggered.connect(self.on_copy_prev_triggered)
 
+        self.btn_rot_ccw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() - 90) % 360))
+        self.btn_rot_cw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() + 90) % 360))
         self.spin_rotation.valueChanged.connect(self.on_rotation_changed)
+
+        # Tracks dock
+        self.actionTracks.triggered.connect(self.on_action_tracks_triggered)
+        self.dock_tracks.visibilityChanged.connect(self.on_dock_tracks_visibility_changed)
+        self.dockcnt_tracks.sigOpenInstance.connect(self.on_instance_open)
+        self.dockcnt_tracks.sigCellMoved.connect(self.on_cell_moved)
+        self.dockcnt_tracks.sigGroupChanged.connect(self._on_tracks_group_changed)
 
     # endregion
 

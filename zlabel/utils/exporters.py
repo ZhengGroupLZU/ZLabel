@@ -73,9 +73,7 @@ def _label_names(project: Project) -> list[str]:
     return [label.name for label in project.labels.values()]
 
 
-def _group_keypoints(
-    anno: Annotation, label_names: list[str]
-) -> list[dict[str, Any]]:
+def _group_keypoints(anno: Annotation, label_names: list[str]) -> list[dict[str, Any]]:
     """Group a task's PointResults into instances.
 
     Points sharing an `instance_id` form one instance; points with an empty
@@ -136,29 +134,25 @@ def export_coco(
     for img_id, task_ in enumerate(_annotated_tasks(project)):
         anno = task_.anno
         assert anno is not None
-        images.append(
-            {
-                "id": img_id,
-                "file_name": task_.filename,
-                "width": int(anno.original_width),
-                "height": int(anno.original_height),
-            }
-        )
+        images.append({
+            "id": img_id,
+            "file_name": task_.filename,
+            "width": int(anno.original_width),
+            "height": int(anno.original_height),
+        })
         if task == ExportTask.KEYPOINTS:
             for inst in _group_keypoints(anno, label_names):
                 bbox = inst["bbox"]
-                annotations.append(
-                    {
-                        "id": ann_id,
-                        "image_id": img_id,
-                        "category_id": 0,
-                        "bbox": [round(v, 2) for v in bbox],
-                        "area": round(bbox[2] * bbox[3], 2),
-                        "iscrowd": 0,
-                        "keypoints": [round(v, 2) for v in inst["keypoints"]],
-                        "num_keypoints": inst["num_keypoints"],
-                    }
-                )
+                annotations.append({
+                    "id": ann_id,
+                    "image_id": img_id,
+                    "category_id": 0,
+                    "bbox": [round(v, 2) for v in bbox],
+                    "area": round(bbox[2] * bbox[3], 2),
+                    "iscrowd": 0,
+                    "keypoints": [round(v, 2) for v in inst["keypoints"]],
+                    "num_keypoints": inst["num_keypoints"],
+                })
                 ann_id += 1
         else:
             for result in anno.results.values():
@@ -247,16 +241,14 @@ def _export_coco_merged(
     for img_id, task_ in enumerate(_annotated_tasks(project)):
         anno = task_.anno
         assert anno is not None
-        images.append(
-            {
-                "id": img_id,
-                "file_name": task_.filename,
-                "width": int(anno.original_width),
-                "height": int(anno.original_height),
-                "group": anno.group,
-                "day": anno.day,
-            }
-        )
+        images.append({
+            "id": img_id,
+            "file_name": task_.filename,
+            "width": int(anno.original_width),
+            "height": int(anno.original_height),
+            "group": anno.group,
+            "day": anno.day,
+        })
         groups, independent = _group_instances(anno)
         for iid, polys in groups.items():
             status = anno.instances.get(iid, "")
@@ -269,34 +261,31 @@ def _export_coco_merged(
                 continue
             bbox = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
             segmentation = [[round(v, 2) for p in poly.points for v in p] for poly in polys]
-            annotations.append(
-                {
-                    "id": ann_id,
-                    "image_id": img_id,
-                    "category_id": status_names.index(status),
-                    "bbox": [round(v, 2) for v in bbox],
-                    "area": round(bbox[2] * bbox[3], 2),
-                    "iscrowd": 0,
-                    "segmentation": segmentation,
-                    "instance_id": iid,
-                }
-            )
+            ann: dict[str, Any] = {
+                "id": ann_id,
+                "image_id": img_id,
+                "category_id": status_names.index(status),
+                "bbox": [round(v, 2) for v in bbox],
+                "area": round(bbox[2] * bbox[3], 2),
+                "iscrowd": 0,
+                "segmentation": segmentation,
+                "instance_id": iid,
+            }
+            annotations.append(ann)
             ann_id += 1
         for r in independent:
             if not r.labels or r.labels[0].name not in label_names:
                 continue
             bbox = _result_bbox(r)
-            annotations.append(
-                {
-                    "id": ann_id,
-                    "image_id": img_id,
-                    "category_id": label_start + label_names.index(r.labels[0].name),
-                    "bbox": [round(v, 2) for v in bbox],
-                    "area": round(bbox[2] * bbox[3], 2),
-                    "iscrowd": 0,
-                    "segmentation": [[round(v, 2) for p in _polygon_points(r) for v in p]],
-                }
-            )
+            annotations.append({
+                "id": ann_id,
+                "image_id": img_id,
+                "category_id": label_start + label_names.index(r.labels[0].name),
+                "bbox": [round(v, 2) for v in bbox],
+                "area": round(bbox[2] * bbox[3], 2),
+                "iscrowd": 0,
+                "segmentation": [[round(v, 2) for p in _polygon_points(r) for v in p]],
+            })
             ann_id += 1
 
     data = {
@@ -366,9 +355,7 @@ def export_yolo(
                     cy = (y + bh / 2) / h
                     lines.append(f"{label_id} {cx:.6f} {cy:.6f} {bw / w:.6f} {bh / h:.6f}")
                 else:  # SEGMENTATION
-                    pts = " ".join(
-                        f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in _polygon_points(result)
-                    )
+                    pts = " ".join(f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in _polygon_points(result))
                     lines.append(f"{label_id} {pts}".rstrip())
                 n_annos += 1
 
@@ -417,9 +404,7 @@ def _export_yolo_merged(
         for r in independent:
             if not r.labels or r.labels[0].name not in label_names:
                 continue
-            pts = " ".join(
-                f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in _polygon_points(r)
-            )
+            pts = " ".join(f"{p[0] / w:.6f} {p[1] / h:.6f}" for p in _polygon_points(r))
             lines.append(f"{label_start + label_names.index(r.labels[0].name)} {pts}".rstrip())
             n_annos += 1
 

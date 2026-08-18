@@ -90,6 +90,7 @@ GERM_PRESET_LABELS: dict[str, str] = {
     "Seedling": "#4363d8",
     "Dish": "#911eb4",
     "Timestamp": "#808080",
+    "Number": "#b8860b",
 }
 
 
@@ -109,6 +110,10 @@ class Result(BaseModel):
     score: float = 0
     note: str = ""
     labels: list[Label]
+    # `instance_id` is the cross-frame identity of a tracked object (seed /
+    # seedling): the same instance number in different frames of a sequence
+    # denotes the same physical object. Within one frame it also groups the
+    # object's parts (Seed/Root/Seedling polygons share the instance id).
 
     @staticmethod
     def new(

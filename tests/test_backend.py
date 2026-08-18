@@ -1,4 +1,5 @@
 import numpy as np
+import pytest
 
 from zlabel.utils.backend import (
     LocalInference,
@@ -338,3 +339,56 @@ def test_local_tasks_sequence_grouping(tmp_path, make_image):
     assert keys.index("wheat/dish1/D2.png") < keys.index("wheat/dish1/D10.png")
     # anno id derives from the relative path (incl. subdirs)
     assert by["wheat/dish1/D1.png"]["anno_id"] == id_md5("proj/wheat/dish1/D1.png")
+
+
+def test_rotate_point():
+    from zlabel.utils.geometry import rotate_point
+
+    # 90 deg around origin: (10, 0) -> (0, 10)
+    x, y = rotate_point((10, 0), 90, (0, 0))
+    assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(10)
+    # 180 deg around (5,5): (10,10) -> (0,0)
+    x, y = rotate_point((10, 10), 180, (5, 5))
+    assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(0, abs=1e-9)
+    # 0 deg is identity
+    assert rotate_point((3, 4), 0, (1, 1)) == (3, 4)
+
+
+def test_rotate_rect_anchor():
+    from zlabel.utils.geometry import rotate_rect
+
+    # rotate the anchor (10,10) of a 5x4 rect 90 deg around origin -> (-10, 10)
+    x, y, w, h = rotate_rect((10, 10, 5, 4), 90, (0, 0))
+    assert x == pytest.approx(-10) and y == pytest.approx(10)
+    assert (w, h) == (5, 4)
+
+
+def test_fit_ellipse_params():
+    from zlabel.utils.geometry import fit_ellipse_params
+
+    pts = [(10 + i, 10) for i in range(20)] + [(10, 10 + i) for i in range(20)]
+    res = fit_ellipse_params(pts)
+    assert res is not None
+    cx, cy, angle, (ma, mi) = res
+    assert cx == pytest.approx(10, abs=1.0)
+    assert cy == pytest.approx(10, abs=1.0)
+    assert ma > 0 and mi > 0
+    # degenerate input -> None
+    assert fit_ellipse_params([(1, 1), (2, 2)]) is None
+
+
+def test_similarity_transform():
+    from zlabel.utils.geometry import similarity_transform
+
+    # identity
+    assert similarity_transform((3, 4), 0, 1.0, (0, 0), (0, 0)) == (3, 4)
+    # scale only
+    assert similarity_transform((10, 0), 0, 2.0, (0, 0), (0, 0)) == (20, 0)
+    # rotation 90 deg around origin
+    x, y = similarity_transform((10, 0), 90, 1.0, (0, 0), (0, 0))
+    assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(10)
+    # full similarity: scale 2 + rotate 180 + center shift
+    # p=(10,10), src=(5,5), tgt=(20,20): (5,5) -> rot180 -> (-5,-5) -> *2
+    # -> (-10,-10) -> +tgt -> (10,10)
+    x, y = similarity_transform((10, 10), 180, 2.0, (5, 5), (20, 20))
+    assert x == pytest.approx(10, abs=1e-9) and y == pytest.approx(10, abs=1e-9)

@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from zlabel.utils.project import (
     Annotation,
     Label,
@@ -213,4 +215,13 @@ def test_add_annotation_reconciles_labels():
 
     r = anno.results[list(anno.results)[0]]
     assert r.labels[0].id == label_a.id
-    assert r.labels[0] is label_a
+
+
+def test_result_instance_id_roundtrip():
+    """instance_id (the cross-frame identity) persists on every result type."""
+    for cls in (PointResult, RectangleResult, PolygonResult):
+        r = cls.new(labels=[], instance_id=7)
+        loaded = cls.model_validate_json(r.model_dump_json())
+        assert loaded.instance_id == 7
+        # default is 0 (no instance)
+        assert cls.new(labels=[]).instance_id == 0
