@@ -795,6 +795,10 @@ class Canvas(pg.PlotWidget):
         self.addItem(item)
         item.setParentItem(self._content_group)
         self._z_value += 1
+        # force an immediate repaint so a freshly drawn/created annotation shows
+        # right away (scene-change coalescing can otherwise defer the view
+        # update until the next auto-range pass / image refresh)
+        self.update()
         self.logger.debug(f"Added {item=}")
 
     def find_invisible_rect(self):
@@ -834,19 +838,26 @@ class Canvas(pg.PlotWidget):
             # else create a new rect
             item = self.showing_items.get(result.id, None) or self.find_invisible_rect()
             if item is not None:
-                state = item.getState()
-                state["pos"] = QPointF(result.x, result.y)
-                state["size"] = QPointF(result.w, result.h)
-                state["id"] = result.id
-                if result.rotation:
-                    state["angle"] = result.rotation
-                item.setState(state)
-                # item.set_fill_color(result.labels[0].color)
-                item.setFillColor(self.default_color)
+                # Reusing a hidden rect must not emit state-change signals: they
+                # would push a spurious MODIFY undo command and corrupt the
+                # result data while the item is still keyed by its old id.
+                self._disconnect_item_state_signals(item)
+                try:
+                    state = item.getState()
+                    state["pos"] = QPointF(result.x, result.y)
+                    state["size"] = QPointF(result.w, result.h)
+                    state["id"] = result.id
+                    if result.rotation:
+                        state["angle"] = result.rotation
+                    item.setState(state)
+                    item.setFillColor(color or self.default_color)
+                    item.setVisible(True)
+                    item.set_instance_label(result.instance_id, color)
+                finally:
+                    self._connect_item_state_signals(item)
                 self.showing_items[state["id"]] = item
                 self.logger.debug(f"Find existed rect not visible {result.id=}")
-                item.setVisible(True)
-                item.set_instance_label(result.instance_id, color)
+                self.update()
                 return
 
             rectangle = self.new_rectangle(

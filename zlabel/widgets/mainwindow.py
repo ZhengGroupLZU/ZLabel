@@ -1996,16 +1996,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if anno is None:
             return
         has_dish = any(
-            isinstance(r, PolygonResult)
-            and r.labels
-            and r.labels[0].name.lower() in ("dish", "培养皿")
+            isinstance(r, PolygonResult) and r.labels and r.labels[0].name.lower() in ("dish", "培养皿")
             for r in anno.results.values()
         )
         if has_dish:
             return
-        dish_label = next(
-            (lbl for lbl in self.proj.labels.values() if lbl.name.lower() in ("dish", "培养皿")), None
-        )
+        dish_label = next((lbl for lbl in self.proj.labels.values() if lbl.name.lower() in ("dish", "培养皿")), None)
         if dish_label is None or self.auto_mode == AutoMode.MANUAL:
             return
         w, h = self.current_image.size
@@ -2052,9 +2048,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not text:
             if self.settings.ocr_skip_manual:
                 return
-            text, ok = QInputDialog.getText(
-                self, self.tr("Timestamp"), self.tr("OCR failed, enter timestamp text:")
-            )
+            text, ok = QInputDialog.getText(self, self.tr("Timestamp"), self.tr("OCR failed, enter timestamp text:"))
             if not ok or not text:
                 return
         r_old = copy.deepcopy(r)
@@ -2438,13 +2432,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         sc.activated.connect(self.on_ungroup_points)
         self._point_group_shortcuts.append(sc)
 
-        # save shortcuts: S and Ctrl+S
-        self._save_shortcuts: list[QShortcut] = []
-        for seq in ("S", QKeySequence.StandardKey.Save):
-            sc = QShortcut(QKeySequence(seq), self)
-            sc.setContext(Qt.ShortcutContext.WindowShortcut)
-            sc.activated.connect(self.on_action_save_triggered)
-            self._save_shortcuts.append(sc)
+        # save shortcut: plain "S" (Ctrl+S lives on actionSave already, so
+        # registering StandardKey.Save here would make the shortcut ambiguous)
+        sc = QShortcut(QKeySequence("S"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)
+        sc.activated.connect(self.on_action_save_triggered)
 
         # group selected annotations into one instance (merge) / split (unmerge):
         # a single Ctrl+G toggles between the two based on the selection state

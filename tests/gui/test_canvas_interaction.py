@@ -505,6 +505,36 @@ def test_sam_prompt_does_not_consume_instance_id(populated_project, canvas_view,
     assert ids == [1, 2, 3]
 
 
+def test_draw_rect_reuses_hidden_item_without_corruption(populated_project, canvas_view, qtbot):
+    """Drawing a new rect while an invisible rect exists reuses the hidden item
+    without corrupting its annotation or pushing a spurious undo command."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import Label
+    from zlabel.utils import RectangleResult as RR
+
+    lbl_b = Label.new("B", "#00ff00")
+    proj.labels[lbl_b.id] = lbl_b
+    hid = RR.new(id_="hid", x=40, y=40, w=10, h=10, labels=[lbl_b])
+    anno.add_result(hid)
+    rebuild()
+    win.canvas.showing_items["hid"].setVisible(False)
+
+    undo_before = win.undo_stack.count()
+    win.on_action_rectangle_triggered()
+    canvas_view["drag"](win.canvas, (10, 10), (30, 25), qtbot)
+
+    # the hidden annotation keeps its geometry, and only the ADD command is pushed
+    assert anno.results["hid"].x == 40 and anno.results["hid"].y == 40
+    assert win.undo_stack.count() == undo_before + 1
+    new_id = next(i for i in anno.results if i != "hid")
+    item = win.canvas.showing_items[new_id]
+    assert item.isVisible()
+    assert item.scene() is not None
+    # the reused canvas item is now keyed under the new result id
+    assert "hid" not in win.canvas.showing_items
+    assert win.canvas.showing_items[new_id].id_ == new_id
+
+
 def test_new_instance_id_fills_gaps(populated_project):
     """New instance ids fill the smallest unused positive id (gaps first),
     then increment past the max."""

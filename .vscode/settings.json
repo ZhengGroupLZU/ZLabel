@@ -1,8 +1,5 @@
 {
     "python.analysis.typeCheckingMode": "basic",
-    "code-runner.executorMap": {
-        "python": "poe run",
-    },
     "python.testing.pytestArgs": [],
     "python.testing.unittestEnabled": true,
     "python.testing.pytestEnabled": false,
