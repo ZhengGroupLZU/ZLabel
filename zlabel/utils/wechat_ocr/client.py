@@ -7,6 +7,7 @@ and blocks the caller until the callback (or a timeout).
 
 from __future__ import annotations
 
+import os
 import threading
 
 from zlabel.utils.wechat_ocr.ocr_manager import OcrManager
@@ -24,15 +25,12 @@ class WeChatOcrClient:
 
     def start(self) -> bool:
         """Load the engine (wxocr folder with mmmojo dll + WeChatOCR.exe)."""
-        import os
-
-        from zlabel.utils.wechat_ocr.ocr_manager import OcrManager as _M
 
         ocr_exe = os.path.join(self._wxocr_dir, "WeChatOCR.exe")
         if not os.path.exists(ocr_exe):
             return False
         try:
-            self._manager = _M(self._wxocr_dir)
+            self._manager = OcrManager(self._wxocr_dir)
             self._manager.SetExePath(ocr_exe)
             self._manager.SetUsrLibDir(self._wxocr_dir)
             self._manager.SetOcrResultCallback(self._on_result)
@@ -65,6 +63,8 @@ class WeChatOcrClient:
             self._event.clear()
             self._result = None
             try:
+                if self._manager is None:
+                    return None
                 self._manager.DoOCRTask(image_path)
             except Exception:
                 return None

@@ -8,14 +8,7 @@ group lives in ``Annotation.instances[iid]``.
 
 from pyqtgraph.Qt.QtCore import Qt, Signal
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QGuiApplication, QKeyEvent
-from pyqtgraph.Qt.QtWidgets import (
-    QCheckBox,
-    QComboBox,
-    QHBoxLayout,
-    QHeaderView,
-    QTreeWidgetItem,
-    QWidget,
-)
+from pyqtgraph.Qt.QtWidgets import QCheckBox, QComboBox, QHBoxLayout, QHeaderView, QTreeWidgetItem, QWidget
 
 from zlabel.utils import Annotation
 
@@ -64,7 +57,7 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
         # header row: default-instance-status combo + auto-new-instance checkbox
         self.cmbox_default_instance = QComboBox()
         self.cmbox_default_instance.setToolTip("Default germination status assigned to newly created instances")
-        self.chk_auto_new = QCheckBox("Auto new instance")
+        self.chk_auto_new = QCheckBox("New instance")
         self.chk_auto_new.setChecked(True)
         self.chk_auto_new.setToolTip(
             "Always create a new instance for each annotation; "
@@ -101,6 +94,20 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
     def default_instance_status(self) -> str:
         """Germination status assigned to newly created instances ("" = None)."""
         return self.cmbox_default_instance.currentData() or ""
+
+    def set_default_instance_by_label(self, label_name: str):
+        """Fuzzy-select the default-status combo from the label name (e.g. "Seed"
+        -> "Normal seed", "Seedling" -> "Normal seedling"): select the first
+        entry whose text contains the label text (case-insensitive); reset to
+        "None" when nothing matches."""
+        if not label_name:
+            return
+        needle = label_name.strip().lower()
+        for i in range(self.cmbox_default_instance.count()):
+            if needle and needle in self.cmbox_default_instance.itemText(i).lower():
+                self.cmbox_default_instance.setCurrentIndex(i)
+                return
+        self.cmbox_default_instance.setCurrentIndex(0)
 
     def _color_for_instance(self, instance_id: int) -> QColor:
         if instance_id not in self._instance_colors:

@@ -226,15 +226,13 @@ class DialogSettings(QDialog, Ui_DialogSettings):
 
         self.cmbox_loglevel.setCurrentIndex(self.settings.log_level.value)
 
-        self.cmbox_inference_mode.setCurrentIndex(
-            0 if self.settings.inference_mode == "remote" else 1
-        )
+        self.cmbox_inference_mode.setCurrentIndex(0 if self.settings.inference_mode == "remote" else 1)
         self.cmbox_backend.setCurrentText(self.settings.inference_backend)
         self.cmbox_model_name.setCurrentText(self.settings.model_name)
         self.ledit_model_dir.setText(self.settings.model_dir)
         self.spin_upload_size.setValue(self.settings.upload_image_size)
         self.ckbox_auto_dish.setChecked(self.settings.auto_fit_dish)
-        self.ckbox_ocr_skip.setChecked(self.settings.ocr_skip_manual)
+        self.ckbox_ocr_enable.setChecked(self.settings.ocr_enable_manual)
         self.ledit_ocr_dir.setText(self.settings.ocr_wx_dir)
         self.ckbox_copy_prev.setChecked(self.settings.enable_copy_prev)
         self.update_inference_widgets_enabled()
@@ -277,7 +275,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ledit_model_dir.editingFinished.connect(lambda: self.on_settings_changed("model_dir"))
         self.spin_upload_size.valueChanged.connect(lambda: self.on_settings_changed("upload_image_size"))
         self.ckbox_auto_dish.toggled.connect(lambda: self.on_settings_changed("auto_fit_dish"))
-        self.ckbox_ocr_skip.toggled.connect(lambda: self.on_settings_changed("ocr_skip_manual"))
+        self.ckbox_ocr_enable.toggled.connect(lambda: self.on_settings_changed("ocr_enable_manual"))
         self.ledit_ocr_dir.editingFinished.connect(lambda: self.on_settings_changed("ocr_wx_dir"))
         self.ckbox_copy_prev.toggled.connect(lambda: self.on_settings_changed("enable_copy_prev"))
 
@@ -312,9 +310,7 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         elif k == "enable_catmull_rom":
             self.settings.enable_catmull_rom = self.ckbox_catmull_rom.isChecked()
         elif k == "inference_mode":
-            self.settings.inference_mode = (
-                "local" if self.cmbox_inference_mode.currentIndex() == 1 else "remote"
-            )
+            self.settings.inference_mode = "local" if self.cmbox_inference_mode.currentIndex() == 1 else "remote"
         elif k == "inference_backend":
             self.settings.inference_backend = self.cmbox_backend.currentText()
         elif k == "model_name":
@@ -325,8 +321,8 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.upload_image_size = self.spin_upload_size.value()
         elif k == "auto_fit_dish":
             self.settings.auto_fit_dish = self.ckbox_auto_dish.isChecked()
-        elif k == "ocr_skip_manual":
-            self.settings.ocr_skip_manual = self.ckbox_ocr_skip.isChecked()
+        elif k == "ocr_enable_manual":
+            self.settings.ocr_enable_manual = self.ckbox_ocr_enable.isChecked()
         elif k == "ocr_wx_dir":
             self.settings.ocr_wx_dir = self.ledit_ocr_dir.text().strip()
             self.on_ocr_dir_changed()

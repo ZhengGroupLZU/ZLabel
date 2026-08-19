@@ -152,10 +152,7 @@ class Rectangle(ZROI):
             [[1.0, 1.0], [0.0, 0.0]],
         ]
 
-        if self.translatable:
-            self.setCursor(Qt.CursorShape.PointingHandCursor)
-        else:
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def _instance_label_pos(self) -> tuple[float, float]:
         return 2.0, 2.0
@@ -247,10 +244,7 @@ class Rectangle(ZROI):
 
     def setMovable(self, movable: bool):
         self.translatable = movable
-        if self.translatable:
-            self.setCursor(Qt.CursorShape.PointingHandCursor)
-        else:
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def getState(self) -> dict[str, Any]:
         return {"id": self.id_, **super().getState()}
@@ -361,10 +355,7 @@ class Polygon(ZROI):
 
     def setMovable(self, movable: bool):
         self.translatable = movable
-        if self.translatable:
-            self.setCursor(Qt.CursorShape.PointingHandCursor)
-        else:
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def setSelected(self, s: bool):
         self._selected = s
@@ -837,10 +828,7 @@ class Point(ZROI):
 
     def setMovable(self, movable: bool):
         self.translatable = movable
-        if self.translatable:
-            self.setCursor(Qt.CursorShape.PointingHandCursor)
-        else:
-            self.setCursor(Qt.CursorShape.ArrowCursor)
+        self.setCursor(Qt.CursorShape.ArrowCursor)
 
     def set_radius(self, r: float):
         """Resize the point while keeping its center fixed."""
@@ -1059,7 +1047,7 @@ class ZHandle(pg.UIGraphicsItem):
     # defines number of sides, start angle for each handle type
     types = {
         "t": (4, np.pi / 4),
-        "f": (4, np.pi / 4),
+        "f": (0, 0),  # polygon free handle: circle (sides==0 -> buildPath draws an ellipse)
         "s": (4, 0),
         "r": (12, 0),
         "sr": (12, 0),
@@ -1086,6 +1074,11 @@ class ZHandle(pg.UIGraphicsItem):
         self.hoverPen = pg.mkPen(hoverPen)
         self.currentPen = self.pen
         self.isMoving = False
+        self.hovered = False
+        # hit-testing disk is this many times larger than the visible circle so
+        # presses near the handle still grab it for editing
+        self._hit_scale = 2.0
+        self._hit_shape: QPainterPath | None = None
         self.sides, self.startAng = self.types[typ]
         self.buildPath()
         self._shape = None
@@ -1093,10 +1086,14 @@ class ZHandle(pg.UIGraphicsItem):
         self.menu = self.buildMenu()
 
         pg.UIGraphicsItem.__init__(self, parent=parent)
-        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        # Accept left-button clicks so pressing a vertex handle is consumed here
+        # instead of falling through to the parent polygon's mouseClickEvent
+        # (which toggles the selection off). Drags are already accepted by
+        # hoverEvent.
+        self.setAcceptedMouseButtons(Qt.MouseButton.LeftButton)
         self.deletable = deletable
         if deletable:
-            self.setAcceptedMouseButtons(Qt.MouseButton.RightButton)
+            self.setAcceptedMouseButtons(self.acceptedMouseButtons() | Qt.MouseButton.RightButton)
         self.setZValue(11)
 
     def connectROI(self, roi: ZROI):
@@ -1131,8 +1128,10 @@ class ZHandle(pg.UIGraphicsItem):
 
         if hover:
             self.currentPen = self.hoverPen
+            self.hovered = True
         else:
             self.currentPen = self.pen
+            self.hovered = False
         self.update()
 
     def mouseClickEvent(self, ev: MouseClickEvent):
@@ -1212,6 +1211,9 @@ class ZHandle(pg.UIGraphicsItem):
     def buildPath(self):
         size = self.radius
         self.path = QPainterPath()
+        if self.sides == 0:  # circle handle
+            self.path.addEllipse(QRectF(-size, -size, size * 2, size * 2))
+            return
         ang = self.startAng
         dt = 2 * np.pi / self.sides
         for i in range(0, self.sides):
@@ -1226,15 +1228,29 @@ class ZHandle(pg.UIGraphicsItem):
 
     def paint(self, p, opt, widget):
         p.setRenderHints(p.RenderHint.Antialiasing, self._antialias)
-        p.setPen(self.currentPen)
-        fill_color = pg.mkColor(self.currentPen.color())
-        fill_color.setAlphaF(0.5)
-        brush = pg.mkBrush(fill_color)
-        p.setBrush(brush)
+        vis = self._visual_shape()
+        if self.hovered:
+            # prominent hover highlight: opaque white fill + outer ring
+            p.setPen(self.currentPen)
+            p.setBrush(Qt.GlobalColor.white)
+            cb = vis.boundingRect()
+            c = cb.center()
+            r = max(cb.width(), cb.height()) / 2.0
+            ring = QPainterPath()
+            ring.addEllipse(c, r * 2, r * 2)
+            p.save()
+            p.setPen(pg.mkPen((255, 255, 0), width=2))
+            p.setBrush(Qt.BrushStyle.NoBrush)
+            p.drawPath(ring)
+            p.restore()
+        else:
+            p.setPen(self.currentPen)
+            fill_color = pg.mkColor(self.currentPen.color())
+            fill_color.setAlphaF(0.5)
+            p.setBrush(pg.mkBrush(fill_color))
+        p.drawPath(vis)
 
-        p.drawPath(self.shape())
-
-    def shape(self):
+    def _visual_shape(self):
         if self._shape is None:
             s = self.generateShape()
             if s is None:
@@ -1245,9 +1261,24 @@ class ZHandle(pg.UIGraphicsItem):
             self.prepareGeometryChange()
         return self._shape
 
+    def shape(self):
+        """Hit-testing shape: a larger disk around the handle so presses near
+        (not just exactly on) the circle still grab the handle instead of
+        falling through to the canvas and starting a selection box."""
+        if self._hit_shape is None:
+            vis = self._visual_shape()
+            cb = vis.boundingRect()
+            c = cb.center()
+            r = max(cb.width(), cb.height()) / 2.0 * self._hit_scale
+            hit = QPainterPath()
+            hit.addEllipse(c, r, r)
+            self._hit_shape = hit
+            self.prepareGeometryChange()
+        return self._hit_shape
+
     def boundingRect(self):
         self.shape()  # ensure shape is valid before measuring
-        return self.shape().boundingRect()
+        return self._hit_shape.boundingRect()
 
     def generateShape(self):
         dt = self.deviceTransform_()
@@ -1270,4 +1301,5 @@ class ZHandle(pg.UIGraphicsItem):
     def viewTransformChanged(self):
         pg.GraphicsObject.viewTransformChanged(self)
         self._shape = None  # invalidate shape, recompute later if requested.
+        self._hit_shape = None
         self.update()

@@ -27,7 +27,7 @@ class Ui_DialogSettings(object):
     def setupUi(self, DialogSettings):
         if not DialogSettings.objectName():
             DialogSettings.setObjectName(u"DialogSettings")
-        DialogSettings.resize(657, 587)
+        DialogSettings.resize(925, 797)
         font = QFont()
         font.setFamilies([u"Times New Roman"])
         font.setPointSize(12)
@@ -72,7 +72,7 @@ class Ui_DialogSettings(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 615, 597))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 895, 706))
         self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(3, 3, 3, 3)
@@ -184,26 +184,22 @@ class Ui_DialogSettings(object):
 
         self.gridLayout.addWidget(self.groupBox, 0, 0, 1, 1)
 
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout.addItem(self.verticalSpacer, 3, 0, 1, 1)
+
         self.gbox_inference = QGroupBox(self.scrollAreaWidgetContents)
         self.gbox_inference.setObjectName(u"gbox_inference")
         self.grid_inference = QGridLayout(self.gbox_inference)
         self.grid_inference.setObjectName(u"grid_inference")
-        self.label_inf_mode = QLabel(self.gbox_inference)
-        self.label_inf_mode.setObjectName(u"label_inf_mode")
+        self.spin_upload_size = QSpinBox(self.gbox_inference)
+        self.spin_upload_size.setObjectName(u"spin_upload_size")
+        self.spin_upload_size.setMinimum(64)
+        self.spin_upload_size.setMaximum(8192)
+        self.spin_upload_size.setSingleStep(64)
+        self.spin_upload_size.setValue(1024)
 
-        self.grid_inference.addWidget(self.label_inf_mode, 0, 0, 1, 1)
-
-        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
-        self.cmbox_inference_mode.addItem("")
-        self.cmbox_inference_mode.addItem("")
-        self.cmbox_inference_mode.setObjectName(u"cmbox_inference_mode")
-
-        self.grid_inference.addWidget(self.cmbox_inference_mode, 0, 1, 1, 1)
-
-        self.label_backend = QLabel(self.gbox_inference)
-        self.label_backend.setObjectName(u"label_backend")
-
-        self.grid_inference.addWidget(self.label_backend, 1, 0, 1, 1)
+        self.grid_inference.addWidget(self.spin_upload_size, 4, 1, 1, 1)
 
         self.cmbox_backend = QComboBox(self.gbox_inference)
         self.cmbox_backend.addItem("")
@@ -215,10 +211,20 @@ class Ui_DialogSettings(object):
 
         self.grid_inference.addWidget(self.cmbox_backend, 1, 1, 1, 1)
 
-        self.label_model = QLabel(self.gbox_inference)
-        self.label_model.setObjectName(u"label_model")
+        self.label_inf_mode = QLabel(self.gbox_inference)
+        self.label_inf_mode.setObjectName(u"label_inf_mode")
 
-        self.grid_inference.addWidget(self.label_model, 2, 0, 1, 1)
+        self.grid_inference.addWidget(self.label_inf_mode, 0, 0, 1, 1)
+
+        self.label_backend = QLabel(self.gbox_inference)
+        self.label_backend.setObjectName(u"label_backend")
+
+        self.grid_inference.addWidget(self.label_backend, 1, 0, 1, 1)
+
+        self.label_model_folder = QLabel(self.gbox_inference)
+        self.label_model_folder.setObjectName(u"label_model_folder")
+
+        self.grid_inference.addWidget(self.label_model_folder, 3, 0, 1, 1)
 
         self.cmbox_model_name = QComboBox(self.gbox_inference)
         self.cmbox_model_name.addItem("")
@@ -230,15 +236,22 @@ class Ui_DialogSettings(object):
 
         self.grid_inference.addWidget(self.cmbox_model_name, 2, 1, 1, 1)
 
-        self.label_model_folder = QLabel(self.gbox_inference)
-        self.label_model_folder.setObjectName(u"label_model_folder")
-
-        self.grid_inference.addWidget(self.label_model_folder, 3, 0, 1, 1)
-
         self.ledit_model_dir = QLineEdit(self.gbox_inference)
         self.ledit_model_dir.setObjectName(u"ledit_model_dir")
 
         self.grid_inference.addWidget(self.ledit_model_dir, 3, 1, 1, 1)
+
+        self.label_model = QLabel(self.gbox_inference)
+        self.label_model.setObjectName(u"label_model")
+
+        self.grid_inference.addWidget(self.label_model, 2, 0, 1, 1)
+
+        self.cmbox_inference_mode = QComboBox(self.gbox_inference)
+        self.cmbox_inference_mode.addItem("")
+        self.cmbox_inference_mode.addItem("")
+        self.cmbox_inference_mode.setObjectName(u"cmbox_inference_mode")
+
+        self.grid_inference.addWidget(self.cmbox_inference_mode, 0, 1, 1, 1)
 
         self.btn_model_dir = QPushButton(self.gbox_inference)
         self.btn_model_dir.setObjectName(u"btn_model_dir")
@@ -250,51 +263,50 @@ class Ui_DialogSettings(object):
 
         self.grid_inference.addWidget(self.label_upload_size, 4, 0, 1, 1)
 
-        self.spin_upload_size = QSpinBox(self.gbox_inference)
-        self.spin_upload_size.setObjectName(u"spin_upload_size")
-        self.spin_upload_size.setMinimum(64)
-        self.spin_upload_size.setMaximum(8192)
-        self.spin_upload_size.setSingleStep(64)
-        self.spin_upload_size.setValue(1024)
-
-        self.grid_inference.addWidget(self.spin_upload_size, 4, 1, 1, 1)
-
-        self.ckbox_auto_dish = QCheckBox(self.gbox_inference)
-        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
-
-        self.grid_inference.addWidget(self.ckbox_auto_dish, 5, 0, 1, 2)
-
-        self.ckbox_ocr_skip = QCheckBox(self.gbox_inference)
-        self.ckbox_ocr_skip.setObjectName(u"ckbox_ocr_skip")
-
-        self.grid_inference.addWidget(self.ckbox_ocr_skip, 6, 0, 1, 2)
-
-        self.label_ocr_dir = QLabel(self.gbox_inference)
-        self.label_ocr_dir.setObjectName(u"label_ocr_dir")
-
-        self.grid_inference.addWidget(self.label_ocr_dir, 7, 0, 1, 1)
-
-        self.ledit_ocr_dir = QLineEdit(self.gbox_inference)
-        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
-
-        self.grid_inference.addWidget(self.ledit_ocr_dir, 7, 1, 1, 1)
-
-        self.btn_ocr_dir = QPushButton(self.gbox_inference)
-        self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
-
-        self.grid_inference.addWidget(self.btn_ocr_dir, 7, 2, 1, 1)
-
-        self.ckbox_copy_prev = QCheckBox(self.gbox_inference)
-        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
-
-        self.grid_inference.addWidget(self.ckbox_copy_prev, 8, 0, 1, 2)
-
 
         self.gridLayout.addWidget(self.gbox_inference, 1, 0, 1, 1)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.gbox_others = QGroupBox(self.scrollAreaWidgetContents)
+        self.gbox_others.setObjectName(u"gbox_others")
+        self.grid_inference_2 = QGridLayout(self.gbox_others)
+        self.grid_inference_2.setObjectName(u"grid_inference_2")
+        self.label_ocr_dir = QLabel(self.gbox_others)
+        self.label_ocr_dir.setObjectName(u"label_ocr_dir")
 
-        self.gridLayout.addItem(self.verticalSpacer, 2, 0, 1, 1)
+        self.grid_inference_2.addWidget(self.label_ocr_dir, 2, 0, 1, 1)
+
+        self.ledit_ocr_dir = QLineEdit(self.gbox_others)
+        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
+
+        self.grid_inference_2.addWidget(self.ledit_ocr_dir, 2, 1, 1, 1)
+
+        self.btn_ocr_dir = QPushButton(self.gbox_others)
+        self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
+
+        self.grid_inference_2.addWidget(self.btn_ocr_dir, 2, 2, 1, 1)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.ckbox_auto_dish = QCheckBox(self.gbox_others)
+        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
+
+        self.horizontalLayout.addWidget(self.ckbox_auto_dish)
+
+        self.ckbox_ocr_enable = QCheckBox(self.gbox_others)
+        self.ckbox_ocr_enable.setObjectName(u"ckbox_ocr_enable")
+
+        self.horizontalLayout.addWidget(self.ckbox_ocr_enable)
+
+        self.ckbox_copy_prev = QCheckBox(self.gbox_others)
+        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
+
+        self.horizontalLayout.addWidget(self.ckbox_copy_prev)
+
+
+        self.grid_inference_2.addLayout(self.horizontalLayout, 0, 0, 1, 3)
+
+
+        self.gridLayout.addWidget(self.gbox_others, 2, 0, 1, 1)
 
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
 
@@ -310,7 +322,7 @@ class Ui_DialogSettings(object):
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, -18, 607, 506))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 887, 698))
         self.gridLayout_8 = QGridLayout(self.scrollAreaWidgetContents_2)
         self.gridLayout_8.setObjectName(u"gridLayout_8")
         self.gridLayout_8.setContentsMargins(3, 3, 3, 3)
@@ -505,32 +517,33 @@ class Ui_DialogSettings(object):
         self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Catmull-Rom:", None))
         self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
         self.gbox_inference.setTitle(QCoreApplication.translate("DialogSettings", u"Inference", None))
-        self.label_inf_mode.setText(QCoreApplication.translate("DialogSettings", u"Inference Mode:", None))
-        self.cmbox_inference_mode.setItemText(0, QCoreApplication.translate("DialogSettings", u"Remote", None))
-        self.cmbox_inference_mode.setItemText(1, QCoreApplication.translate("DialogSettings", u"Local", None))
-
-        self.label_backend.setText(QCoreApplication.translate("DialogSettings", u"Backend:", None))
         self.cmbox_backend.setItemText(0, QCoreApplication.translate("DialogSettings", u"AUTO", None))
         self.cmbox_backend.setItemText(1, QCoreApplication.translate("DialogSettings", u"CPU", None))
         self.cmbox_backend.setItemText(2, QCoreApplication.translate("DialogSettings", u"CUDA", None))
         self.cmbox_backend.setItemText(3, QCoreApplication.translate("DialogSettings", u"Metal", None))
         self.cmbox_backend.setItemText(4, QCoreApplication.translate("DialogSettings", u"OpenCL", None))
 
-        self.label_model.setText(QCoreApplication.translate("DialogSettings", u"Model:", None))
+        self.label_inf_mode.setText(QCoreApplication.translate("DialogSettings", u"Inference Mode:", None))
+        self.label_backend.setText(QCoreApplication.translate("DialogSettings", u"Backend:", None))
+        self.label_model_folder.setText(QCoreApplication.translate("DialogSettings", u"Model Folder:", None))
         self.cmbox_model_name.setItemText(0, QCoreApplication.translate("DialogSettings", u"SAM", None))
         self.cmbox_model_name.setItemText(1, QCoreApplication.translate("DialogSettings", u"EdgeSAM", None))
         self.cmbox_model_name.setItemText(2, QCoreApplication.translate("DialogSettings", u"SlimSAM", None))
         self.cmbox_model_name.setItemText(3, QCoreApplication.translate("DialogSettings", u"SAM2", None))
         self.cmbox_model_name.setItemText(4, QCoreApplication.translate("DialogSettings", u"SAM3", None))
 
-        self.label_model_folder.setText(QCoreApplication.translate("DialogSettings", u"Model Folder:", None))
+        self.label_model.setText(QCoreApplication.translate("DialogSettings", u"Model:", None))
+        self.cmbox_inference_mode.setItemText(0, QCoreApplication.translate("DialogSettings", u"Remote", None))
+        self.cmbox_inference_mode.setItemText(1, QCoreApplication.translate("DialogSettings", u"Local", None))
+
         self.btn_model_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
         self.label_upload_size.setText(QCoreApplication.translate("DialogSettings", u"Upload Image Size:", None))
-        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish (SAM + ellipse)", None))
-        self.ckbox_ocr_skip.setText(QCoreApplication.translate("DialogSettings", u"Skip manual timestamp input when OCR fails", None))
+        self.gbox_others.setTitle(QCoreApplication.translate("DialogSettings", u"Others", None))
         self.label_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"WeChat OCR Folder:", None))
         self.btn_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
-        self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Enable copy previous frame", None))
+        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish", None))
+        self.ckbox_ocr_enable.setText(QCoreApplication.translate("DialogSettings", u"Manual timestamp", None))
+        self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Copy previous frame", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
         self.groupBox_5.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
         self.btn_new_project.setText(QCoreApplication.translate("DialogSettings", u"New", None))

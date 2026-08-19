@@ -6,8 +6,8 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>657</width>
-    <height>587</height>
+    <width>925</width>
+    <height>797</height>
    </rect>
   </property>
   <property name="font">
@@ -103,8 +103,8 @@
            <rect>
             <x>0</x>
             <y>0</y>
-            <width>615</width>
-            <height>597</height>
+            <width>895</width>
+            <height>706</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout">
@@ -304,37 +304,38 @@
              </layout>
             </widget>
            </item>
+           <item row="3" column="0">
+            <spacer name="verticalSpacer">
+             <property name="orientation">
+              <enum>Qt::Orientation::Vertical</enum>
+             </property>
+             <property name="sizeHint" stdset="0">
+              <size>
+               <width>20</width>
+               <height>40</height>
+              </size>
+             </property>
+            </spacer>
+           </item>
            <item row="1" column="0">
             <widget class="QGroupBox" name="gbox_inference">
              <property name="title">
               <string>Inference</string>
              </property>
              <layout class="QGridLayout" name="grid_inference">
-              <item row="0" column="0">
-               <widget class="QLabel" name="label_inf_mode">
-                <property name="text">
-                 <string>Inference Mode:</string>
+              <item row="4" column="1">
+               <widget class="QSpinBox" name="spin_upload_size">
+                <property name="minimum">
+                 <number>64</number>
                 </property>
-               </widget>
-              </item>
-              <item row="0" column="1">
-               <widget class="QComboBox" name="cmbox_inference_mode">
-                <item>
-                 <property name="text">
-                  <string>Remote</string>
-                 </property>
-                </item>
-                <item>
-                 <property name="text">
-                  <string>Local</string>
-                 </property>
-                </item>
-               </widget>
-              </item>
-              <item row="1" column="0">
-               <widget class="QLabel" name="label_backend">
-                <property name="text">
-                 <string>Backend:</string>
+                <property name="maximum">
+                 <number>8192</number>
+                </property>
+                <property name="singleStep">
+                 <number>64</number>
+                </property>
+                <property name="value">
+                 <number>1024</number>
                 </property>
                </widget>
               </item>
@@ -367,10 +368,24 @@
                 </item>
                </widget>
               </item>
-              <item row="2" column="0">
-               <widget class="QLabel" name="label_model">
+              <item row="0" column="0">
+               <widget class="QLabel" name="label_inf_mode">
                 <property name="text">
-                 <string>Model:</string>
+                 <string>Inference Mode:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="1" column="0">
+               <widget class="QLabel" name="label_backend">
+                <property name="text">
+                 <string>Backend:</string>
+                </property>
+               </widget>
+              </item>
+              <item row="3" column="0">
+               <widget class="QLabel" name="label_model_folder">
+                <property name="text">
+                 <string>Model Folder:</string>
                 </property>
                </widget>
               </item>
@@ -403,15 +418,29 @@
                 </item>
                </widget>
               </item>
-              <item row="3" column="0">
-               <widget class="QLabel" name="label_model_folder">
+              <item row="3" column="1">
+               <widget class="QLineEdit" name="ledit_model_dir"/>
+              </item>
+              <item row="2" column="0">
+               <widget class="QLabel" name="label_model">
                 <property name="text">
-                 <string>Model Folder:</string>
+                 <string>Model:</string>
                 </property>
                </widget>
               </item>
-              <item row="3" column="1">
-               <widget class="QLineEdit" name="ledit_model_dir"/>
+              <item row="0" column="1">
+               <widget class="QComboBox" name="cmbox_inference_mode">
+                <item>
+                 <property name="text">
+                  <string>Remote</string>
+                 </property>
+                </item>
+                <item>
+                 <property name="text">
+                  <string>Local</string>
+                 </property>
+                </item>
+               </widget>
               </item>
               <item row="3" column="2">
                <widget class="QPushButton" name="btn_model_dir">
@@ -427,75 +456,59 @@
                 </property>
                </widget>
               </item>
-              <item row="4" column="1">
-               <widget class="QSpinBox" name="spin_upload_size">
-                <property name="minimum">
-                 <number>64</number>
-                </property>
-                <property name="maximum">
-                 <number>8192</number>
-                </property>
-                <property name="singleStep">
-                 <number>64</number>
-                </property>
-                <property name="value">
-                 <number>1024</number>
-                </property>
-               </widget>
-              </item>
-              <item row="5" column="0" colspan="2">
-               <widget class="QCheckBox" name="ckbox_auto_dish">
-                <property name="text">
-                 <string>Auto-fit dish (SAM + ellipse)</string>
-                </property>
-               </widget>
-              </item>
-              <item row="6" column="0" colspan="2">
-               <widget class="QCheckBox" name="ckbox_ocr_skip">
-                <property name="text">
-                 <string>Skip manual timestamp input when OCR fails</string>
-                </property>
-               </widget>
-              </item>
-              <item row="7" column="0">
+             </layout>
+            </widget>
+           </item>
+           <item row="2" column="0">
+            <widget class="QGroupBox" name="gbox_others">
+             <property name="title">
+              <string>Others</string>
+             </property>
+             <layout class="QGridLayout" name="grid_inference_2">
+              <item row="2" column="0">
                <widget class="QLabel" name="label_ocr_dir">
                 <property name="text">
                  <string>WeChat OCR Folder:</string>
                 </property>
                </widget>
               </item>
-              <item row="7" column="1">
+              <item row="2" column="1">
                <widget class="QLineEdit" name="ledit_ocr_dir"/>
               </item>
-              <item row="7" column="2">
+              <item row="2" column="2">
                <widget class="QPushButton" name="btn_ocr_dir">
                 <property name="text">
                  <string>Browse...</string>
                 </property>
                </widget>
               </item>
-              <item row="8" column="0" colspan="2">
-               <widget class="QCheckBox" name="ckbox_copy_prev">
-                <property name="text">
-                 <string>Enable copy previous frame</string>
-                </property>
-               </widget>
+              <item row="0" column="0" colspan="3">
+               <layout class="QHBoxLayout" name="horizontalLayout">
+                <item>
+                 <widget class="QCheckBox" name="ckbox_auto_dish">
+                  <property name="text">
+                   <string>Auto-fit dish</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="ckbox_ocr_enable">
+                  <property name="text">
+                   <string>Manual timestamp</string>
+                  </property>
+                 </widget>
+                </item>
+                <item>
+                 <widget class="QCheckBox" name="ckbox_copy_prev">
+                  <property name="text">
+                   <string>Copy previous frame</string>
+                  </property>
+                 </widget>
+                </item>
+               </layout>
               </item>
              </layout>
             </widget>
-           </item>
-           <item row="2" column="0">
-            <spacer name="verticalSpacer">
-             <property name="orientation">
-              <enum>Qt::Orientation::Vertical</enum>
-             </property>
-             <property name="sizeHint" stdset="0">
-              <size>
-               <width>20</width>
-               <height>40</height>
-              </size>
-             </property>
-            </spacer>
            </item>
           </layout>
          </widget>
@@ -517,9 +530,9 @@
           <property name="geometry">
            <rect>
             <x>0</x>
-            <y>-18</y>
-            <width>607</width>
-            <height>506</height>
+            <y>0</y>
+            <width>887</width>
+            <height>698</height>
            </rect>
           </property>
           <layout class="QGridLayout" name="gridLayout_8">

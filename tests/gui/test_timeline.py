@@ -13,7 +13,7 @@ from zlabel.utils import (
     Task,
 )
 from zlabel.utils.geometry import rotate_point
-from zlabel.widgets.dock_tracks import INSTANCE_MIME, ZDockTracksContent
+from zlabel.widgets.dock_timeline import INSTANCE_MIME, ZDockTimelineContent
 from zlabel.widgets.mainwindow import CopyOptions
 
 
@@ -284,9 +284,9 @@ def test_timeline_rows_instances_and_cells(main_window):
     )
     a2.instances[2] = "moldy_seed"
 
-    dock = ZDockTracksContent(win._load_anno_for_task, lambda name: None)
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: None)
     dock.set_group(proj, "g", tasks)
-    assert dock.table.rowCount() == 2  # instances 1 and 2
+    assert dock.table.rowCount() == 3  # instances 1 and 2 + trailing empty row
     assert dock.table.columnCount() == 3  # index + D1 + D2
     assert dock.table.horizontalHeaderItem(1).text() == "D1"
     assert dock.table.horizontalHeaderItem(2).text() == "D2"
@@ -296,6 +296,9 @@ def test_timeline_rows_instances_and_cells(main_window):
     assert dock.table.item(0, 1).text().startswith("1")  # D1 contains instance 1
     assert dock.table.item(0, 2).text() == "·"  # absent in D2
     assert dock.table.item(1, 2).text().startswith("2")
+    # the trailing row is blank and inert
+    assert dock.table.item(2, 0).text() == ""
+    assert dock.table.item(2, 1).text() == ""
 
     opened = []
     dock.sigOpenInstance.connect(lambda anno_id, iid: opened.append((anno_id, iid)))
@@ -339,10 +342,10 @@ def test_timeline_gap_rows(main_window):
         )
     )
 
-    dock = ZDockTracksContent(win._load_anno_for_task, lambda name: None)
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: None)
     dock.set_group(proj, "g", tasks)
-    # instances 1 and 3 -> rows 1..3, row 2 is the gap
-    assert dock.table.rowCount() == 3
+    # instances 1 and 3 -> rows 1..3, row 2 is the gap, plus a trailing empty row
+    assert dock.table.rowCount() == 4
     assert dock.table.item(0, 0).text() == "1"
     assert dock.table.item(1, 0).text() == "2"
     assert dock.table.item(2, 0).text() == "3"
@@ -353,12 +356,19 @@ def test_timeline_gap_rows(main_window):
     # gap row 2: all frame cells are dim and inert (no jump)
     assert dock.table.item(1, 1).text() == "·"
     assert dock.table.item(1, 2).text() == "·"
+    # trailing empty row is blank and inert
+    assert dock.table.item(3, 0).text() == ""
+    assert dock.table.item(3, 1).text() == ""
+    assert dock.table.item(3, 2).text() == ""
     opened = []
     dock.sigOpenInstance.connect(lambda anno_id, iid: opened.append((anno_id, iid)))
     dock.table.itemClicked.emit(dock.table.item(1, 1))
     assert opened == []  # gap row does nothing
     # index cell of a gap row is also inert
     dock.table.itemClicked.emit(dock.table.item(1, 0))
+    assert opened == []
+    # clicking the trailing empty row does nothing either
+    dock.table.itemClicked.emit(dock.table.item(3, 1))
     assert opened == []
 
 
@@ -387,7 +397,7 @@ def test_timeline_cell_move_signal(main_window):
             instance_id=2,
         )
     )
-    dock = ZDockTracksContent(win._load_anno_for_task, lambda name: None)
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: None)
     dock.set_group(proj, "g", tasks)
     moved = []
     dock.sigCellMoved.connect(lambda a, i, r: moved.append((a, i, r)))
@@ -422,7 +432,7 @@ def test_timeline_drag_move_and_drop_accepted(main_window, qtbot):
             instance_id=2,
         )
     )
-    dock = ZDockTracksContent(win._load_anno_for_task, lambda name: None)
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: None)
     dock.set_group(proj, "g", tasks)
     table = dock.table
     dock.resize(400, 200)
@@ -714,11 +724,13 @@ def test_copy_from_prev_with_scale_and_center_shift(main_window):
     assert a2.instances[seed.instance_id] == "normal_seed"
 
 
-def test_tracks_dock_at_bottom(main_window):
-    """The Tracks panel is a bottom timeline dock."""
+def test_timeline_dock_at_bottom(main_window):
+    """The Timeline panel is a bottom timeline dock titled 'Timeline'."""
     win = main_window
 
-    assert win.dockWidgetArea(win.dock_tracks) == Qt.DockWidgetArea.BottomDockWidgetArea
+    assert win.dock_timeline.windowTitle() == "Timeline"
+    assert win.actionTimeline.text() == "Timeline"
+    assert win.dockWidgetArea(win.dock_timeline) == Qt.DockWidgetArea.BottomDockWidgetArea
 
 
 def test_new_instance_refreshes_timeline(main_window):
@@ -735,9 +747,9 @@ def test_new_instance_refreshes_timeline(main_window):
     a1, a2 = annos
     proj.key_task = "d1"
     win._image_cache["D1.png"] = _Image.fromarray(np.full((64, 64, 3), 128, dtype=np.uint8))
-    win._refresh_tracks()
-    dock = win.dockcnt_tracks
-    assert dock.table.rowCount() == 0
+    win._refresh_timeline()
+    dock = win.dockcnt_timeline
+    assert dock.table.rowCount() == 1  # just the trailing empty row
 
     # manual polygon creation allocates a new instance -> timeline gets a row
     win.on_canvas_polygon_created({
@@ -748,11 +760,56 @@ def test_new_instance_refreshes_timeline(main_window):
         "points": [QPointF(x, y) for x, y in [(10, 10), (20, 10), (20, 20), (10, 20)]],
         "closed": True,
     })
-    assert dock.table.rowCount() == 1
+    assert dock.table.rowCount() == 2  # instance 1 + trailing empty row
     assert dock.table.item(0, 1).text().startswith("1")  # instance 1 in D1
 
     # manual point (keypoint) creation also refreshes the timeline
     win.settings.annotation_type = AnnotationType.POINT
     win.on_canvas_point_created({"id": "k1", "pos": QPointF(30, 30)})
-    assert dock.table.rowCount() == 2
+    assert dock.table.rowCount() == 3  # instances 1,2 + trailing empty row
     assert dock.table.item(1, 1).text().startswith("2")  # instance 2 in D1
+
+
+def test_sam_rect_results_each_get_own_instance(populated_project):
+    """SAM rectangle detections each create their own instance (no zero ids)."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import RectangleResult as RR
+    from zlabel.widgets.zworker import SamWorkerResult
+
+    results = [
+        SamWorkerResult(anno_id="a", result=RR.new(id_="r1", x=1, y=1, w=5, h=5, labels=[proj.crt_label])),
+        SamWorkerResult(anno_id="a", result=RR.new(id_="r2", x=10, y=10, w=5, h=5, labels=[proj.crt_label])),
+    ]
+    win.on_sam_worker_finished(results)
+    r1, r2 = anno.results["r1"], anno.results["r2"]
+    assert r1.instance_id and r2.instance_id
+    assert r1.instance_id != r2.instance_id
+    assert r1.instance_id in anno.instances
+    assert r2.instance_id in anno.instances
+
+    # a dish rectangle also becomes its own instance
+    dish_lbl = Label.new("Dish", "#123456")
+    proj.labels[dish_lbl.id] = dish_lbl
+    dish = SamWorkerResult(anno_id="a", result=RR.new(id_="dish", x=30, y=30, w=5, h=5, labels=[dish_lbl]))
+    win.on_sam_worker_finished([dish])
+    assert anno.results["dish"].instance_id
+    assert anno.results["dish"].instance_id != r1.instance_id
+    assert anno.results["dish"].instance_id != r2.instance_id
+    assert anno.results["dish"].instance_id in anno.instances
+
+
+def test_sam_dish_polygon_gets_instance_and_best_mask(populated_project):
+    """The best dish mask becomes its own instance (only the best is kept)."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+    from zlabel.widgets.zworker import SamWorkerResult
+
+    dish_lbl = Label.new("Dish", "#911eb4")
+    proj.labels[dish_lbl.id] = dish_lbl
+    # a large, round-ish dish and a small sliver: the round one should win
+    good = PR.new(id_="d1", points=[(5, 5), (20, 5), (20, 20), (5, 20)], closed=True, labels=[dish_lbl])
+    sliver = PR.new(id_="d2", points=[(30, 30), (31, 30), (31, 31)], closed=True, labels=[dish_lbl])
+    win.on_sam_worker_finished([SamWorkerResult(anno_id="a", result=sliver), SamWorkerResult(anno_id="a", result=good)])
+    assert set(anno.results) == {"d1"}  # only the best dish is kept
+    assert anno.results["d1"].instance_id
+    assert anno.results["d1"].instance_id in anno.instances

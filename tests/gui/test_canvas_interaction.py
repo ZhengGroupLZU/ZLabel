@@ -623,3 +623,131 @@ def test_new_individual_instances_fill_gaps(populated_project):
     # each inherits its original group's status
     assert inherited[2] == "moldy_seed"
     assert inherited[4] == "normal_seed"
+
+
+def test_polygon_vertex_handle_consumes_clicks(populated_project, canvas_view, qtbot):
+    """Vertex handles accept left clicks so a click on a vertex does not deselect
+    the polygon: the handle consumes the click instead of it falling through to
+    the polygon's mouseClickEvent (which toggles the selection off)."""
+    win, proj, anno, rebuild = populated_project
+    from pyqtgraph.GraphicsScene.mouseEvents import MouseClickEvent
+    from pyqtgraph.Qt.QtCore import QPointF, Qt
+
+    from zlabel.utils import PolygonResult as PR
+
+    pr = PR.new(id_="p1", points=[(10, 10), (20, 10), (20, 20), (10, 20)], closed=True, labels=[proj.crt_label])
+    anno.add_result(pr)
+    rebuild()
+    win.on_action_edit_triggered()
+    canvas_view["click"](win.canvas, (15, 15), qtbot)
+    item = win.canvas.showing_items["p1"]
+    assert item.isSelected()
+    assert item.handles, "selected polygon must show vertex handles"
+
+    handle = item.handles[0]["item"]
+    # the handle must accept left-button clicks (regression: it used to be
+    # NoButton, so clicks on a vertex fell through to the polygon)
+    assert Qt.MouseButton.LeftButton in handle.acceptedMouseButtons() & Qt.MouseButton.LeftButton
+
+    class _Press:
+        def scenePos(self):
+            return QPointF(0, 0)
+
+        def screenPos(self):
+            return QPointF(0, 0)
+
+        def button(self):
+            return Qt.MouseButton.LeftButton
+
+        def buttons(self):
+            return Qt.MouseButton.LeftButton
+
+        def modifiers(self):
+            return Qt.KeyboardModifier.NoModifier
+
+    click = MouseClickEvent(_Press())
+    handle.mouseClickEvent(click)
+    assert click.isAccepted(), "vertex handle must consume the click (not propagate to the polygon)"
+
+
+def test_polygon_vertex_handles_are_circles_and_edit_uses_arrow_cursor(populated_project, canvas_view, qtbot):
+    """Vertex handles render as circles; edit mode uses the normal arrow cursor."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    pr = PR.new(id_="p1", points=[(10, 10), (20, 10), (20, 20), (10, 20)], closed=True, labels=[proj.crt_label])
+    anno.add_result(pr)
+    rebuild()
+
+    win.on_action_edit_triggered()
+    assert win.canvas._status_mode == StatusMode.EDIT
+    assert win.canvas.cursor().shape() == Qt.CursorShape.ArrowCursor
+
+    canvas_view["click"](win.canvas, (15, 15), qtbot)
+    item = win.canvas.showing_items["p1"]
+    handle = item.handles[0]["item"]
+    # circle handle: type stays "f" (so pyqtgraph moves the free handle) but
+    # sides==0 makes buildPath draw an ellipse instead of a diamond
+    assert handle.typ == "f"
+    assert handle.sides == 0
+
+
+def test_circle_handle_drag_edits_vertex(populated_project, canvas_view, qtbot):
+    """The circle vertex handle is hit-testable and a handle drag still moves
+    the vertex and keeps the polygon selected."""
+    win, proj, anno, rebuild = populated_project
+    from pyqtgraph.Qt.QtCore import QPointF, Qt
+
+    from zlabel.utils import PolygonResult as PR
+
+    pr = PR.new(id_="p1", points=[(10, 10), (20, 10), (20, 20), (10, 20)], closed=True, labels=[proj.crt_label])
+    anno.add_result(pr)
+    rebuild()
+    win.on_action_edit_triggered()
+    canvas_view["click"](win.canvas, (15, 15), qtbot)
+    item = win.canvas.showing_items["p1"]
+    assert item.isSelected()
+
+    handle = item.handles[0]["item"]
+    assert handle.isVisible()
+    assert not handle.shape().boundingRect().isEmpty()
+
+    # simulate a real handle drag: move point (finish=False) then stateChangeFinished
+    hp = item.mapToScene(handle.pos())
+    item.movePoint(handle, hp + QPointF(5, 5), modifiers=Qt.KeyboardModifier.NoModifier, finish=False, coords="scene")
+    item.stateChangeFinished()
+    qtbot.wait(20)
+    pts = item.getState()["points"]
+    assert pts[0] != (10.0, 10.0), "dragged vertex must move"
+    assert item.isSelected(), "selection must survive the vertex drag"
+
+
+def test_polygon_handle_grab_near_vertex(populated_project, canvas_view, qtbot):
+    """A press near (but not exactly on) a vertex handle grabs the handle, so no
+    selection box starts; a drag still edits the vertex."""
+    win, proj, anno, rebuild = populated_project
+    from pyqtgraph.Qt.QtCore import QPointF, Qt
+
+    from zlabel.utils import PolygonResult as PR
+
+    pr = PR.new(id_="p1", points=[(10, 10), (20, 10), (20, 20), (10, 20)], closed=True, labels=[proj.crt_label])
+    anno.add_result(pr)
+    rebuild()
+    win.on_action_edit_triggered()
+    canvas_view["click"](win.canvas, (15, 15), qtbot)
+    item = win.canvas.showing_items["p1"]
+    assert item.isSelected()
+    handle = item.handles[0]["item"]
+
+    # item_at_point near the vertex (inside the grab disk, off the exact circle)
+    hit = win.canvas.item_at_point(QPointF(10.5, 10.5))
+    assert hit is handle, "press near a vertex must hit the handle, not the polygon/None"
+
+    # drag edits the vertex and keeps selection
+    hp = item.mapToScene(handle.pos())
+    item.movePoint(handle, hp + QPointF(5, 5), modifiers=Qt.KeyboardModifier.NoModifier, finish=False, coords="scene")
+    item.stateChangeFinished()
+    qtbot.wait(20)
+    pts = item.getState()["points"]
+    assert pts[0] != (10.0, 10.0)
+    assert item.isSelected()

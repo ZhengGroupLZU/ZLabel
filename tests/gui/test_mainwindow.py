@@ -364,3 +364,39 @@ def test_save_shortcut_triggered(populated_project, qtbot, monkeypatch):
     QTest.keyClick(win, Qt.Key.Key_S)
     qtbot.wait(10)
     assert saved
+
+
+def test_label_switch_syncs_default_status_combo(main_window):
+    """Switching labels (Labels panel click or shortcut) fuzzy-matches the Annos
+    default-status combo ("Seed" -> "Normal seed"); no match leaves it unchanged."""
+    win = main_window
+    proj = win.proj
+    from zlabel.utils import Annotation, Label, Task
+
+    lbl_seed = Label.new("Seed", "#ff0000")
+    lbl_seedling = Label.new("Seedling", "#00ff00")
+    lbl_dish = Label.new("Dish", "#0000ff")
+    proj.labels = {label.id: label for label in (lbl_seed, lbl_seedling, lbl_dish)}
+    t = Task(id=1, filename="a.png", anno_id="a", labels=[])
+    proj.tasks = {t.anno_id: t}
+    proj.add_annotation(Annotation(id="a", image_path="a.png", original_width=64, original_height=64))
+    proj.key_label = lbl_seed.id
+    win.dockcnt_labels.set_labels(list(proj.labels.values()), proj.key_label)
+    win.dockcnt_anno.set_instance_statuses(["normal_seed", "normal_seedling", "moldy_seed"])
+    combo = win.dockcnt_anno.cmbox_default_instance
+    assert combo.currentText() == "None"
+
+    # Labels panel click (select_row emits the same click signal)
+    win.dockcnt_labels.select_row(0)  # Seed
+    assert combo.currentText() == "Normal seed"
+    win.dockcnt_labels.select_row(1)  # Seedling
+    assert combo.currentText() == "Normal seedling"
+
+    # shortcut path goes through the same handler; no match -> reset to None
+    win.on_shortcut_select_label_number(3)  # Dish
+    assert combo.currentText() == "None"
+
+    # first-match rule wins with multiple candidates
+    win.dockcnt_anno.set_instance_statuses(["seed A", "seed B"])
+    win.dockcnt_labels.select_row(0)  # Seed
+    assert combo.currentText() == "Seed a"

@@ -73,7 +73,7 @@ from zlabel.widgets import (
     ZUploadFileWorker,
 )
 from zlabel.widgets.dock_anno import ID_ROLE
-from zlabel.widgets.dock_tracks import ZDockTracksContent
+from zlabel.widgets.dock_timeline import ZDockTimelineContent
 from zlabel.widgets.zworker import GetProjectsWorker
 
 from .ui import Ui_MainWindow
@@ -249,10 +249,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             state_data: QByteArray = QByteArray.fromBase64(self.settings.window_state.encode("utf-8"))
             if not state_data.isEmpty():
                 self.restoreState(state_data)
-        # The Tracks timeline always lives at the bottom; saved layouts from
+        # The Timeline always lives at the bottom; saved layouts from
         # before the move (it used to be a right-side dock) would otherwise
         # place it back on the right.
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_tracks)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_timeline)
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
@@ -270,7 +270,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_file_list(list(self.proj.tasks.values()))
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
-        self.action_copy_prev.setEnabled(self.settings.enable_copy_prev)
         title = "ZLabel"
         if self.settings.project_name:
             title += f" - {self.settings.project_name}"
@@ -829,12 +828,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_undo_triggered(self):
         if self.undo_stack.canUndo():
             self.undo_stack.undo()
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     def on_action_redo_triggered(self):
         if self.undo_stack.canRedo():
             self.undo_stack.redo()
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     def on_action_visible_triggered(self):
         self.canvas_items_visible = self.actionVisible.isChecked()
@@ -857,7 +856,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_labels.show()
         self.dock_infos.show()
         self.dock_files.show()
-        self.dock_tracks.show()
+        self.dock_timeline.show()
 
     def on_action_annotations_triggered(self):
         if self.actionAnnotations.isChecked():
@@ -883,28 +882,28 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.dock_labels.hide()
 
-    def on_action_tracks_triggered(self):
-        if self.actionTracks.isChecked():
-            self.dock_tracks.show()
+    def on_action_timeline_triggered(self):
+        if self.actionTimeline.isChecked():
+            self.dock_timeline.show()
         else:
-            self.dock_tracks.hide()
+            self.dock_timeline.hide()
 
-    def on_dock_tracks_visibility_changed(self, visible: bool):
-        self.actionTracks.setChecked(visible)
+    def on_dock_timeline_visibility_changed(self, visible: bool):
+        self.actionTimeline.setChecked(visible)
 
-    def _on_tracks_group_changed(self, group: str):
-        """Append the current sequence group to the Tracks dock title."""
-        title = self.tr("Tracks")
+    def _on_timeline_group_changed(self, group: str):
+        """Append the current sequence group to the Timeline dock title."""
+        title = self.tr("Timeline")
         if group:
             title += f" · {group}"
-        self.dock_tracks.setWindowTitle(title)
+        self.dock_timeline.setWindowTitle(title)
 
-    def _refresh_tracks(self):
+    def _refresh_timeline(self):
         """Rebuild the instance timeline for the current frame's sequence group."""
         task = self.proj.crt_task
         group = task.group if task else ""
         tasks = [t for t in self.proj.tasks.values() if t.group == group] if group else []
-        self.dockcnt_tracks.set_group(self.proj, group, tasks)
+        self.dockcnt_timeline.set_group(self.proj, group, tasks)
 
     def on_instance_open(self, anno_id: str, instance_id: int):
         """Jump to the frame containing ``instance_id`` and select its members."""
@@ -1185,6 +1184,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.is_current_anno_ok():
             self.proj.key_label = id
             self.logger.debug(f"Select label {self.proj.crt_label}")
+            label = self.proj.crt_label
+            if label is not None:
+                # keep the Annos default-status combo in sync with the label
+                # (fuzzy match: "Seed" -> "Normal seed", "Seedling" -> "Normal seedling")
+                self.dockcnt_anno.set_default_instance_by_label(label.name)
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -1403,7 +1407,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_instance_id = 0
         self._refresh_anno_tree()
         self._apply_annotation_rotation()
-        self._refresh_tracks()
+        self._refresh_timeline()
         self._maybe_copy_prev_frame()
 
     def _apply_annotation_rotation(self):
@@ -1477,29 +1481,48 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_inference_status()
         if len(worker_results) == 0:
             return
-        instance_id = self._ensure_current_instance()
+        # Polygons are the parts of one seed and share a single instance id;
+        # each rectangle detection is its own instance (fresh id per rect).
+        # The dish mask also becomes its own instance: only the best candidate
+        # is kept and simplified to an ellipse.
+        instance_id = 0
+        used = set(self._used_instance_ids())
         dish_candidates: list[PolygonResult] = []
         kept: list[SamWorkerResult] = []
         for wr in worker_results:
-            if isinstance(wr.result, PolygonResult):
-                wr.result.instance_id = instance_id
-                if wr.result.labels and wr.result.labels[0].name.lower() in ("dish", "培养皿"):
-                    dish_candidates.append(wr.result)
+            r = wr.result
+            if isinstance(r, PolygonResult):
+                if r.labels and r.labels[0].name.lower() in ("dish", "培养皿"):
+                    dish_candidates.append(r)
                 else:
+                    if not instance_id:
+                        instance_id = self._ensure_current_instance()
+                        used.add(instance_id)
+                    r.instance_id = instance_id
                     kept.append(wr)
+            elif isinstance(r, RectangleResult):
+                iid = self._next_free_instance_id(used)
+                used.add(iid)
+                self._init_instance_status(iid)
+                r.instance_id = iid
+                kept.append(wr)
             else:
                 kept.append(wr)
         if dish_candidates:
             best = self._select_best_dish(dish_candidates)
             if best is not None:
                 self._maybe_fit_dish_ellipse(best)
+                iid = self._next_free_instance_id(used)
+                used.add(iid)
+                self._init_instance_status(iid)
+                best.instance_id = iid
                 kept.append(next(wr for wr in worker_results if wr.result is best))
         results = [wr.result for wr in kept]
         self.proj.key_task = worker_results[0].anno_id
         # self.add_results(results)
         self.add_result_undo_cmd(results, ResultUndoMode.ADD)
         self._refresh_anno_tree()
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     @staticmethod
     def _select_best_dish(candidates: list[PolygonResult]) -> PolygonResult | None:
@@ -1566,7 +1589,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
             self.add_result_undo_cmd([result], ResultUndoMode.ADD)
             self._refresh_anno_tree()
-            self._refresh_tracks()
+            self._refresh_timeline()
             return
 
         # Legacy SAM/CV prompt path
@@ -1654,7 +1677,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             case AutoMode.MANUAL:
                 self.add_result_undo_cmd([result], ResultUndoMode.ADD)
                 self._maybe_ocr_rect(result)
-                self._refresh_tracks()
+                self._refresh_timeline()
                 return
             # if either sam or CV selected, create by predict
             case AutoMode.SAM | AutoMode.CV:
@@ -1736,7 +1759,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.logger.debug(f"{result=}")
         self.add_result_undo_cmd([result], ResultUndoMode.ADD)
         self._refresh_anno_tree()
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     def on_canvas_item_clicked(self, id_: str):
         if self.proj.crt_anno is None:
@@ -1879,7 +1902,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.current_instance_id = instance_id
         self._prune_orphan_instances()
-        self._refresh_tracks()
+        self._refresh_timeline()
         self._refresh_anno_tree()
         self.update_group_button_state()
         item = self.canvas.showing_items.get(result_id)
@@ -2005,7 +2028,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None:
             return
         self.proj.crt_anno.instances[iid] = status
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     # region instance grouping (merge / split)
     def _selected_results(self) -> list[PointResult | RectangleResult | PolygonResult]:
@@ -2053,7 +2076,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_instance_id = new_iid
         self._prune_orphan_instances()
         self._refresh_anno_tree()
-        self._refresh_tracks()
+        self._refresh_timeline()
         self.update_group_button_state()
         self.show_toast(self.tr(f"Grouped {len(results)} annotations into instance {new_iid}"))
 
@@ -2077,7 +2100,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             anno.instances[iid] = status
         self._prune_orphan_instances()
         self._refresh_anno_tree()
-        self._refresh_tracks()
+        self._refresh_timeline()
         self.update_group_button_state()
         self.show_toast(self.tr(f"Split {len(results)} annotations into individual instances"))
 
@@ -2183,7 +2206,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not isinstance(r, RectangleResult):
             return
         if not text:
-            if self.settings.ocr_skip_manual:
+            if self.settings.ocr_enable_manual:
                 return
             text, ok = QInputDialog.getText(self, self.tr("Timestamp"), self.tr("OCR failed, enter timestamp text:"))
             if not ok or not text:
@@ -2530,7 +2553,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 anno.instances[iid] = src_anno.instances.get(iid, "") or self._default_instance_status()
         self.add_result_undo_cmd(results_new, ResultUndoMode.ADD)
         self._refresh_anno_tree()
-        self._refresh_tracks()
+        self._refresh_timeline()
 
     def _maybe_copy_prev_frame(self):
         if not self.settings.enable_copy_prev:
@@ -2672,21 +2695,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             sp.setVerticalPolicy(QSizePolicy.Policy.Preferred)
             dock.setSizePolicy(sp)
 
-        # Tracks dock: cross-frame timeline (video-editor style) at the bottom
-        self.dockcnt_tracks = ZDockTracksContent(
+        # Timeline dock: cross-frame instance timeline (video-editor style) at the bottom
+        self.dockcnt_timeline = ZDockTimelineContent(
             self._load_anno_for_task,
             lambda name: self.backend.get_image(name) if self.backend is not None else None,
             self,
         )
-        self.dock_tracks = QDockWidget(self.tr("Tracks"), self)
-        self.dock_tracks.setObjectName("dock_tracks")
-        self.dock_tracks.setWidget(self.dockcnt_tracks)
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_tracks)
-        self.actionTracks = QAction(self.tr("Tracks"), self)
-        self.actionTracks.setObjectName("actionTracks")
-        self.actionTracks.setCheckable(True)
-        self.actionTracks.setChecked(True)
-        self.menuDocks.addAction(self.actionTracks)
+        self.dock_timeline = QDockWidget(self.tr("Timeline"), self)
+        self.dock_timeline.setObjectName("dock_timeline")
+        self.dock_timeline.setWidget(self.dockcnt_timeline)
+        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_timeline)
+        self.actionTimeline = QAction(self.tr("Timeline"), self)
+        self.actionTimeline.setObjectName("actionTimeline")
+        self.actionTimeline.setCheckable(True)
+        self.actionTimeline.setChecked(True)
+        self.menuDocks.addAction(self.actionTimeline)
 
         # keep the side docks compact so the canvas keeps most of the width
         # (explicit min/max override the inflated minimumSizeHints)
@@ -2700,8 +2723,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             content.setMaximumWidth(hi)
         # the bottom timeline stays a horizontal strip but tall enough for
         # several instance rows (rows run 1..max instance id)
-        self.dockcnt_tracks.setMinimumHeight(1)
-        self.dockcnt_tracks.setMaximumHeight(600)
+        self.dockcnt_timeline.setMinimumHeight(1)
+        self.dockcnt_timeline.setMaximumHeight(600)
 
     def init_signals(self):
         # dialog
@@ -2852,12 +2875,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.btn_rot_cw.clicked.connect(lambda: self.spin_rotation.setValue((self.spin_rotation.value() + 90) % 360))
         self.spin_rotation.valueChanged.connect(self.on_rotation_changed)
 
-        # Tracks dock
-        self.actionTracks.triggered.connect(self.on_action_tracks_triggered)
-        self.dock_tracks.visibilityChanged.connect(self.on_dock_tracks_visibility_changed)
-        self.dockcnt_tracks.sigOpenInstance.connect(self.on_instance_open)
-        self.dockcnt_tracks.sigCellMoved.connect(self.on_cell_moved)
-        self.dockcnt_tracks.sigGroupChanged.connect(self._on_tracks_group_changed)
+        # Timeline dock
+        self.actionTimeline.triggered.connect(self.on_action_timeline_triggered)
+        self.dock_timeline.visibilityChanged.connect(self.on_dock_timeline_visibility_changed)
+        self.dockcnt_timeline.sigOpenInstance.connect(self.on_instance_open)
+        self.dockcnt_timeline.sigCellMoved.connect(self.on_cell_moved)
+        self.dockcnt_timeline.sigGroupChanged.connect(self._on_timeline_group_changed)
 
     # endregion
 

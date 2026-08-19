@@ -313,7 +313,8 @@ class Canvas(pg.PlotWidget):
         # guard to avoid redundant text updates
         if self._status_mode == mode:
             return
-        if mode == StatusMode.VIEW:
+        # editing keeps the normal arrow cursor; only CREATE uses a crosshair
+        if mode in (StatusMode.VIEW, StatusMode.EDIT):
             self.setCursor(Qt.CursorShape.ArrowCursor)
         else:
             self.setCursor(Qt.CursorShape.CrossCursor)
@@ -1006,6 +1007,16 @@ class Canvas(pg.PlotWidget):
                     return item
             elif isinstance(item, Polygon):
                 pts = [(float(x), float(y)) for x, y in item.getState()["points"]]
+                # like Rectangle, check the vertex handles first so a press near
+                # a vertex grabs the handle instead of clearing/starting a box
+                if item.handles:
+                    radius = max(8.0, getattr(item, "handleSize", 8.0))
+                    for pt, hinfo in zip(pts, item.handles):
+                        hitem = hinfo.get("item")
+                        if hitem is None:
+                            continue
+                        if (p.x() - pt[0]) ** 2 + (p.y() - pt[1]) ** 2 <= radius * radius:
+                            return hitem
                 if self._point_in_polygon(p.x(), p.y(), pts):
                     return item
             elif isinstance(item, Point):

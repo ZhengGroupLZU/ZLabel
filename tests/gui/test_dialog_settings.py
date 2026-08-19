@@ -110,7 +110,7 @@ def test_germ_preset(dialog, settings, qtbot):
     with qtbot.waitSignal(dialog.sigSettingsChanged, timeout=1000):
         dialog.combo_preset.setCurrentIndex(1)  # Germ preset
     names = {lbl.name for lbl in settings.project.labels.values()}
-    assert {"Seed", "Root", "Seedling", "Dish", "Timestamp"} <= names
+    assert {"Seed", "Root", "Shoot", "Seedling", "Dish", "Timestamp"} <= names
     assert settings.project.key_label is not None
     assert "normal_seed" in settings.project.instance_statuses
 

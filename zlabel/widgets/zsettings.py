@@ -33,9 +33,9 @@ class ZSettings(BaseModel):
     model_dir: str = ""
     upload_image_size: int = 1024
     auto_fit_dish: bool = False  # auto-segment + ellipse-fit the dish on frame open
-    ocr_skip_manual: bool = False  # don't prompt for manual timestamp text when OCR fails
+    ocr_enable_manual: bool = False  # don't prompt for manual timestamp text when OCR fails
     ocr_wx_dir: str = ""  # folder with the WeChat OCR engine (WeChatOCR.exe + mmmojo dll)
-    enable_copy_prev: bool = True  # enable the "copy previous frame" feature
+    enable_copy_prev: bool = False  # enable the "copy previous frame" feature
 
     geometry: str = ""  # base64 encoded
     window_state: str = ""  # base64 encoded

@@ -1,9 +1,9 @@
 """Instance timeline dock: a per-frame instance table.
 
 Each column is a frame (D1, D2, ...); rows always run 1..max instance id across
-the group (gaps in the middle are empty rows). A cell shows a thumbnail of that
-frame cropped around the instance with its id overlaid, or a dim cell when the
-frame has no instance with that id.
+the group (gaps in the middle are empty rows) plus one trailing empty row. A
+cell shows a thumbnail of that frame cropped around the instance with its id
+overlaid, or a dim cell when the frame has no instance with that id.
 
 Clicking a cell jumps to that frame and selects the instance. Dragging a cell
 renumbers (or swaps) the source instance within its own frame: only the target
@@ -116,7 +116,7 @@ class _TimelineTable(QTableWidget):
         super().dropEvent(ev)
 
 
-class ZDockTracksContent(QWidget):
+class ZDockTimelineContent(QWidget):
     sigOpenInstance = Signal(str, int)  # anno_id, instance_id
     sigCellMoved = Signal(str, int, int)  # (src anno_id, src iid, target row)
     sigGroupChanged = Signal(str)  # current sequence group (for the dock title)
@@ -192,9 +192,9 @@ class ZDockTracksContent(QWidget):
         self.table.setHorizontalHeaderLabels([""] + [self._frame_label(t) for t, _ in frames])
         self.table.setColumnWidth(0, 40)
         # rows always run 1..max instance id across the group; gaps in the
-        # middle stay as empty (inert) rows
+        # middle stay as empty (inert) rows, plus one trailing empty row
         max_iid = max(instance_order) if instance_order else 0
-        self.table.setRowCount(max_iid)
+        self.table.setRowCount(max_iid + 1)
 
         for iid in range(1, max_iid + 1):
             row = iid - 1
@@ -231,6 +231,14 @@ class ZDockTracksContent(QWidget):
                     cell.setText("·")
                     cell.setBackground(QColor("#202020"))
                 self.table.setItem(row, col0, cell)
+
+        # trailing empty row: blank cells with no user data, so a drop lands on
+        # it (renumbering to max+1) but clicking does nothing
+        for col0 in range(n_cols):
+            cell = QTableWidgetItem()
+            cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+            cell.setBackground(QColor("#202020"))
+            self.table.setItem(max_iid, col0, cell)
 
     def _thumbnail(self, task: Task, image: Image.Image | None, bbox: tuple | None) -> QPixmap | None:
         """Crop the frame image around the instance bbox and scale it to the cell."""

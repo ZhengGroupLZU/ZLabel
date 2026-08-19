@@ -43,7 +43,7 @@ class ZResultUndoCmd(QUndoCommand):
             self.target_anno.results[r.id] = r
         self.target_anno.instances.clear()
         self.target_anno.instances.update(instances_snapshot)
-        self.mw._refresh_tracks()
+        self.mw._refresh_timeline()
         if self.mw.proj.crt_anno is self.target_anno:
             self.mw._refresh_anno_tree()
 

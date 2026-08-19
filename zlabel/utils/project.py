@@ -87,6 +87,7 @@ class GermStatus(Enum):
 GERM_PRESET_LABELS: dict[str, str] = {
     "Seed": "#e6194b",
     "Root": "#3cb44b",
+    "Shoot": "#f58231",
     "Seedling": "#4363d8",
     "Dish": "#911eb4",
     "Timestamp": "#808080",
@@ -95,7 +96,7 @@ GERM_PRESET_LABELS: dict[str, str] = {
 
 
 def germ_preset_labels() -> OrderedDict[str, Label]:
-    """One-click preset: part labels (seed/root/seedling) + dish/timestamp tags."""
+    """One-click preset: part labels (seed/root/shoot/seedling) + dish/timestamp tags."""
     labels: OrderedDict[str, Label] = OrderedDict()
     for name, color in GERM_PRESET_LABELS.items():
         lbl = Label.new(name=name, color=color)

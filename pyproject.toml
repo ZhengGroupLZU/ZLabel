@@ -19,18 +19,6 @@ dependencies = [
     "protobuf>=7.35.1",
 ]
 
-[project.scripts]
-zlabel-build = "zlabel.scripts:build"
-zlabel-uic = "zlabel.scripts:uic_rcc"
-zlabel-translate = "zlabel.scripts:translate"
-
-[project.gui-scripts]
-zlabel = "zlabel.main:main"
-
-[build-system]
-requires = ["uv_build>=0.4"]
-build-backend = "uv_build"
-
 [project.optional-dependencies]
 local = [
     "MNN>=3.6.0",
@@ -58,6 +46,19 @@ dev = [
     "tomli>=2.3.0",
     "ruff>=0.14.0",
 ]
+
+[project.scripts]
+zlabel-build = "zlabel.scripts:build"
+zlabel-uic = "zlabel.scripts:uic_rcc"
+zlabel-translate = "zlabel.scripts:translate"
+
+[project.gui-scripts]
+zlabel = "zlabel.main:main"
+
+[build-system]
+requires = ["uv_build>=0.4"]
+build-backend = "uv_build"
+
 
 [[tool.uv.index]]
 name = "tsinghua"

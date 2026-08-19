@@ -1,4 +1,5 @@
 from enum import Enum, auto
+
 from .winapi import *
 
 
@@ -82,7 +83,7 @@ class MmmojoDll(object):
         self._funcs_dict = self.init_funcs()
 
     def func_def(self, *args):
-        return func_def(*args, dll=self._dll)
+        return func_def(*args, dll=self._dll)  # type: ignore
 
     def init_funcs(self):
         # void InitializeMMMojo(int argc, char* argv[])
