@@ -51,6 +51,13 @@ try:
 except ImportError:
     print("Warning: cv2 not installed, local inference disabled in this build")
 
+try:
+    import MNN  # noqa: F401
+
+    includes += ["MNN"]
+except ImportError:
+    print("Warning: MNN not installed, local inference disabled in this build")
+
 build_exe_options = {
     "build_exe": output_dir,
     "excludes": [

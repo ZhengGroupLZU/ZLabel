@@ -70,20 +70,16 @@ def publish_to_7z(build_dir: str, version: str):
     print(f"Publish successfully, saved to {save_7z_name}")
 
 
-def build_with_pyinstaller(version: str, enable_debug: bool = False, jobs: int = CPUS):
+def build_with_pyinstaller(version: str, enable_debug: bool = False):
     icon_png = "resources/icons/zlabel.png"
     convert_png_ico(icon_png)
 
-    std_out = "--force-stdout-spec=%PROGRAM_BASE%.out.txt "
-    std_err = "--force-stderr-spec=%PROGRAM_BASE%.err.txt "
     build_dir = "build/release "
     dist_dir = "dist/release"
     spec = "zlabel_release.spec"
     if enable_debug:
         build_dir = "build/debug "
         dist_dir = "dist/debug"
-        std_out = ""
-        std_err = ""
         spec = "zlabel_debug.spec"
     cmd = (
         "pyinstaller "
@@ -138,20 +134,20 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
         f"-j {jobs}",
     ]
 
-    # Bundle local inference runtime (onnxruntime + opencv) if available.
+    # Bundle local inference runtime (MNN + opencv) if available.
     # They are optional: without them the build stays remote-only.
-    # onnx model files in data/ are intentionally NOT bundled.
+    # MNN model files in data/models/mnn are intentionally NOT bundled; users
+    # must drop the .mnn files next to the installed app (see resource_dir()).
     try:
         import cv2  # noqa: F401
-        import onnxruntime  # noqa: F401
+        import MNN  # noqa: F401
 
         cmd_parts.extend([
-            "--include-module=onnxruntime",
+            "--include-package=MNN",
             "--include-module=cv2",
         ])
     except ImportError:
-        print("Warning: onnxruntime/cv2 not installed, local inference will be disabled in this build")
-
+        print("Warning: MNN/cv2 not installed, local inference will be disabled in this build")
 
     if enable_debug:
         # Debug mode options
@@ -198,7 +194,7 @@ def build_with_nuitka(version: str, enable_debug: bool = False, jobs: int = CPUS
 
 def main(version: str, enable_debug: bool = False, jobs: int = CPUS, use_pyinstaller: bool = False):
     if use_pyinstaller:
-        build_with_pyinstaller(version, enable_debug, jobs)
+        build_with_pyinstaller(version, enable_debug)
     else:
         build_with_nuitka(version, enable_debug, jobs)
 
