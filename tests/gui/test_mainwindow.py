@@ -366,6 +366,60 @@ def test_save_shortcut_triggered(populated_project, qtbot, monkeypatch):
     assert saved
 
 
+def test_dish_crop_box(main_window):
+    """_dish_crop_box returns the dish bbox (polygon or rotated rect) or None."""
+    win = main_window
+    proj = win.proj
+    from zlabel.utils import Annotation, Label, PolygonResult, RectangleResult, Task
+
+    lbl_dish = Label.new("Dish", "#911eb4")
+    lbl_seed = Label.new("Seed", "#ff0000")
+    proj.labels = {lbl_dish.id: lbl_dish, lbl_seed.id: lbl_seed}
+    t = Task(id=1, filename="a.png", anno_id="a", labels=[])
+    proj.tasks = {t.anno_id: t}
+    proj.add_annotation(Annotation(id="a", image_path="a.png", original_width=64, original_height=64))
+    anno = proj.crt_anno
+
+    # no dish yet
+    assert win._dish_crop_box() is None
+
+    # dish polygon -> bbox of its points
+    anno.add_result(
+        PolygonResult.new(id_="d", points=[(10, 10), (30, 10), (30, 20), (10, 20)], closed=True, labels=[lbl_dish])
+    )
+    assert win._dish_crop_box() == (10, 10, 30, 20)
+
+    # a rotated dish rectangle -> bbox covering the rotated content
+    anno.results.clear()
+    anno.add_result(RectangleResult.new(id_="d2", x=40, y=40, w=8, h=8, rotation=90, labels=[lbl_dish]))
+    assert win._dish_crop_box() == (32, 40, 40, 48)
+
+
+def test_image_cache_is_lru_bounded(main_window):
+    """The decoded-frame cache is LRU-bounded so a session doesn't keep every
+    visited full-resolution photo in memory."""
+    from PIL import Image as _Image
+
+    from zlabel.widgets.mainwindow import _IMAGE_CACHE_SIZE
+
+    win = main_window
+    for i in range(_IMAGE_CACHE_SIZE + 3):
+        win._image_cache[f"f{i}.png"] = _Image.new("RGB", (4, 4), "black")
+    assert len(win._image_cache) == _IMAGE_CACHE_SIZE
+    assert "f0.png" not in win._image_cache  # oldest evicted
+    assert f"f{_IMAGE_CACHE_SIZE + 2}.png" in win._image_cache  # newest kept
+
+
+def test_timeline_image_prefers_cache(main_window):
+    """_timeline_image returns the in-memory (decoded) image when cached."""
+    from PIL import Image as _Image
+
+    win = main_window
+    img = _Image.new("RGB", (8, 8), "red")
+    win._image_cache["a.png"] = img
+    assert win._timeline_image("a.png") is img
+
+
 def test_label_switch_syncs_default_status_combo(main_window):
     """Switching labels (Labels panel click or shortcut) fuzzy-matches the Annos
     default-status combo ("Seed" -> "Normal seed"); no match leaves it unchanged."""

@@ -35,10 +35,13 @@ class ZSamPredictWorker(QRunnable):
             threshold: int = 100,
             mode: AutoMode = AutoMode.SAM,
             return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
+            crop_box: tuple[int, int, int, int] | None = None,
     ) -> None:
         """
         points: [(x, y), (x1, y1)]
         rects: [(x, y, w, h), (x1, y1, w1, h1)]
+        crop_box: (left, top, right, bottom) in full-image coords; the backend
+        crops the image to this box and shifts prompts/results accordingly.
         """
         super().__init__()
 
@@ -52,6 +55,7 @@ class ZSamPredictWorker(QRunnable):
         self.mode = mode
         self.result_labels = result_labels
         self.return_type = return_type
+        self.crop_box = crop_box
 
         self.emitter = PredictWorkerEmitter()
 
@@ -88,6 +92,7 @@ class ZSamPredictWorker(QRunnable):
             threshold=self.threshold,
             mode=self.mode.value,
             return_type=self.return_type,
+            crop_box=self.crop_box,
         )
         if not resp["status"]:
             self.emitter.sigFailed.emit()

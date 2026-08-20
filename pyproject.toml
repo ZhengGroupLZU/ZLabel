@@ -15,7 +15,7 @@ dependencies = [
     "pyqtgraph<1.0.0,>=0.14.0",
     "numpy>=2.2.6",
     "shapely>=2.1.2",
-    "opencv-python>=5.0.0.93",
+    "opencv-python-headless>=5.0.0.93",
     "protobuf>=7.35.1",
     "MNN>=3.6.0",
     "regex",

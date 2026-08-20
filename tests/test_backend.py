@@ -180,6 +180,45 @@ def test_remote_local_prompts_unchanged_when_not_resized(local_storage):
     assert fake.predict_rects[-1] == [{"x": 2, "y": 4, "w": 8, "h": 8}]
 
 
+def test_remote_local_crops_to_dish(local_storage):
+    """crop_box: the uploaded image is the dish crop, prompts shift into crop
+    space, and results are mapped back to full-image coordinates."""
+    fake = _FakeApi()
+    fake.return_data = [{"x": 4, "y": 6, "w": 8, "h": 8}]
+    inf = RemoteInference(api=fake, storage=local_storage, upload_image_size=1024)
+    resp = inf.predict(
+        anno_id="t",
+        image_name="a.png",  # 64x64
+        points=[{"x": 32, "y": 32}],
+        labels=[1.0],
+        crop_box=(8, 8, 40, 40),  # 32x32 crop, not resized
+    )
+    assert fake.predict_images[-1].size == (32, 32)
+    # prompt shifted into crop space
+    assert fake.predict_points[-1] == [{"x": 24, "y": 24}]
+    # result shifted back by the crop offset
+    assert resp["data"] == [{"x": 12.0, "y": 14.0, "w": 8.0, "h": 8.0}]
+
+
+def test_remote_local_crops_and_resizes(local_storage):
+    """crop + resize: prompts shift then scale; results scale then shift."""
+    fake = _FakeApi()
+    fake.return_data = [{"x": 4, "y": 6, "w": 8, "h": 8}]
+    inf = RemoteInference(api=fake, storage=local_storage, upload_image_size=16)
+    resp = inf.predict(
+        anno_id="t",
+        image_name="a.png",  # 64x64
+        points=[{"x": 32, "y": 32}],
+        labels=[1.0],
+        crop_box=(8, 8, 40, 40),  # 32x32 crop -> 16x16 upload (scale 2)
+    )
+    assert fake.predict_images[-1].size == (16, 16)
+    # (32-8) / 2 = 12
+    assert fake.predict_points[-1] == [{"x": 12.0, "y": 12.0}]
+    # {4,6,8,8} *2 = {8,12,16,16} then +8 = {16,20,16,16}
+    assert resp["data"] == [{"x": 16.0, "y": 20.0, "w": 16.0, "h": 16.0}]
+
+
 def test_remote_remote_prompts_unchanged():
     """Remote storage: no upload/resize, prompts forwarded unchanged."""
     from zlabel.utils.backend import RemoteStorage

@@ -18,8 +18,8 @@ from collections.abc import Callable
 from os.path import splitext
 
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QMimeData, Qt, Signal
-from pyqtgraph.Qt.QtGui import QColor, QDrag, QIcon, QPixmap
+from pyqtgraph.Qt.QtCore import QMimeData, QPoint, Qt, QTimer, Signal
+from pyqtgraph.Qt.QtGui import QColor, QDrag, QPainter, QPixmap
 from pyqtgraph.Qt.QtGui import QImage as _QImage
 from pyqtgraph.Qt.QtWidgets import (
     QAbstractItemView,
@@ -31,9 +31,20 @@ from pyqtgraph.Qt.QtWidgets import (
     QWidget,
 )
 
+from zlabel.utils.cache import LRUCache
 from zlabel.utils.project import Project, Task
 
 INSTANCE_MIME = "application/x-zlabel-instance"
+
+# timeline thumbnails are <= 88x56, so a 512px-long-edge working image is plenty
+SMALL_IMAGE_SIDE = 512
+# number of small thumbnail images kept in memory across groups
+SMALL_IMAGE_CACHE_SIZE = 32
+# instance cells are square (width == height); the thumbnail keeps its aspect
+CELL_SIZE = 48
+# thumbnails are rendered at 2x the cell size (supersampled) and downscaled on
+# draw, so the smaller cell still shows a crisp image
+THUMBNAIL_MAX = 2 * CELL_SIZE
 
 
 def _instance_bbox(results) -> tuple[int, int, int, int] | None:
@@ -55,6 +66,35 @@ def _instance_bbox(results) -> tuple[int, int, int, int] | None:
     return int(min(xs)), int(min(ys)), int(max(xs) - min(xs)), int(max(ys) - min(ys))
 
 
+class _InstanceCellWidget(QWidget):
+    """Cell content: the frame thumbnail as the background with the instance id
+    overlaid on top. Mouse events pass through so item clicks / drag-drop /
+    hover tooltips keep working on the underlying table item."""
+
+    def __init__(self, pixmap: QPixmap | None, text: str, parent: QWidget | None = None):
+        super().__init__(parent)
+        self._pixmap = pixmap
+        self._text = text
+        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+    def paintEvent(self, event):
+        p = QPainter(self)
+        p.fillRect(self.rect(), QColor("#202020"))
+        if self._pixmap is not None and not self._pixmap.isNull():
+            p.setRenderHint(QPainter.RenderHint.SmoothPixmapTransform)
+            # keep the thumbnail's aspect ratio, centered in the square cell
+            target = self._pixmap.size().scaled(self.size(), Qt.AspectRatioMode.KeepAspectRatio)
+            x = (self.width() - target.width()) // 2
+            y = (self.height() - target.height()) // 2
+            p.drawPixmap(x, y, target.width(), target.height(), self._pixmap)
+        if self._text:
+            # subtle shadow keeps the id readable on any thumbnail
+            p.setPen(QColor(0, 0, 0, 180))
+            p.drawText(self.rect().translated(1, 1), Qt.AlignmentFlag.AlignCenter, self._text)
+            p.setPen(QColor("white"))
+            p.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, self._text)
+
+
 class _TimelineTable(QTableWidget):
     sigCellMoved = Signal(str, int, int)  # (src_anno, src_iid, target_row)
 
@@ -65,6 +105,36 @@ class _TimelineTable(QTableWidget):
         self.setAcceptDrops(True)
         self.setDropIndicatorShown(True)
         self.setDefaultDropAction(Qt.DropAction.CopyAction)
+        # Continuous drag auto-scroll: Qt's built-in auto-scroll restarts its
+        # timer on every drag-move, so it barely fires; drive a dedicated timer
+        # that runs until the cursor leaves the edge margin.
+        self.setAutoScroll(False)
+        self._drag_scroll_dir = 0
+        self._drag_scroll_margin = 24
+        self._drag_scroll_timer = QTimer(self)
+        self._drag_scroll_timer.setInterval(100)
+        self._drag_scroll_timer.timeout.connect(self._drag_scroll_tick)
+
+    def _update_drag_autoscroll(self, pos: QPoint):
+        """Start/stop continuous vertical scrolling based on the cursor position
+        (in viewport coordinates) relative to the top/bottom edge margin."""
+        h = self.viewport().height()
+        if pos.y() < self._drag_scroll_margin:
+            self._drag_scroll_dir = -1
+            if not self._drag_scroll_timer.isActive():
+                self._drag_scroll_timer.start()
+        elif pos.y() > h - self._drag_scroll_margin:
+            self._drag_scroll_dir = 1
+            if not self._drag_scroll_timer.isActive():
+                self._drag_scroll_timer.start()
+        else:
+            self._drag_scroll_dir = 0
+            self._drag_scroll_timer.stop()
+
+    def _drag_scroll_tick(self):
+        sb = self.verticalScrollBar()
+        step = 1
+        sb.setValue(sb.value() + self._drag_scroll_dir * step)
 
     def mousePressEvent(self, ev):
         self._drag_press = ev.position().toPoint()
@@ -92,15 +162,23 @@ class _TimelineTable(QTableWidget):
             super().dragEnterEvent(ev)
 
     def dragMoveEvent(self, ev):
-        # Without this the view's default dragMoveEvent rejects the move (items
-        # lack ItemIsDropEnabled), showing the forbidden cursor so the drop can
-        # never land on a target cell.
+        # Run the base class so Qt's drop-indicator logic still happens, then
+        # keep the move accepted: the default would otherwise reject because our
+        # items lack ItemIsDropEnabled, showing the forbidden cursor so no drop
+        # can land. Auto-scroll is handled by _update_drag_autoscroll.
         if ev.mimeData().hasFormat(INSTANCE_MIME):
+            super().dragMoveEvent(ev)
+            self._update_drag_autoscroll(ev.position().toPoint())
             ev.acceptProposedAction()
         else:
             super().dragMoveEvent(ev)
 
+    def dragLeaveEvent(self, ev):
+        self._drag_scroll_timer.stop()
+        super().dragLeaveEvent(ev)
+
     def dropEvent(self, ev):
+        self._drag_scroll_timer.stop()
         if ev.mimeData().hasFormat(INSTANCE_MIME):
             src = ev.mimeData().data(INSTANCE_MIME).data().decode("ascii").split("|")
             if len(src) == 2:
@@ -133,12 +211,14 @@ class ZDockTimelineContent(QWidget):
         self._group = ""
         self._tasks: list[Task] = []
         self._project: Project | None = None
+        # (small_image, full_w, full_h) per filename, LRU-bounded
+        self._small_images: LRUCache[str, tuple[Image.Image, int, int]] = LRUCache(SMALL_IMAGE_CACHE_SIZE)
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         self.table = _TimelineTable(0, 0)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setDefaultSectionSize(96)
+        self.table.horizontalHeader().setDefaultSectionSize(CELL_SIZE)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
@@ -148,6 +228,10 @@ class ZDockTimelineContent(QWidget):
 
     def set_group(self, project: Project, group: str, tasks: list[Task]):
         """Rebuild the timeline for ``group`` from its (ordered) tasks."""
+        # a different project may reuse the same filenames with different
+        # images, so drop the small-image cache when the project changes
+        if self._project is not project:
+            self._small_images.clear()
         self._project = project
         self._group = group
         self._tasks = sorted(tasks, key=lambda t: (t.day, t.filename))
@@ -161,13 +245,14 @@ class ZDockTimelineContent(QWidget):
             self.table.setColumnCount(0)
             return
 
-        # per frame: instance_id -> (status, bbox, label_color, results)
-        frames: list[tuple[Task, dict[int, tuple[str, tuple | None, str]]]] = []
+        # per frame: instance_id -> (status, bbox, label_color, label_name)
+        frames: list[tuple[Task, dict[int, tuple[str, tuple | None, str, str]]]] = []
         instance_order: list[int] = []
-        images: dict[str, Image.Image | None] = {}
+        # per frame: (downsampled image, full width, full height) for thumbnails
+        images: dict[str, tuple[Image.Image, int, int] | None] = {}
         for task in self._tasks:
             anno = self._loader(task)
-            per: dict[int, tuple[str, tuple | None, str]] = {}
+            per: dict[int, tuple[str, tuple | None, str, str]] = {}
             if anno is not None:
                 by_iid: dict[int, list] = {}
                 for r in anno.results.values():
@@ -180,10 +265,10 @@ class ZDockTimelineContent(QWidget):
                 for iid, results in by_iid.items():
                     status = anno.instances.get(iid, "") if iid else ""
                     color = results[0].labels[0].color if results[0].labels else "#888888"
-                    per[iid] = (status, _instance_bbox(results), color)
+                    label = results[0].labels[0].name if results[0].labels else ""
+                    per[iid] = (status, _instance_bbox(results), color, label)
             frames.append((task, per))
-            if self._get_image is not None:
-                images[task.anno_id] = self._get_image(task.filename)
+            images[task.anno_id] = self._small_image(task)
 
         self.sigGroupChanged.emit(self._group)
         # leading index column + one column per frame
@@ -195,6 +280,9 @@ class ZDockTimelineContent(QWidget):
         # middle stay as empty (inert) rows, plus one trailing empty row
         max_iid = max(instance_order) if instance_order else 0
         self.table.setRowCount(max_iid + 1)
+        # square cells: row height matches the (fixed) column width
+        for row in range(self.table.rowCount()):
+            self.table.setRowHeight(row, CELL_SIZE)
 
         for iid in range(1, max_iid + 1):
             row = iid - 1
@@ -220,13 +308,18 @@ class ZDockTimelineContent(QWidget):
                 cell.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
                 if iid in per:
                     cell.setData(Qt.ItemDataRole.UserRole, (task.anno_id, iid))
-                    status, bbox, _color = per[iid]
-                    cell.setText(f"{iid}" + (f"\n{status}" if status else ""))
-                    cell.setToolTip(self.tr(f"{task.filename}: instance {iid}" + (f" ({status})" if status else "")))
+                    status, bbox, _color, label = per[iid]
+                    # tooltip: <file path>\nInstance N\n<instance type>
+                    type_str = status or label
+                    tip = f"{task.filename}\nInstance {iid}\n{type_str}"
+                    cell.setText(str(iid))
+                    cell.setToolTip(tip)
+                    cell.setForeground(QColor("white"))
                     pix = self._thumbnail(task, images.get(task.anno_id), bbox)
                     if pix is not None:
-                        cell.setIcon(QIcon(pix))
-                    cell.setForeground(QColor("white"))
+                        w = _InstanceCellWidget(pix, str(iid))
+                        w.setToolTip(tip)
+                        self.table.setCellWidget(row, col0, w)
                 else:
                     cell.setText("·")
                     cell.setBackground(QColor("#202020"))
@@ -240,20 +333,52 @@ class ZDockTimelineContent(QWidget):
             cell.setBackground(QColor("#202020"))
             self.table.setItem(max_iid, col0, cell)
 
-    def _thumbnail(self, task: Task, image: Image.Image | None, bbox: tuple | None) -> QPixmap | None:
-        """Crop the frame image around the instance bbox and scale it to the cell."""
-        if image is None or bbox is None:
+    def _small_image(self, task: Task) -> tuple[Image.Image, int, int] | None:
+        """Downsampled copy of the task's frame for thumbnails, cached per
+        filename (long edge <= SMALL_IMAGE_SIDE) so rebuilding the timeline
+        never re-decodes the full-resolution photo.
+
+        Returns (small_image, full_width, full_height) so cell bboxes (in full
+        image coordinates) can be mapped into the small image."""
+        cached = self._small_images.get(task.filename)
+        if cached is not None:
+            return cached
+        if self._get_image is None:
+            return None
+        img = self._get_image(task.filename)
+        if img is None:
+            return None
+        w, h = img.size
+        if max(w, h) > SMALL_IMAGE_SIDE:
+            s = SMALL_IMAGE_SIDE / max(w, h)
+            small = img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.Resampling.LANCZOS)
+        else:
+            small = img
+        entry = (small, w, h)
+        self._small_images[task.filename] = entry
+        return entry
+
+    def _thumbnail(self, task: Task, entry: tuple[Image.Image, int, int] | None, bbox: tuple | None) -> QPixmap | None:
+        """Crop the (downsampled) frame image around the instance bbox and scale
+        it to the cell. ``bbox`` is in full-resolution coordinates and is mapped
+        into the small image via the stored full size."""
+        if entry is None or bbox is None:
+            return None
+        small, full_w, full_h = entry
+        if full_w <= 0 or full_h <= 0:
             return None
         x, y, w, h = bbox
         if w <= 0 or h <= 0:
             return None
-        pad = max(4, int(0.08 * max(w, h)))
-        x0, y0 = max(0, x - pad), max(0, y - pad)
-        x1, y1 = min(image.width, x + w + pad), min(image.height, y + h + pad)
+        sx = small.width / full_w
+        sy = small.height / full_h
+        pad = max(2, int(0.08 * max(w * sx, h * sy)))
+        x0, y0 = max(0, int(x * sx) - pad), max(0, int(y * sy) - pad)
+        x1, y1 = min(small.width, int((x + w) * sx) + pad), min(small.height, int((y + h) * sy) + pad)
         if x1 <= x0 or y1 <= y0:
             return None
-        crop = image.crop((x0, y0, x1, y1))
-        crop.thumbnail((88, 56), Image.Resampling.LANCZOS)
+        crop = small.crop((x0, y0, x1, y1))
+        crop.thumbnail((THUMBNAIL_MAX, THUMBNAIL_MAX), Image.Resampling.LANCZOS)
         qimg = _QImage(crop.tobytes(), crop.width, crop.height, crop.width * 3, _QImage.Format.Format_RGB888)
         return QPixmap.fromImage(qimg)
 

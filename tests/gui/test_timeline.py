@@ -813,3 +813,139 @@ def test_sam_dish_polygon_gets_instance_and_best_mask(populated_project):
     assert set(anno.results) == {"d1"}  # only the best dish is kept
     assert anno.results["d1"].instance_id
     assert anno.results["d1"].instance_id in anno.instances
+
+
+def test_drag_auto_scrolls_near_table_edge(main_window, qtbot):
+    """Dragging a cell near the table edge auto-scrolls the vertical view
+    (regression: the custom dragMoveEvent used to skip the base class, which
+    is what starts Qt's auto-scroll)."""
+    from pyqtgraph.Qt.QtCore import QPoint
+    from pyqtgraph.Qt.QtGui import QDragMoveEvent
+
+    win = main_window
+    proj = win.proj
+    lbl_seed = _seed_label(proj)
+    tasks, annos = _group(proj)
+    a1, a2 = annos
+    for i in range(1, 41):
+        a1.add_result(
+            PolygonResult.new(
+                id_=f"s{i}",
+                points=[(1, 1), (5, 1), (5, 5), (1, 5), (3, 0)],
+                closed=True,
+                labels=[lbl_seed],
+                instance_id=i,
+            )
+        )
+
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: None)
+    dock.set_group(proj, "g", tasks)
+    dock.resize(260, 120)
+    dock.show()
+    qtbot.wait(30)
+    table = dock.table
+    assert table.verticalScrollBar().maximum() > 0  # scrollable (41 rows)
+
+    mime = QMimeData()
+    mime.setData(INSTANCE_MIME, b"d1|1")
+    vp = table.viewport()
+    pos = QPoint(vp.width() // 2, vp.height() - 2)  # near the bottom edge
+    ev = QDragMoveEvent(pos, Qt.DropAction.CopyAction, mime, Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier)
+    table.dragMoveEvent(ev)
+    assert ev.isAccepted()
+    sb = table.verticalScrollBar()
+    step = sb.singleStep()
+    qtbot.wait(250)  # let the auto-scroll timer fire several times
+    # continuous scrolling while holding at the edge: more than one step
+    assert sb.value() > max(step, 1), "dragging near the edge must auto-scroll continuously"
+
+    # moving the cursor away from the edge stops the scrolling
+    ev2 = QDragMoveEvent(
+        QPoint(vp.width() // 2, vp.height() // 2),
+        Qt.DropAction.CopyAction,
+        mime,
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+    )
+    table.dragMoveEvent(ev2)
+    before = sb.value()
+    qtbot.wait(150)
+    assert sb.value() == before, "scrolling must stop after leaving the edge"
+
+
+def test_timeline_cells_thumbnail_bg_and_tooltip(main_window):
+    """Filled cells use the thumbnail-as-background widget with the instance id
+    overlaid, and the tooltip is '<file>\\nInstance N\\n<type>'."""
+    from PIL import Image as _Image
+
+    from zlabel.widgets.dock_timeline import _InstanceCellWidget
+
+    win = main_window
+    proj = win.proj
+    lbl_seed = _seed_label(proj)
+    tasks, annos = _group(proj)
+    a1, a2 = annos
+    a1.add_result(
+        PolygonResult.new(
+            id_="s1",
+            points=[(10, 10), (20, 10), (20, 20), (10, 20)],
+            closed=True,
+            labels=[lbl_seed],
+            instance_id=1,
+        )
+    )
+    a1.instances[1] = "normal_seed"
+
+    dock = ZDockTimelineContent(win._load_anno_for_task, lambda name: _Image.new("RGB", (64, 64), "white"))
+    dock.set_group(proj, "g", tasks)
+    # instance cells are square
+    assert dock.table.rowHeight(0) == dock.table.columnWidth(1)
+    cell = dock.table.item(0, 1)  # instance 1 in D1
+    # the cell text is just the instance id (no status)
+    assert cell.text() == "1"
+    # the thumbnail-as-background widget is installed with the id overlaid
+    w = dock.table.cellWidget(0, 1)
+    assert isinstance(w, _InstanceCellWidget)
+    assert w._text == "1"
+    # tooltip: <file path>\nInstance N\n<instance type>
+    assert cell.toolTip() == "D1.png\nInstance 1\nnormal_seed"
+
+    # clicking the cell (through the transparent widget) still emits the open signal
+    opened = []
+    dock.sigOpenInstance.connect(lambda anno_id, iid: opened.append((anno_id, iid)))
+    dock.table.itemClicked.emit(dock.table.item(0, 1))
+    assert opened == [("d1", 1)]
+
+
+def test_timeline_caches_small_images(main_window):
+    """Rebuilding the timeline reuses cached downsampled images (no re-decode)."""
+    from PIL import Image as _Image
+
+    win = main_window
+    proj = win.proj
+    lbl_seed = _seed_label(proj)
+    tasks, annos = _group(proj)
+    a1, a2 = annos
+    a1.add_result(
+        PolygonResult.new(
+            id_="s1",
+            points=[(10, 10), (20, 10), (20, 20), (10, 20)],
+            closed=True,
+            labels=[lbl_seed],
+            instance_id=1,
+        )
+    )
+    calls = {"n": 0}
+
+    def counting_get(_name: str):
+        calls["n"] += 1
+        return _Image.new("RGB", (128, 96), "white")
+
+    dock = ZDockTimelineContent(win._load_anno_for_task, counting_get)
+    dock.set_group(proj, "g", tasks)
+    first = calls["n"]
+    assert first == len(tasks)  # one image load per frame on the first build
+    dock.set_group(proj, "g", tasks)
+    # second build hits the small-image cache: no further loads
+    assert calls["n"] == first
+    assert len(dock._small_images) == len(tasks)

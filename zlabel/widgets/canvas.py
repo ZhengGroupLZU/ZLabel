@@ -17,6 +17,12 @@ from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
 from zlabel.widgets.graphic_objects import Point, Polygon, Rectangle, ZHandle
 
+# Display-layer pyramid: images with a long edge above this are downsampled for
+# display only. Annotation coordinates, prompts and results all stay in full
+# image space (the ImageItem is scaled up to cover the full-res rect), so only
+# the texture/arrays held by the canvas shrink.
+DISPLAY_MAX_SIDE = 2560
+
 
 class Canvas(pg.PlotWidget):
     sigPointCreated = Signal(object)
@@ -73,6 +79,14 @@ class Canvas(pg.PlotWidget):
         self._image_backup: np.ndarray | None = None
         # cache flipped image for rgb channel rendering
         self._image_flipped: np.ndarray | None = None
+        # per-mode display arrays (R/G/B/GRAY/RGB) computed once, so switching
+        # channels never re-runs an elementwise multiply over the full image
+        self._rgb_cache: dict[RgbMode, np.ndarray] = {}
+        # explicit display levels (avoids pyqtgraph's full-image min/max scan)
+        self._image_levels: tuple[float, float] | None = None
+        # full-resolution image size (h, w) and display scale (full/display)
+        self._image_hw: tuple[int, int] = (0, 0)
+        self._img_scale: float = 1.0
         # view rotation: image + annotations are rotated inside this group; the
         # mouse mapping undoes it so saved coords stay in image space.
         self._rotation: int = 0
@@ -82,6 +96,9 @@ class Canvas(pg.PlotWidget):
         self.image_item = pg.ImageItem()
         self.image_item.setZValue(-10)
         self.image_item.setParentItem(self._content_group)
+        # render a downsampled texture when zoomed out so pan/zoom does not
+        # sample the full-resolution image (the main cost on large photos)
+        self.image_item.setAutoDownsample(True)
 
         self.current_item: Rectangle | Point | Polygon | None = None
         self.selecting_item: Rectangle | None = None
@@ -251,17 +268,78 @@ class Canvas(pg.PlotWidget):
                 self.logger.error(f"{img} not exists")
                 return
         assert isinstance(img, np.ndarray), f"img must be np.ndarray, got {type(img)}"
+        h, w = img.shape[:2]
+        self._image_hw = (h, w)
+        # Display-layer pyramid: downsample large photos for display only. The
+        # ImageItem is scaled up to cover the full-res rect, so annotation
+        # coordinates / prompts / results stay in full image space untouched.
+        if max(w, h) > DISPLAY_MAX_SIDE:
+            s = DISPLAY_MAX_SIDE / max(w, h)
+            new_w = max(1, round(w * s))
+            new_h = max(1, round(h * s))
+            img = np.asarray(Image.fromarray(img).resize((new_w, new_h), Image.Resampling.LANCZOS))
+            self._img_scale = max(w, h) / DISPLAY_MAX_SIDE
+        else:
+            self._img_scale = 1.0
         img = np.rot90(img, k=3, axes=(1, 0))
-        self._image_backup = img.copy()
+        # rot90 returns a view; keeping it (no .copy()) saves a full-res buffer.
+        # Nothing mutates _image_backup, so sharing the array with the ImageItem
+        # is safe.
+        self._image_backup = img
         # cache flipped version for later rgb rendering to avoid repeated flipud
         try:
             self._image_flipped = np.flipud(self._image_backup)
         except Exception:
             # fallback, keep behavior even if flip fails
             self._image_flipped = None
-
-        self.image_item.setImage(img)
+        self._rgb_cache = {}
+        self._image_levels = self._levels_for(img)
+        # autoLevels=False + explicit levels avoid a full-image min/max scan on
+        # every set/update; autoRange=False (fit_view handles the range later)
+        self.image_item.setImage(
+            img,
+            autoLevels=False,
+            autoRange=False,
+            levels=self._image_levels,
+        )
+        # scale the (downsampled) texture up to the full-res rect so the whole
+        # canvas coordinate space stays in full image pixels
+        self.image_item.setScale(self._img_scale)
         self._apply_rotation()
+
+    @staticmethod
+    def _levels_for(img: np.ndarray) -> tuple[float, float]:
+        """Display levels without scanning the full image (only uint8 camera
+        photos are handled specially; other dtypes are sampled down)."""
+        if img.dtype == np.uint8:
+            return (0, 255)
+        small = img[:: max(1, img.shape[0] // 256), :: max(1, img.shape[1] // 256)]
+        return float(small.min()), float(small.max())
+
+    def _rgb_image(self, mode: RgbMode) -> np.ndarray | None:
+        """Per-mode display array, computed lazily and cached (R/G/B are views;
+        only GRAY needs a real reduction, done once)."""
+        if self._image_flipped is None:
+            return None
+        cached = self._rgb_cache.get(mode)
+        if cached is not None:
+            return cached
+        flip = self._image_flipped
+        if mode == RgbMode.RGB:
+            arr = flip
+        elif mode == RgbMode.R:
+            arr = np.ascontiguousarray(flip[..., 0])
+        elif mode == RgbMode.G:
+            arr = np.ascontiguousarray(flip[..., 1])
+        elif mode == RgbMode.B:
+            arr = np.ascontiguousarray(flip[..., 2])
+        elif mode == RgbMode.GRAY:
+            gray = np.sum(flip * np.asarray([0.299, 0.587, 0.114]), 2)
+            arr = gray.astype(np.uint8)
+        else:
+            raise NotImplementedError
+        self._rgb_cache[mode] = arr
+        return arr
 
     def copy_item(self, item: Rectangle):
         state = item.getState()
@@ -286,28 +364,11 @@ class Canvas(pg.PlotWidget):
     def set_rgb(self, mode: RgbMode):
         if self._image_backup is None:
             return
-        # use cached flipped image to reduce per-call cost
-        flip = self._image_flipped if self._image_flipped is not None else np.flipud(self._image_backup)  # type: ignore
-        # persist cache if it was missing
-        if self._image_flipped is None:
-            self._image_flipped = flip
-        if mode == RgbMode.R:
-            # self.image_item.setColorMap(pg.colormap.get("CET-L13"))
-            im_filter = np.asarray([1, 0, 0])
-        elif mode == RgbMode.G:
-            im_filter = np.asarray([0, 1, 0])
-        elif mode == RgbMode.B:
-            im_filter = np.asarray([0, 0, 1])
-        elif mode == RgbMode.GRAY:
-            im_filter = np.asarray([0.299, 0.587, 0.114])
-        elif mode == RgbMode.RGB:
-            im_filter = np.asarray([1, 1, 1])
-        else:
-            raise NotImplementedError
-        im_new = flip * im_filter  # type: ignore
-        if mode == RgbMode.GRAY:
-            im_new = np.sum(im_new, 2)
-        self.image_item.updateImage(im_new)
+        arr = self._rgb_image(mode)
+        if arr is None:
+            return
+        # autoLevels=False keeps the fixed levels (no full-image scan per toggle)
+        self.image_item.updateImage(arr, autoLevels=False, levels=self._image_levels)
 
     def set_status_mode(self, mode: StatusMode):
         # guard to avoid redundant text updates
@@ -612,9 +673,10 @@ class Canvas(pg.PlotWidget):
             # keep the data coordinate system fixed so mouse mapping stays stable
             self.view_box.disableAutoRange()
         if self._rotation:
-            rect = self.image_item.boundingRect()
-            cx = rect.x() + rect.width() / 2
-            cy = rect.y() + rect.height() / 2
+            # rotate around the full-resolution image center (the downsampled
+            # ImageItem is scaled to cover the full-res rect)
+            h, w = self._image_hw
+            cx, cy = w / 2, h / 2
             self._rotation_tr = QTransform().translate(cx, cy).rotate(self._rotation).translate(-cx, -cy)
         else:
             self._rotation_tr = QTransform()

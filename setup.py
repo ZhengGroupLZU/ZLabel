@@ -82,6 +82,7 @@ build_exe_options = {
         "Qt6QmlMeta.dll",
         "Qt6Qml.dll",
         "Qt6Pdf.dll",
+        "opencv_videoio_ffmpeg500_64.dll",
     ],
     "include_msvcr": False,
     "optimize": 2,

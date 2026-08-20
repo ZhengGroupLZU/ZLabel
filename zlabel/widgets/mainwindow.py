@@ -40,6 +40,7 @@ from zlabel.utils import (
     KeypointVisible,
     Label,
     Language,
+    LRUCache,
     PointResult,
     PolygonResult,
     Project,
@@ -95,6 +96,10 @@ class CopyOptions:
     tgt_center: tuple[float, float] = (0.0, 0.0)  # target frame reference center
 
 
+# max decoded frames kept in memory (each full-res photo can be ~100 MB)
+_IMAGE_CACHE_SIZE = 5
+
+
 class MainWindow(QMainWindow, Ui_MainWindow):
     sigSettingsChecked = Signal(bool)
     sigLoginFinished = Signal(bool)
@@ -124,7 +129,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.anno_suffix = "zlabel"
         self.last_path = "."
-        self._image_cache: dict[str, Image.Image] = {}
+        # bounded LRU: keeps a few decoded frames, evicts the oldest (each
+        # full-res photo is large); cleared on project switch
+        self._image_cache: LRUCache[str, Image.Image] = LRUCache(_IMAGE_CACHE_SIZE)
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
         self.canvas_items_visible = True
@@ -170,6 +177,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def cache_image(self, img_name: str, img: Image.Image):
         self._image_cache[img_name] = img
+
+    def _timeline_image(self, name: str) -> Image.Image | None:
+        """Timeline thumbnail source: prefer the in-memory (already decoded)
+        image cache, falling back to the storage backend."""
+        cached = self._image_cache.get(name)
+        if cached is not None:
+            return cached
+        if self.backend is not None:
+            return self.backend.get_image(name)
+        return None
 
     @property
     def auto_mode(self):
@@ -249,10 +266,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             state_data: QByteArray = QByteArray.fromBase64(self.settings.window_state.encode("utf-8"))
             if not state_data.isEmpty():
                 self.restoreState(state_data)
-        # The Timeline always lives at the bottom; saved layouts from
-        # before the move (it used to be a right-side dock) would otherwise
-        # place it back on the right.
-        self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_timeline)
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
@@ -1421,6 +1434,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # then load the new project and rebuild the backend from it.
             self.settings.project_idx = project_idx
             self.settings.reload_project()
+            # images are cached by bare filename: drop them so a different
+            # project's same-named image is never served
+            self._image_cache.clear()
             self.rebuild_backend()
         self.settings.project_idx = project_idx
         self.settings.project.name = self.settings.project_name
@@ -1434,6 +1450,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.settings.project_idx != idx:
             self.settings.project_idx = idx
             self.settings.reload_project()
+            self._image_cache.clear()
             self.rebuild_backend()
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.settings.save_json(self.settings_path)
@@ -1632,6 +1649,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result_labels=[self.proj.crt_label],
             # anno_type=0 => RECT, 1 => POLYGON
             return_type=1 if self.settings.annotation_type == 0 else 2,
+            crop_box=self._dish_crop_box(),
         )
         self.run_sam_api_worker(worker)
 
@@ -1723,6 +1741,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             result_labels=[self.proj.crt_label],
             # anno_type=0 => RECT, 1 => POLYGON
             return_type=1 if self.settings.annotation_type == 0 else 2,
+            crop_box=self._dish_crop_box(),
         )
         self.run_sam_api_worker(worker)
 
@@ -2146,6 +2165,30 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_group_button_state()
 
     # endregion
+
+    def _dish_crop_box(self) -> tuple[int, int, int, int] | None:
+        """Axis-aligned bbox (l, t, r, b) of the current frame's Dish annotation
+        in image coordinates, or None when there is no dish. Used to crop the
+        image before SAM inference (prompts/results are mapped by the backend)."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return None
+        for r in anno.results.values():
+            if not r.labels or r.labels[0].name.lower() not in ("dish", "培养皿"):
+                continue
+            if isinstance(r, PolygonResult):
+                pts = r.points
+                if not pts:
+                    continue
+                xs = [p[0] for p in pts]
+                ys = [p[1] for p in pts]
+                return int(min(xs)), int(min(ys)), int(max(xs)), int(max(ys))
+            if isinstance(r, RectangleResult):
+                from zlabel.utils.geometry import rect_crop_box
+
+                left, top, right, bottom = rect_crop_box(r.x, r.y, r.w, r.h, r.rotation)
+                return left, top, right, bottom
+        return None
 
     def _maybe_auto_fit_dish(self):
         """Auto-segment + ellipse-fit the dish when auto_fit_dish is enabled and
@@ -2698,7 +2741,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # Timeline dock: cross-frame instance timeline (video-editor style) at the bottom
         self.dockcnt_timeline = ZDockTimelineContent(
             self._load_anno_for_task,
-            lambda name: self.backend.get_image(name) if self.backend is not None else None,
+            self._timeline_image,
             self,
         )
         self.dock_timeline = QDockWidget(self.tr("Timeline"), self)

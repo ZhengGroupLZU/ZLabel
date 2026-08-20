@@ -670,6 +670,38 @@ def test_polygon_vertex_handle_consumes_clicks(populated_project, canvas_view, q
     assert click.isAccepted(), "vertex handle must consume the click (not propagate to the polygon)"
 
 
+def test_large_image_downsampled_for_display(populated_project):
+    """Images with a long edge > DISPLAY_MAX_SIDE are downsampled for display
+    while the canvas coordinate space stays in full-resolution pixels."""
+    import numpy as np
+
+    win, proj, anno, rebuild = populated_project
+    h, w = 6000, 4000
+    big = np.random.default_rng(0).integers(0, 255, (h, w, 3), dtype=np.uint8)
+    canvas = win.canvas
+    canvas.update_image(big)
+
+    # the display data is downsampled to the 2560 long edge
+    dh, dw = canvas.image_item.image.shape[:2]
+    assert max(dh, dw) <= 2560
+    assert canvas._image_hw == (h, w)
+    assert canvas._img_scale > 1.0
+
+    # fit_view keeps the full-resolution data range (coordinate space unchanged)
+    canvas.fit_view()
+    rng = canvas.view_box.viewRange()
+    assert rng[0][0] <= 0 and rng[0][1] >= 4000
+    assert rng[1][0] <= 0 and rng[1][1] >= 6000
+
+    # a full-res coordinate round-trips through the mouse mapping unchanged
+    from pyqtgraph.Qt.QtCore import QPointF
+
+    scene_pt = canvas.view_box.mapViewToScene(QPointF(2000, 3000))
+    p = canvas.map_scene_to_view(scene_pt)
+    assert p.x() == pytest.approx(2000, abs=1.0)
+    assert p.y() == pytest.approx(3000, abs=1.0)
+
+
 def test_polygon_vertex_handles_are_circles_and_edit_uses_arrow_cursor(populated_project, canvas_view, qtbot):
     """Vertex handles render as circles; edit mode uses the normal arrow cursor."""
     win, proj, anno, rebuild = populated_project

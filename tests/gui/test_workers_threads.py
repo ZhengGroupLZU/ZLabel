@@ -106,6 +106,28 @@ def test_sam_predict_worker_rect(qtbot):
     assert (r.x, r.y, r.w, r.h) == (1, 2, 3, 4)
 
 
+def test_sam_predict_worker_forwards_crop_box(qtbot):
+    """The worker forwards crop_box to the backend predict."""
+    captured = {}
+
+    api = FakeApi(_predict=lambda kw: captured.update(kw) or {"status": True, "data": []})
+
+    lbl = Label.new("A", "#ff0000")
+    worker = ZSamPredictWorker(
+        api,
+        "a",
+        "a.png",
+        [lbl],
+        rects=[(0, 0, 10, 10)],
+        mode=AutoMode.SAM,
+        return_type=1,
+        crop_box=(8, 8, 40, 40),
+    )
+    with qtbot.waitSignal(worker.emitter.sigFinished, timeout=2000):
+        worker.run()
+    assert captured["crop_box"] == (8, 8, 40, 40)
+
+
 def test_sam_predict_worker_polygon(qtbot):
     api = FakeApi(
         _predict=lambda kw: {

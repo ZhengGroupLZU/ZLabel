@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 
 pytest.importorskip(
@@ -69,6 +70,87 @@ def test_fake_model_sam(tmp_path, make_image, fake_model):
         "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
     )
     assert resp["status"] is True
+
+
+class _CaptureModel:
+    """Duck-typed predictor that records the image size and prompts it receives."""
+
+    def __init__(self):
+        self.image_shape = None
+        self.last_points = None
+        self.last_bboxes = None
+
+    def set_image(self, img):
+        self.image_shape = img.shape[:2]
+
+    def predict(self, points=None, labels=None, bboxes=None):
+        from zlabel.models.ztypes import SamOnnxResult
+
+        self.last_points = points
+        self.last_bboxes = bboxes
+        mask = np.zeros((64, 64), dtype=np.float32)
+        mask[16:48, 16:48] = 255
+        return [SamOnnxResult(mask=mask, score=1.0)]
+
+
+def test_local_inference_no_crop_keeps_coords(tmp_path, make_image):
+    """Without crop_box the image and prompts are passed through unchanged."""
+    inf = _inference(tmp_path, make_image)
+    model = _CaptureModel()
+    inf._model = model
+    resp = inf.predict(
+        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
+    )
+    assert resp["status"] is True
+    assert model.image_shape == (64, 64)
+    assert model.last_points[0] == (32.0, 32.0)
+
+
+def test_local_inference_crops_to_dish(tmp_path, make_image):
+    """crop_box crops the image to the box, shifts prompts into crop space and
+    maps the results back to full-image coordinates."""
+    inf = _inference(tmp_path, make_image)
+    model = _CaptureModel()
+    inf._model = model
+    resp = inf.predict(
+        "x",
+        "a.png",
+        points=[{"x": 32, "y": 32}],
+        labels=[1.0],
+        threshold=100,
+        mode=1,
+        return_type=1,
+        crop_box=(8, 8, 40, 40),
+    )
+    assert resp["status"] is True
+    # the model sees the cropped 32x32 image
+    assert model.image_shape == (32, 32)
+    # the prompt was shifted into crop space: (32-8, 32-8)
+    assert model.last_points[0] == (24.0, 24.0)
+    # the result is mapped back to full-image coords (offset +8, +8)
+    r = resp["data"][0]
+    assert r["x"] >= 8 and r["y"] >= 8
+
+
+def test_local_inference_crop_out_of_bounds_clipped(tmp_path, make_image):
+    """A crop box extending past the image edge is clipped to the bounds."""
+    inf = _inference(tmp_path, make_image)
+    model = _CaptureModel()
+    inf._model = model
+    resp = inf.predict(
+        "x",
+        "a.png",
+        points=[{"x": 32, "y": 32}],
+        labels=[1.0],
+        threshold=100,
+        mode=1,
+        return_type=1,
+        crop_box=(30, 30, 100, 100),  # r/b exceed the 64x64 image
+    )
+    assert resp["status"] is True
+    # clipped to (30,30,64,64) -> 34x34 crop
+    assert model.image_shape == (34, 34)
+    assert model.last_points[0] == (2.0, 2.0)
 
 
 @pytest.mark.models

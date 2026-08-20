@@ -27,6 +27,7 @@ class Inference(Protocol):
         threshold: int = 100,
         mode: int = 1,
         return_type: int = 1,  # RECT = 1 POLYGON = 2 RLE = 3
+        crop_box: tuple[int, int, int, int] | None = None,  # (l, t, r, b) in image coords
     ) -> dict[str, Any]: ...
 
 
@@ -76,6 +77,7 @@ class RemoteInference:
         threshold: int = 100,
         mode: int = 1,
         return_type: int = 1,
+        crop_box: tuple[int, int, int, int] | None = None,
     ) -> dict[str, Any]:
         # With local storage the image only exists on this machine, so upload it
         # along with every predict (the server uses the uploaded file directly).
@@ -84,6 +86,7 @@ class RemoteInference:
         # at upload_image_size) before upload to bound bandwidth.
         image = None
         scale = None
+        crop_off = (0, 0)
         is_local = self.storage is not None and not getattr(self.storage, "requires_server", True)
         if is_local:
             from zlabel.models.ztypes import SamReturn
@@ -96,6 +99,11 @@ class RemoteInference:
                     mode="",
                     msg=f"image not found: {image_name}",
                 ).model_dump()
+            box = _clip_crop_box(crop_box, orig.width, orig.height)
+            if box is not None:
+                left, top, right, bottom = box
+                crop_off = (left, top)
+                orig = orig.crop((left, top, right, bottom))
             image = _resize_long_edge(orig, self.upload_image_size)
             if image.size != orig.size:
                 scale = (orig.size[0] / image.size[0], orig.size[1] / image.size[1])
@@ -108,8 +116,14 @@ class RemoteInference:
                         msg=f"failed to upload image: {image_name}",
                     ).model_dump()
                 self._last_image = image_name
-        # When the uploaded image was resized, the prompt coordinates (given in
-        # the original image space) must be scaled down to match the upload size.
+        # Prompt coordinates are given in the full original image space: first
+        # shift to the crop space, then (when the upload was resized) scale them
+        # down to match the uploaded size.
+        if crop_off != (0, 0) and (points or rects):
+            if points:
+                points = _translate_points(points, *crop_off)
+            if rects:
+                rects = _translate_rects(rects, *crop_off)
         if scale is not None and (points or rects):
             inv = (1.0 / scale[0], 1.0 / scale[1])
             if points:
@@ -146,6 +160,8 @@ class RemoteInference:
         )
         if scale is not None and resp.get("data"):
             resp = {**resp, "data": _scale_results(resp["data"], scale, image.size, orig.size)}
+        if crop_off != (0, 0) and resp.get("data"):
+            resp = {**resp, "data": _translate_results(resp["data"], *crop_off)}
         return resp
 
 
@@ -377,6 +393,7 @@ class LocalInference:
         threshold: int = 100,
         mode: int = 1,
         return_type: int = 1,
+        crop_box: tuple[int, int, int, int] | None = None,
     ) -> dict[str, Any]:
         from zlabel.models.ztypes import Point, Rect, SamReturn
         from zlabel.utils.enums import AutoMode, ReturnType
@@ -390,6 +407,20 @@ class LocalInference:
                 mode=auto_mode.name,
                 msg=f"image not found: {image_name}",
             ).model_dump()
+
+        # Optionally focus inference on the dish region: crop the image to the
+        # dish bbox and shift the prompt coordinates by the same offset.
+        crop_off = (0, 0)
+        box = _clip_crop_box(crop_box, img.width, img.height)
+        if box is not None:
+            left, top, right, bottom = box
+            crop_off = (left, top)
+            img = img.crop((left, top, right, bottom))
+        if crop_off != (0, 0):
+            if points:
+                points = _translate_points(points, *crop_off)
+            if rects:
+                rects = _translate_rects(rects, *crop_off)
 
         try:
             # zlabel.models.worker imports cv2 + MNN lazily at module level,
@@ -446,6 +477,8 @@ class LocalInference:
                     False,
                     f"Either points/label/rects is None, {anno_id=}",
                 )
+            if crop_off != (0, 0) and data:
+                data = _translate_local_results(data, *crop_off)
         except Exception as e:
             self.logger.error(f"Predict failed, {e=}")
             data, status, msg = None, False, str(e)
@@ -521,6 +554,7 @@ class ZLabelBackend:
         threshold: int = 100,
         mode: int = 1,
         return_type: int = 1,
+        crop_box: tuple[int, int, int, int] | None = None,
     ) -> dict[str, Any]:
         return self.inference.predict(
             anno_id=anno_id,
@@ -531,6 +565,7 @@ class ZLabelBackend:
             threshold=threshold,
             mode=mode,
             return_type=return_type,
+            crop_box=crop_box,
         )
 
 
@@ -589,6 +624,68 @@ def _scale_rle(
     img = Image.fromarray((mask * 255).astype(np.uint8))
     img = img.resize((ow, oh), Image.Resampling.NEAREST)
     return Polygon.rle_encode((np.asarray(img) > 127).astype(np.uint8))
+
+
+def _clip_crop_box(box: tuple[int, int, int, int] | None, w: int, h: int) -> tuple[int, int, int, int] | None:
+    """Clip a (l, t, r, b) crop box to the image bounds; None when empty."""
+    if box is None:
+        return None
+    left, top, right, bottom = (int(v) for v in box)
+    left, top = max(0, left), max(0, top)
+    right, bottom = min(w, right), min(h, bottom)
+    if right <= left or bottom <= top:
+        return None
+    return left, top, right, bottom
+
+
+def _translate_points(points, dx: float, dy: float):
+    """Shift prompt points by (-dx, -dy) (full-image -> crop coordinates)."""
+    out = []
+    for p in points:
+        if isinstance(p, dict):
+            out.append({"x": p["x"] - dx, "y": p["y"] - dy})
+        else:
+            out.append((p[0] - dx, p[1] - dy))
+    return out
+
+
+def _translate_rects(rects, dx: float, dy: float):
+    """Shift prompt rects by (-dx, -dy); size unchanged."""
+    out = []
+    for r in rects:
+        if isinstance(r, dict):
+            out.append({"x": r["x"] - dx, "y": r["y"] - dy, "w": r["w"], "h": r["h"]})
+        else:
+            out.append((r[0] - dx, r[1] - dy, r[2], r[3]))
+    return out
+
+
+def _translate_local_results(data, dx: float, dy: float):
+    """Translate local Rect/Polygon results by (+dx, +dy) (crop -> full image)."""
+    from zlabel.models.ztypes import Point, Polygon, Rect
+
+    out = []
+    for item in data:
+        if isinstance(item, Rect):
+            out.append(Rect(x=item.x + dx, y=item.y + dy, w=item.w, h=item.h))
+        elif isinstance(item, Polygon):
+            out.append(Polygon(points=[Point(x=p.x + dx, y=p.y + dy) for p in item.points]))
+        else:
+            out.append(item)  # RLE (str) left as-is
+    return out
+
+
+def _translate_results(data, dx: float, dy: float):
+    """Translate wire-format Rect/Polygon result dicts by (+dx, +dy)."""
+    out = []
+    for item in data:
+        if isinstance(item, dict) and "points" in item:
+            out.append({"points": [{"x": p["x"] + dx, "y": p["y"] + dy} for p in item["points"]]})
+        elif isinstance(item, dict) and {"x", "y", "w", "h"} <= set(item):
+            out.append({"x": item["x"] + dx, "y": item["y"] + dy, "w": item["w"], "h": item["h"]})
+        else:
+            out.append(item)
+    return out
 
 
 def build_backend(settings: Any) -> ZLabelBackend:
