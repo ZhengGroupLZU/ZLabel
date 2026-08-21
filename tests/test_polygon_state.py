@@ -52,6 +52,20 @@ def _apply_state(result: PolygonResult, state: dict) -> PolygonResult:
     return updated
 
 
+def test_polygon_edge_color_uses_label_color_or_white():
+    """Polygon outlines follow the label color; None falls back to white."""
+    pts = [(10, 10), (40, 10), (40, 30), (10, 30)]
+    labeled = Polygon(positions=pts, closed=True, color="#00ff00")
+    assert labeled.edge_color == "#00ff00"
+
+    unlabeled = Polygon(positions=pts, closed=True, color="#000000", edge_color=None)
+    assert unlabeled.edge_color == "#ffffff"
+
+    # changing the label color also updates the edge color
+    labeled.setFillColor("#0000ff")
+    assert labeled.edge_color == "#0000ff"
+
+
 def test_polygon_save_state_keeps_origin_for_drag_math():
     """saveState/getState must report the real ROI origin so pyqtgraph's drag
     handler (ROI.pos()) moves the polygon 1:1 with the mouse."""

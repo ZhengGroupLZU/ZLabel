@@ -79,9 +79,20 @@ def test_get_image_worker(qtbot):
     worker = ZGetImageWorker(api, "a.png", "u", "p")
     with qtbot.waitSignal(worker.emitter.success, timeout=3000) as blocker:
         worker.run()
-    name, image = blocker.args
+    name, result = blocker.args
     assert name == "a.png"
-    assert image is img
+    assert result.image is img
+    assert result.prepared is not None
+
+
+def test_prepare_image_downsampling_keeps_full_res_info():
+    from zlabel.widgets.zworker import prepare_image
+
+    img = Image.new("RGB", (4000, 3000))
+    prepared = prepare_image(img)
+    assert prepared.full_hw == (3000, 4000)
+    assert max(prepared.display.shape) <= 2560
+    assert prepared.img_scale == pytest.approx(4000 / 2560)
 
 
 def test_sam_predict_worker_rect(qtbot):

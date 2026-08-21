@@ -75,7 +75,7 @@ from zlabel.widgets import (
 )
 from zlabel.widgets.dock_anno import ID_ROLE
 from zlabel.widgets.dock_timeline import ZDockTimelineContent
-from zlabel.widgets.zworker import GetProjectsWorker
+from zlabel.widgets.zworker import GetImageResult, GetProjectsWorker, PreparedImage
 
 from .ui import Ui_MainWindow
 
@@ -132,6 +132,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # bounded LRU: keeps a few decoded frames, evicts the oldest (each
         # full-res photo is large); cleared on project switch
         self._image_cache: LRUCache[str, Image.Image] = LRUCache(_IMAGE_CACHE_SIZE)
+        # display-ready numpy arrays produced by ZGetImageWorker (kept in lockstep
+        # with _image_cache so cached frames don't need to be re-decoded on the UI thread)
+        self._prepared_cache: LRUCache[str, PreparedImage] = LRUCache(_IMAGE_CACHE_SIZE)
         self.threshold = 100
         self.rgb_mode = RgbMode.RGB
         self.canvas_items_visible = True
@@ -175,18 +178,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 return self._image_cache[img_name]
         return None
 
-    def cache_image(self, img_name: str, img: Image.Image):
-        self._image_cache[img_name] = img
+    def cache_image(self, img_name: str, result: GetImageResult):
+        self._image_cache[img_name] = result.image
+        if result.prepared is not None:
+            self._prepared_cache[img_name] = result.prepared
 
     def _timeline_image(self, name: str) -> Image.Image | None:
-        """Timeline thumbnail source: prefer the in-memory (already decoded)
-        image cache, falling back to the storage backend."""
-        cached = self._image_cache.get(name)
-        if cached is not None:
-            return cached
-        if self.backend is not None:
-            return self.backend.get_image(name)
-        return None
+        """Timeline thumbnail source: only use already-decoded in-memory images.
+
+        Deliberately does NOT call the storage backend here: rebuilding the
+        timeline for a group of uncached frames would otherwise decode every
+        image synchronously on the UI thread and freeze the interface."""
+        return self._image_cache.get(name)
 
     @property
     def auto_mode(self):
@@ -511,25 +514,37 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.threadpool.start(worker)
                 self.logger.info(f"getting {img_name}")
             else:
-                self.on_try_set_image_get_success(img_name, self._image_cache[img_name])
+                img = self._image_cache[img_name]
+                prepared = self._prepared_cache.get(img_name)
+                self.on_try_set_image_get_success(img_name, GetImageResult(image=img, prepared=prepared))
         else:
-            self.on_try_set_image_get_success("", image)
+            self.on_try_set_image_get_success("", GetImageResult(image=image, prepared=None))
 
-    def on_try_set_image_get_success(self, name: str, image: Image.Image):
+    def on_try_set_image_get_success(self, name: str, result: GetImageResult):
         if self.proj.crt_anno is None:
             return
         # upload and set image to speed up prediction
         # TODO: add uploaded cache and ignore if an image is already uploaded
         # self.run_preupload_img_worker(image)
 
-        self.proj.crt_anno.original_height = image.height
-        self.proj.crt_anno.original_width = image.width
+        image = result.image
+        prepared = result.prepared
+        if prepared is not None:
+            self.proj.crt_anno.original_height = prepared.full_hw[0]
+            self.proj.crt_anno.original_width = prepared.full_hw[1]
+        else:
+            self.proj.crt_anno.original_height = image.height
+            self.proj.crt_anno.original_width = image.width
         self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
-        self.canvas.update_image(np.asarray(image, dtype=np.uint8))
+        if prepared is not None:
+            self.canvas.set_prepared_image(prepared)
+        else:
+            self.canvas.update_image(np.asarray(image, dtype=np.uint8))
         self.canvas.set_rgb(self.rgb_mode)
         self.dialog_processing.close()
         self.canvas.fit_view()
         self._maybe_auto_fit_dish()
+        self._refresh_timeline()
 
     def on_get_image_fail(self, msg: str):
         self.dialog_processing.close()
@@ -585,6 +600,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for id_ in ids:
             self.remove_result(id_, update)
 
+    def _sync_canvas_instance_labels(self, anno: Annotation | None = None):
+        """Refresh instance labels / instance-level bboxes on the canvas."""
+        anno = anno or self.proj.crt_anno
+        if anno is None:
+            return
+        for rid, result in anno.results.items():
+            item = self.canvas.showing_items.get(rid)
+            if item is None:
+                continue
+            color = result.labels[0].color if result.labels else None
+            item.set_instance_label(result.instance_id, color)
+        self.canvas.refresh_instance_bboxes()
+
     def modify_result(self, result: PointResult | RectangleResult | PolygonResult, update: bool = False):
         if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
             return
@@ -594,7 +622,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.set_item_state_by_result(result, update=update)
         item = self.canvas.showing_items.get(result.id, None)
         if item is not None:
-            item.setFillColor(result.labels[0].color, self.settings.alpha)
+            item.setFillColor(result.labels[0].color, self.canvas.effective_alpha)
         # instance regrouping (merge/split/undo) changes the annos tree
         # structure; rebuild instead of scrolling to the row (which would
         # collapse the multi-selection via the selection sync)
@@ -605,6 +633,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self._prune_orphan_instances()
             self._refresh_anno_tree()
             self.update_group_button_state()
+            self._sync_canvas_instance_labels()
         else:
             self.dockcnt_anno.set_row_by_text(result.id)
 
@@ -1241,6 +1270,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._label_visibility[id_] = new_visible
         for item in items:
             item.setVisible(new_visible)
+        self.canvas.refresh_instance_bboxes()
         self.update_label_visibility_buttons()
 
     def update_label_visibility_buttons(self):
@@ -1265,6 +1295,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 item.setVisible(visible)
                 if not visible:
                     item.setSelected(False)
+        self.canvas.refresh_instance_bboxes()
 
     def on_dock_label_item_double_clicked(self, id_: str):
         if not self.proj.crt_anno:
@@ -1364,6 +1395,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.logger.warning(f"ApiPredict is None, {self.backend=}")
             return
 
+        # keep the file list highlight in sync (programmatic switches, e.g.
+        # jumping from the timeline, don't go through a real list click)
+        self.dockcnt_files.set_row_by_txt(task_id)
+
         # if the current anno is None:
         # 1. try to fetch from remote
         # 2. if not existed in remote, create
@@ -1437,6 +1472,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             # images are cached by bare filename: drop them so a different
             # project's same-named image is never served
             self._image_cache.clear()
+            self._prepared_cache.clear()
             self.rebuild_backend()
         self.settings.project_idx = project_idx
         self.settings.project.name = self.settings.project_name
@@ -1451,6 +1487,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.project_idx = idx
             self.settings.reload_project()
             self._image_cache.clear()
+            self._prepared_cache.clear()
             self.rebuild_backend()
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
         self.settings.save_json(self.settings_path)

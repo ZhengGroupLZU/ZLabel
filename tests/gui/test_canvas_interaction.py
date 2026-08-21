@@ -144,6 +144,25 @@ def test_edit_move_rectangle_creates_modify_undo(populated_project, canvas_view,
     assert anno.results["r1"].y == pytest.approx(10, abs=1.0)
 
 
+def test_edit_mode_fill_alpha(populated_project):
+    """Entering EDIT mode uses 0.05 fill alpha; leaving restores the setting."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import RectangleResult as RR
+
+    anno.add_result(RR.new(id_="r1", x=10, y=10, w=20, h=20, labels=[proj.crt_label]))
+    rebuild()
+
+    item = win.canvas.showing_items["r1"]
+    normal_alpha = win.canvas.alpha
+    assert item.fill_color.alphaF() == pytest.approx(normal_alpha, abs=1e-3)
+
+    win.canvas.set_status_mode(StatusMode.EDIT)
+    assert item.fill_color.alphaF() == pytest.approx(0.05, abs=1e-3)
+
+    win.canvas.set_status_mode(StatusMode.VIEW)
+    assert item.fill_color.alphaF() == pytest.approx(normal_alpha, abs=1e-3)
+
+
 def test_box_select_selects_visible_items(populated_project, canvas_view, qtbot):
     win, proj, anno, rebuild = populated_project
     from zlabel.utils import RectangleResult as RR
@@ -320,6 +339,88 @@ def test_polygon_instance_group_ctrl_g(populated_project):
     win.on_action_undo_triggered()
     assert anno.results["g0"].instance_id == anno.results["g1"].instance_id == grouped_id
     assert grouped_id in anno.instances
+
+
+def test_polygon_instance_bbox_union_and_label_updates(populated_project):
+    """Instance-level polygon bbox: after grouping, one dashed bbox spans the
+    union of all member polygons and its label shows the new instance id."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="p1",
+            points=[(5, 5), (25, 5), (25, 20), (5, 20)],
+            closed=True,
+            labels=[proj.crt_label],
+            instance_id=1,
+        )
+    )
+    anno.add_result(
+        PR.new(
+            id_="p2",
+            points=[(30, 30), (45, 30), (45, 40), (30, 40)],
+            closed=True,
+            labels=[proj.crt_label],
+            instance_id=2,
+        )
+    )
+    rebuild()
+
+    assert set(win.canvas._instance_bbox_items) == {1, 2}
+    # individual polygon items do not render their own instance label anymore
+    assert win.canvas.showing_items["p1"].label_text is None
+    assert win.canvas.showing_items["p2"].label_text is None
+
+    # hiding/showing the label removes/restores the instance bboxes
+    win.on_label_visibility_toggled(proj.crt_label.id)
+    assert win.canvas._instance_bbox_items == {}
+    win.on_label_visibility_toggled(proj.crt_label.id)
+    assert set(win.canvas._instance_bbox_items) == {1, 2}
+
+    win.canvas.select_items(["p1", "p2"])
+    win.on_group_instances()
+    grouped_id = anno.results["p1"].instance_id
+    assert grouped_id == anno.results["p2"].instance_id
+    assert set(win.canvas._instance_bbox_items) == {grouped_id}
+    bbox = win.canvas._instance_bbox_items[grouped_id]
+    r = bbox.rect()
+    assert (r.x(), r.y(), r.width(), r.height()) == (5.0, 5.0, 40.0, 35.0)
+    assert bbox.label_text.text() == str(grouped_id)
+
+    # splitting restores one bbox per polygon instance and updates their labels
+    win.on_split_instances()
+    ids = {anno.results["p1"].instance_id, anno.results["p2"].instance_id}
+    assert len(ids) == 2
+    assert set(win.canvas._instance_bbox_items) == ids
+    for iid, item in win.canvas._instance_bbox_items.items():
+        assert item.label_text.text() == str(iid)
+
+    # undo restores the grouped instance and its single union bbox
+    win.on_action_undo_triggered()
+    assert set(win.canvas._instance_bbox_items) == {grouped_id}
+    assert win.canvas._instance_bbox_items[grouped_id].label_text.text() == str(grouped_id)
+
+
+def test_rectangle_instance_label_updates_after_group(populated_project):
+    """Rectangle instance numbers at the top-left update after group/split."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import RectangleResult as RR
+
+    anno.add_result(RR.new(id_="r0", x=5, y=5, w=10, h=10, labels=[proj.crt_label], instance_id=1))
+    anno.add_result(RR.new(id_="r1", x=30, y=30, w=10, h=10, labels=[proj.crt_label], instance_id=2))
+    rebuild()
+
+    win.canvas.select_items(["r0", "r1"])
+    win.on_group_instances()
+    grouped_id = anno.results["r0"].instance_id
+    assert grouped_id == anno.results["r1"].instance_id
+    assert win.canvas.showing_items["r0"].label_text.text() == str(grouped_id)
+    assert win.canvas.showing_items["r1"].label_text.text() == str(grouped_id)
+
+    win.on_split_instances()
+    assert win.canvas.showing_items["r0"].label_text.text() == str(anno.results["r0"].instance_id)
+    assert win.canvas.showing_items["r1"].label_text.text() == str(anno.results["r1"].instance_id)
 
 
 def test_ctrl_g_toggles_group_and_split(populated_project, qtbot):

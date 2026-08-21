@@ -15,7 +15,8 @@ from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
-from zlabel.widgets.graphic_objects import Point, Polygon, Rectangle, ZHandle
+from zlabel.widgets.graphic_objects import InstanceBBox, Point, Polygon, Rectangle, ZHandle
+from zlabel.widgets.zworker import PreparedImage
 
 # Display-layer pyramid: images with a long edge above this are downsampled for
 # display only. Annotation coordinates, prompts and results all stay in full
@@ -63,6 +64,7 @@ class Canvas(pg.PlotWidget):
         self._point_radius: float = 5.4  # visual radius in view pixels
         self._default_color = "#000000"
         self._alpha: float = 0.3
+        self._edit_fill_alpha: float = 0.05
         self._drawing = False
         self._z_value = 1
         self._is_editing_handle = False
@@ -103,6 +105,7 @@ class Canvas(pg.PlotWidget):
         self.current_item: Rectangle | Point | Polygon | None = None
         self.selecting_item: Rectangle | None = None
         self.showing_items: OrderedDict[str, Rectangle | Point | Polygon] = OrderedDict()
+        self._instance_bbox_items: dict[int, InstanceBBox] = {}
         # Committed polygon points added by user clicks during CREATE mode
         self.polygon_points_committed: list[pg.Point] = []
         # Current preview point following mouse while drawing polygon
@@ -257,6 +260,11 @@ class Canvas(pg.PlotWidget):
         else:
             raise ValueError(f"alpha must be between 0 and 1, got {v}")
 
+    @property
+    def effective_alpha(self) -> float:
+        """Fill alpha used for current mode (0.05 while editing)."""
+        return self._edit_fill_alpha if self._status_mode in (StatusMode.EDIT, StatusMode.CREATE) else self._alpha
+
     # endregion
 
     # region functions
@@ -316,6 +324,23 @@ class Canvas(pg.PlotWidget):
         small = img[:: max(1, img.shape[0] // 256), :: max(1, img.shape[1] // 256)]
         return float(small.min()), float(small.max())
 
+    def set_prepared_image(self, prepared: PreparedImage):
+        """Apply a display-ready image computed off the UI thread."""
+        self._image_hw = prepared.full_hw
+        self._img_scale = prepared.img_scale
+        self._image_backup = prepared.display
+        self._image_flipped = prepared.flipped
+        self._rgb_cache = {}
+        self._image_levels = prepared.levels
+        self.image_item.setImage(
+            prepared.display,
+            autoLevels=False,
+            autoRange=False,
+            levels=prepared.levels,
+        )
+        self.image_item.setScale(self._img_scale)
+        self._apply_rotation()
+
     def _rgb_image(self, mode: RgbMode) -> np.ndarray | None:
         """Per-mode display array, computed lazily and cached (R/G/B are views;
         only GRAY needs a real reduction, done once)."""
@@ -359,7 +384,7 @@ class Canvas(pg.PlotWidget):
         self.default_color = color
         self.alpha = alpha
         for item in self.showing_items.values():
-            item.setFillColor(color, alpha)
+            item.setFillColor(color, self.effective_alpha)
 
     def set_rgb(self, mode: RgbMode):
         if self._image_backup is None:
@@ -374,13 +399,23 @@ class Canvas(pg.PlotWidget):
         # guard to avoid redundant text updates
         if self._status_mode == mode:
             return
+        was_edit = self._status_mode == StatusMode.EDIT
         # editing keeps the normal arrow cursor; only CREATE uses a crosshair
         if mode in (StatusMode.VIEW, StatusMode.EDIT):
             self.setCursor(Qt.CursorShape.ArrowCursor)
         else:
             self.setCursor(Qt.CursorShape.CrossCursor)
         self._status_mode = mode
+        if was_edit and mode != StatusMode.EDIT:
+            self._apply_fill_alpha(self._alpha)
+        elif mode == StatusMode.EDIT and not was_edit:
+            self._apply_fill_alpha(self._edit_fill_alpha)
         self.set_mode_text()
+
+    def _apply_fill_alpha(self, alpha: float):
+        """Update the fill alpha of every annotation item."""
+        for item in self.showing_items.values():
+            item.setFillColor(item.fill_color.name(), alpha)
 
     def set_enable_catmull_rom(self, enable: bool):
         if self._polygon_enable_catmull_rom == enable:
@@ -525,7 +560,7 @@ class Canvas(pg.PlotWidget):
             color=color,
             movable=movable,
             id_=id_,
-            alpha=self.alpha,
+            alpha=self.effective_alpha,
         )  # type: ignore
         # self.logger.debug(f"Created rect {id_=}")
         return rectangle
@@ -543,7 +578,8 @@ class Canvas(pg.PlotWidget):
             positions=positions,
             closed=closed,
             color=color or self.default_color,
-            alpha=self.alpha,
+            edge_color=color,
+            alpha=self.effective_alpha,
             movable=movable,
             id_=id_,
             antialias=False,
@@ -579,6 +615,7 @@ class Canvas(pg.PlotWidget):
                     positions=[p.toTuple() for p in self.polygon_points_committed],
                     closed=False,
                     color=self.default_color,
+                    edge_color=None,
                     movable=False,
                     use_catmull_rom_path=self._polygon_enable_catmull_rom,
                 )
@@ -783,8 +820,67 @@ class Canvas(pg.PlotWidget):
         #     f"existed: {len(self.showing_items)}"
         # )
 
+        self.refresh_instance_bboxes()
         self.block_item_state_changed(False)
         self.view_box.enableAutoRange()
+
+    def refresh_instance_bboxes(self):
+        """Rebuild the per-instance dashed bboxes shown for polygon instances.
+
+        Only instances containing at least one polygon get an overlay; the box
+        is the union (maximum) axis-aligned bbox of all member annotations.
+        """
+        for item in self._instance_bbox_items.values():
+            self.removeItem(item)
+        self._instance_bbox_items.clear()
+
+        groups: dict[int, list[Rectangle | Point | Polygon]] = {}
+        for item in self.showing_items.values():
+            if not item.isVisible():
+                continue
+            iid = getattr(item, "instance_id", 0)
+            if iid and isinstance(item, Polygon):
+                groups.setdefault(iid, []).append(item)
+        if not groups:
+            return
+
+        for iid in groups:
+            xs: list[float] = []
+            ys: list[float] = []
+            color: str | None = None
+            for item in self.showing_items.values():
+                if not item.isVisible() or getattr(item, "instance_id", 0) != iid:
+                    continue
+                if color is None:
+                    color = getattr(item, "label_color", None) or item.fill_color.name()
+                if isinstance(item, Polygon):
+                    pts = item.getState().get("points") or []
+                    xs.extend(float(p[0]) for p in pts)
+                    ys.extend(float(p[1]) for p in pts)
+                elif isinstance(item, Rectangle):
+                    st = item.getState()
+                    x = float(st["pos"].x())
+                    y = float(st["pos"].y())
+                    w = float(st["size"].x())
+                    h = float(st["size"].y())
+                    ang = math.radians(float(st.get("angle", 0.0)))
+                    cos_a, sin_a = math.cos(ang), math.sin(ang)
+                    for lx, ly in ((0.0, 0.0), (w, 0.0), (0.0, h), (w, h)):
+                        xs.append(x + lx * cos_a - ly * sin_a)
+                        ys.append(y + lx * sin_a + ly * cos_a)
+                elif isinstance(item, Point):
+                    st = item.getState()
+                    xs.append(float(st["pos"].x()))
+                    ys.append(float(st["pos"].y()))
+            if not xs or not ys:
+                continue
+            rect = QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+            bbox = InstanceBBox()
+            bbox.set_instance(iid, rect, color)
+            bbox.setZValue(self._z_value + 0.5)
+            self.addItem(bbox)
+            bbox.setParentItem(self._content_group)
+            self._instance_bbox_items[iid] = bbox
 
     def merge_items_by_id(self, ids: list[str]):
         items = [self.showing_items[id_] for id_ in ids]
@@ -810,6 +906,7 @@ class Canvas(pg.PlotWidget):
         state["pos"] = QPointF(x0, y0)
         state["size"] = QPointF(x1 - x0, y1 - y0)
         rectangles[0].setState(state)
+        self.refresh_instance_bboxes()
         self.sigItemStateChangeFinished.emit(rectangles[0].saveState())
 
     def merge_polygons(self, polygons: list[Polygon]):
@@ -832,6 +929,7 @@ class Canvas(pg.PlotWidget):
         state["points"] = merged_polygon
         state["closed"] = True
         polygons[0].setState(state, update=True)
+        self.refresh_instance_bboxes()
 
         self.sigItemStateChangeFinished.emit(polygons[0].saveState())
 
@@ -884,6 +982,7 @@ class Canvas(pg.PlotWidget):
             point.set_visible(result.visible)
             self.create_item(point)
             point.set_instance_label(result.instance_id, color)
+            self.refresh_instance_bboxes()
         elif isinstance(result, PolygonResult):
             polygon = self.new_polygon(
                 positions=result.points,
@@ -894,6 +993,7 @@ class Canvas(pg.PlotWidget):
             )
             self.create_item(polygon)
             polygon.set_instance_label(result.instance_id, color)
+            self.refresh_instance_bboxes()
         elif isinstance(result, RectangleResult):
             # if result.id existed in self.rects, get the item and set state
             # else if invisible item existed,
@@ -921,6 +1021,7 @@ class Canvas(pg.PlotWidget):
                 self.showing_items[state["id"]] = item
                 self.logger.debug(f"Find existed rect not visible {result.id=}")
                 self.update()
+                self.refresh_instance_bboxes()
                 return
 
             rectangle = self.new_rectangle(
@@ -938,6 +1039,7 @@ class Canvas(pg.PlotWidget):
                 rectangle.setState(st)
             self.create_item(rectangle)
             rectangle.set_instance_label(result.instance_id, color)
+            self.refresh_instance_bboxes()
         else:
             raise NotImplementedError
 
@@ -957,6 +1059,7 @@ class Canvas(pg.PlotWidget):
         self.clear_all_items()
         for result in anno.results.values():
             self.create_item_by_result(result)
+        self.refresh_instance_bboxes()
         self.view_box.enableAutoRange()
 
     # endregion
@@ -970,6 +1073,7 @@ class Canvas(pg.PlotWidget):
         self.sigItemsRemoved.emit([it.id_ for it in self.selected_items])
         for item in self.selected_items:
             self.remove_item(item)  # type: ignore
+        self.refresh_instance_bboxes()
 
     def remove_item(self, item: QGraphicsItem | None):
         if item is None:
@@ -991,12 +1095,14 @@ class Canvas(pg.PlotWidget):
         for id_ in keys:
             if id_ in ids:
                 self.remove_item(self.showing_items[id_])
+        self.refresh_instance_bboxes()
 
     def clear_all_items(self):
         for item in self.showing_items.values():
             self.removeItem(item)
         self.showing_items.clear()
         self._state_signal_items.clear()
+        self.refresh_instance_bboxes()
 
     def clear_selections(self, exclude: list[str] | None = None):
         for item in self.showing_items.values():
@@ -1130,6 +1236,8 @@ class Canvas(pg.PlotWidget):
         if item == self.selecting_item or not isinstance(item, (Rectangle, Point, Polygon)):
             return
         self.sigItemStateChanged.emit(item.saveState())
+        if isinstance(item, Polygon) or self._instance_bbox_items:
+            self.refresh_instance_bboxes()
         # self.logger.debug("Item state changed")
 
     # endregion

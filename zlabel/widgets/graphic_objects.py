@@ -8,10 +8,48 @@ from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.GraphicsScene.mouseEvents import HoverEvent, MouseClickEvent, MouseDragEvent
 from pyqtgraph.Qt.QtCore import QCoreApplication, QPoint, QPointF, QRectF, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QBrush, QColor, QPainter, QPainterPath, QPen, QPolygonF, QTransform
-from pyqtgraph.Qt.QtWidgets import QGraphicsItem, QGraphicsSimpleTextItem, QMenu, QStyleOptionGraphicsItem, QWidget
-from rich import print  # noqa: F401
+from pyqtgraph.Qt.QtWidgets import (
+    QGraphicsItem,
+    QGraphicsRectItem,
+    QGraphicsSimpleTextItem,
+    QMenu,
+    QStyleOptionGraphicsItem,
+    QWidget,
+)
 
 from zlabel.utils import ZLogger, id_uuid4
+
+
+class InstanceBBox(QGraphicsRectItem):
+    """Dashed axis-aligned bbox + instance-id label for one instance.
+
+    Used for polygon instances: the bbox spans every member polygon (the union
+    / maximum bounding box), and the label sits at its top-left corner.
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.instance_id: int = 0
+        self.label_color: str | None = None
+        self.label_text = QGraphicsSimpleTextItem(self)
+        self.label_text.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        self.label_text.setVisible(False)
+        self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+        self.setBrush(Qt.BrushStyle.NoBrush)
+
+    def set_instance(self, instance_id: int, rect: QRectF, color: str | None):
+        self.instance_id = instance_id
+        self.label_color = color or "#888888"
+        self.setRect(rect)
+        pen = QPen(QColor(self.label_color))
+        pen.setStyle(Qt.PenStyle.DashLine)
+        pen.setWidth(0)  # cosmetic pen -> constant screen width
+        self.setPen(pen)
+        self.label_text.setText(str(instance_id))
+        self.label_text.setBrush(QColor(self.label_color))
+        self.label_text.setPos(rect.left() + 2.0, rect.top() + 2.0)
+        self.label_text.setVisible(True)
+        self.setVisible(True)
 
 
 class ZROI(pg.ROI):
@@ -262,6 +300,9 @@ class Rectangle(ZROI):
             self.removeHandles()
 
 
+_USE_FILL_EDGE = object()
+
+
 class Polygon(ZROI):
     def __init__(
         self,
@@ -272,6 +313,7 @@ class Polygon(ZROI):
         id_: str | None = None,
         alpha: float = 0.3,
         use_catmull_rom_path: bool = True,
+        edge_color: str | object | None = _USE_FILL_EDGE,
         **args,
     ):
         self.id_: str = id_ or id_uuid4()
@@ -294,6 +336,10 @@ class Polygon(ZROI):
         self.fill_color: QColor = QColor(color)
         self.fill_color.setAlphaF(self.alpha)
         self.brush: QBrush = QBrush(self.fill_color)
+        if edge_color is _USE_FILL_EDGE:
+            self.edge_color: str = color or "#ffffff"
+        else:
+            self.edge_color: str = edge_color or "#ffffff"
 
     def catmull_rom_path(self, points: list[QPointF], closed: bool = True, alpha: float = 1.0):
         n = len(points)
@@ -518,12 +564,22 @@ class Polygon(ZROI):
             return float(min(xs)), float(min(ys))
         return 0.0, 0.0
 
+    def _update_instance_label(self):
+        # Polygon instance labels are rendered by the canvas-level InstanceBBox,
+        # so individual polygon items must not draw their own number.
+        pass
+
     def paint(self, p: QPainter, opt, widget=None):
         # w: float, h: float
         w, h = self.state["size"]  # type: ignore
         r = QRectF(0, 0, w, h).normalized()
         p.setRenderHint(QPainter.RenderHint.Antialiasing, self._antialias)
-        p.setPen(self.hoverPen if self.isSelected() else self.currentPen)
+        if self.isSelected():
+            p.setPen(self.hoverPen)
+        else:
+            edge_pen = QPen(self.currentPen)
+            edge_pen.setColor(QColor(self.edge_color))
+            p.setPen(edge_pen)
         p.setBrush(self.brush)
         p.translate(r.left(), r.top())
         p.scale(r.width(), r.height())
@@ -545,21 +601,6 @@ class Polygon(ZROI):
                 p.drawPolygon(polygon, fillRule=Qt.FillRule.WindingFill)
             else:
                 p.drawPolyline(polygon)
-
-        # dashed axis-aligned bounding box (cosmetic pen -> constant screen width)
-        if self.instance_id and len(points) >= 1:
-            xs = [pt.x() for pt in points]
-            ys = [pt.y() for pt in points]
-            x0, y0 = min(xs) / r.width(), min(ys) / r.height()
-            x1, y1 = max(xs) / r.width(), max(ys) / r.height()
-            p.save()
-            p.setBrush(Qt.BrushStyle.NoBrush)
-            pen = QPen(QColor(self.label_color or "#888888"))
-            pen.setStyle(Qt.PenStyle.DashLine)
-            pen.setWidth(0)  # cosmetic
-            p.setPen(pen)
-            p.drawRect(QRectF(x0, y0, x1 - x0, y1 - y0))
-            p.restore()
 
     def boundingRect(self):
         return self.shape().boundingRect()
@@ -612,6 +653,7 @@ class Polygon(ZROI):
         self.alpha = alpha
         self.fill_color.setAlphaF(self.alpha)
         self.brush = QBrush(self.fill_color)
+        self.edge_color = color or "#ffffff"
         self.update()
 
     def _point_to_line_distance(

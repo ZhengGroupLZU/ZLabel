@@ -46,6 +46,7 @@ class ZResultUndoCmd(QUndoCommand):
         self.mw._refresh_timeline()
         if self.mw.proj.crt_anno is self.target_anno:
             self.mw._refresh_anno_tree()
+            self.mw._sync_canvas_instance_labels(self.target_anno)
 
     def redo(self):
         if self.target_anno is not None:

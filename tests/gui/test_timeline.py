@@ -648,6 +648,38 @@ def test_on_instance_open_jumps_and_selects(main_window):
     assert "s2" in selected
 
 
+def test_instance_open_syncs_file_list_selection(main_window):
+    """Jumping to a frame from the timeline selects the matching row in the
+    file list."""
+    win = main_window
+    proj = win.proj
+    lbl_seed = _seed_label(proj)
+    tasks, annos = _group(proj)
+    d1, d2 = tasks
+    a1, a2 = annos
+    a2.add_result(
+        PolygonResult.new(
+            id_="s2",
+            points=[(1, 1), (5, 1), (5, 5), (1, 5), (3, 0)],
+            closed=True,
+            labels=[lbl_seed],
+            instance_id=2,
+        )
+    )
+    proj.key_task = "d1"  # current frame is d1
+    win.dockcnt_files.set_file_list(tasks)
+
+    win._skip_copy_anno = ""
+    win.on_instance_open("d2", 2)
+
+    assert proj.key_task == "d2"
+    # the file list highlights the row for d2
+    row = win.dockcnt_files.currentRow()
+    assert row >= 0
+    item = win.dockcnt_files.getItem(row)
+    assert item.id_ == "d2"
+
+
 def test_estimate_copy_alignment_from_dish_and_number(main_window):
     """The dish+Number references fully determine the similarity transform."""
     win = main_window

@@ -9,7 +9,6 @@ from typing import Any, Literal, NamedTuple, TypeAlias
 
 import pyqtgraph as pg
 from pydantic import BaseModel, Field, field_validator
-from rich import print  # noqa: F401
 
 IncEx: TypeAlias = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
 

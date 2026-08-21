@@ -1,7 +1,5 @@
 import logging
 
-from rich.logging import RichHandler
-
 LEVEL_MAP = {
     "DEBUG": logging.DEBUG,
     "INFO": logging.INFO,
@@ -16,8 +14,14 @@ class ZLogger(logging.Logger):
         level = level or "DEBUG"
         level_ = LEVEL_MAP.get(str(level), logging.DEBUG)
         super().__init__(name, level_)
-        self.format = "%(asctime)s-%(message)s"
-        self.addHandler(RichHandler(rich_tracebacks=True))
+        handler = logging.StreamHandler()
+        handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s [%(levelname)s] %(message)s",
+                datefmt="%Y-%m-%d %H:%M:%S",
+            )
+        )
+        self.addHandler(handler)
 
     def setLevel(self, level: str | int) -> None:
         if isinstance(level, str):

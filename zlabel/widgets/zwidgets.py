@@ -24,7 +24,6 @@ from pyqtgraph.Qt.QtWidgets import (
     QTableWidgetItem,
     QWidget,
 )
-from rich import print  # noqa: F401
 
 
 class ZPushButton(QPushButton):
