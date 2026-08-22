@@ -163,6 +163,21 @@ def test_edit_mode_fill_alpha(populated_project):
     assert item.fill_color.alphaF() == pytest.approx(normal_alpha, abs=1e-3)
 
 
+def test_draw_fill_alpha_in_create_mode(populated_project):
+    """Rectangles/polygons drawn in CREATE mode use 0.05 fill alpha."""
+    win, proj, anno, rebuild = populated_project
+
+    win.canvas.set_status_mode(StatusMode.CREATE)
+    rect = win.canvas.new_rectangle(10, 10, 20, 20)
+    assert rect.fill_color.alphaF() == pytest.approx(0.05, abs=1e-3)
+    poly = win.canvas.new_polygon([(0, 0), (10, 0), (10, 10)])
+    assert poly.fill_color.alphaF() == pytest.approx(0.05, abs=1e-3)
+
+    win.canvas.set_status_mode(StatusMode.VIEW)
+    rect2 = win.canvas.new_rectangle(0, 0, 5, 5)
+    assert rect2.fill_color.alphaF() == pytest.approx(win.canvas.alpha, abs=1e-3)
+
+
 def test_box_select_selects_visible_items(populated_project, canvas_view, qtbot):
     win, proj, anno, rebuild = populated_project
     from zlabel.utils import RectangleResult as RR
@@ -202,6 +217,24 @@ def test_box_select_inside_hidden_shape_does_not_pan(populated_project, canvas_v
     rb_pos = anno.results["rb"].getState()["pos"]
     assert (ra_pos.x(), ra_pos.y()) == (5, 5), "visible rect must not move"
     assert (rb_pos.x(), rb_pos.y()) == (30, 30), "hidden rect must not move"
+
+
+def test_rapid_box_select_cleans_up(populated_project, canvas_view, qtbot):
+    """Rapid repeated box selects must not leave a stale rubber-band item."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import RectangleResult as RR
+
+    for i in range(4):
+        anno.add_result(RR.new(id_=f"r{i}", x=5 + i * 15, y=5 + i * 15, w=12, h=12, labels=[proj.crt_label]))
+    rebuild()
+    win.on_action_edit_triggered()
+
+    for i in range(10):
+        x0, y0, x1, y1 = (0, 0, 60, 60) if i % 2 == 0 else (60, 60, 0, 0)
+        canvas_view["drag"](win.canvas, (x0, y0), (x1, y1), qtbot)
+        assert win.canvas.selecting_item is None
+        assert all(it.id_ in anno.results for it in win.canvas.selected_items)
+        win.canvas.clear_selections()
 
 
 def test_delete_key_removes_and_undo_restores(populated_project, qtbot):
@@ -402,6 +435,51 @@ def test_polygon_instance_bbox_union_and_label_updates(populated_project):
     assert win.canvas._instance_bbox_items[grouped_id].label_text.text() == str(grouped_id)
 
 
+def test_label_switch_refreshes_instance_bbox_color(populated_project):
+    """Switching an instance's label refreshes bbox overlay + ID text color."""
+    win, proj, anno, rebuild = populated_project
+    from pyqtgraph.Qt.QtGui import QColor
+
+    from zlabel.utils import Label
+    from zlabel.utils import PolygonResult as PR
+
+    lbl_a = proj.crt_label
+    lbl_b = Label.new("B", "#00ff00")
+    proj.labels[lbl_b.id] = lbl_b
+
+    anno.add_result(
+        PR.new(
+            id_="p1",
+            points=[(5, 5), (25, 5), (25, 20), (5, 20)],
+            closed=True,
+            labels=[lbl_a],
+            instance_id=1,
+        )
+    )
+    anno.add_result(
+        PR.new(
+            id_="p2",
+            points=[(30, 30), (45, 30), (45, 40), (30, 40)],
+            closed=True,
+            labels=[lbl_a],
+            instance_id=1,
+        )
+    )
+    rebuild()
+
+    bbox = win.canvas._instance_bbox_items[1]
+    assert bbox.label_color == lbl_a.color
+
+    win.canvas.select_items(["p1", "p2"])
+    win.on_dock_label_item_double_clicked(lbl_b.id)
+
+    bbox = win.canvas._instance_bbox_items[1]
+    assert bbox.label_color == lbl_b.color
+    assert bbox.label_text.brush().color().name().upper() == QColor(lbl_b.color).name().upper()
+    assert win.canvas.showing_items["p1"].label_color == lbl_b.color
+    assert win.canvas.showing_items["p2"].label_color == lbl_b.color
+
+
 def test_rectangle_instance_label_updates_after_group(populated_project):
     """Rectangle instance numbers at the top-left update after group/split."""
     win, proj, anno, rebuild = populated_project
@@ -421,6 +499,88 @@ def test_rectangle_instance_label_updates_after_group(populated_project):
     win.on_split_instances()
     assert win.canvas.showing_items["r0"].label_text.text() == str(anno.results["r0"].instance_id)
     assert win.canvas.showing_items["r1"].label_text.text() == str(anno.results["r1"].instance_id)
+
+
+def test_group_instances_uses_min_instance_id(populated_project):
+    """Merging keeps the smallest existing instance id as the merged id."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="a",
+            points=[(5, 5), (25, 5), (25, 20), (5, 20)],
+            closed=True,
+            labels=[proj.crt_label],
+            instance_id=5,
+        )
+    )
+    anno.add_result(
+        PR.new(
+            id_="b",
+            points=[(30, 30), (45, 30), (45, 40), (30, 40)],
+            closed=True,
+            labels=[proj.crt_label],
+            instance_id=2,
+        )
+    )
+    anno.instances[2] = "moldy_seed"
+    rebuild()
+
+    win.canvas.select_items(["a", "b"])
+    win.on_group_instances()
+    assert anno.results["a"].instance_id == anno.results["b"].instance_id == 2
+    assert 2 in anno.instances
+    assert anno.instances[2] == "moldy_seed"
+    assert 5 not in anno.instances
+
+
+def test_group_keypoints_uses_min_instance_id(populated_project):
+    """Grouping keypoints also keeps the smallest existing instance id."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PointResult as PR
+
+    anno.add_result(PR.new(id_="p1", x=10, y=10, labels=[proj.crt_label], instance_id=7))
+    anno.add_result(PR.new(id_="p2", x=20, y=10, labels=[proj.crt_label], instance_id=3))
+    rebuild()
+
+    win.canvas.select_items(["p1", "p2"])
+    win.on_group_points()
+    assert anno.results["p1"].instance_id == anno.results["p2"].instance_id == 3
+
+
+def test_group_instances_syncs_canvas_once(populated_project, monkeypatch):
+    """Merging many instances must rebuild tree/bboxes once, not per result."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    ids = []
+    for i in range(5):
+        rid = f"g{i}"
+        anno.add_result(
+            PR.new(
+                id_=rid,
+                points=[(5 + i * 5, 5), (25 + i * 5, 5), (25 + i * 5, 20), (5 + i * 5, 20)],
+                closed=True,
+                labels=[proj.crt_label],
+                instance_id=i + 1,
+            )
+        )
+        ids.append(rid)
+    rebuild()
+
+    calls = 0
+    original = win._sync_canvas_instance_labels
+
+    def counting(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(win, "_sync_canvas_instance_labels", counting)
+    win.canvas.select_items(ids)
+    win.on_group_instances()
+    assert calls == 1
 
 
 def test_ctrl_g_toggles_group_and_split(populated_project, qtbot):

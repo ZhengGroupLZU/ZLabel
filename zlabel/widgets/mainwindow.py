@@ -145,6 +145,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._is_initing: bool = True
         self._skip_copy_anno: str = ""
         self._label_visibility: dict[str, bool] = {}
+        self._instance_status_visibility: dict[str, bool] = {}
 
         self.init_ui()
         self.init_statusbar()
@@ -307,6 +308,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dockcnt_labels.set_labels(list(self.proj.labels.values()), self.proj.key_label)
             self.update_label_visibility_buttons()
             self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
+            self._sync_instance_tab()
             self._refresh_anno_tree()
             self.canvas.create_items_by_anno(self.proj.crt_anno)
             self.apply_label_visibility()
@@ -623,18 +625,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         item = self.canvas.showing_items.get(result.id, None)
         if item is not None:
             item.setFillColor(result.labels[0].color, self.canvas.effective_alpha)
-        # instance regrouping (merge/split/undo) changes the annos tree
-        # structure; rebuild instead of scrolling to the row (which would
-        # collapse the multi-selection via the selection sync)
-        if old is not None and getattr(old, "instance_id", 0) != getattr(result, "instance_id", 0):
-            new_iid = getattr(result, "instance_id", 0)
-            if new_iid:
-                self.proj.crt_anno.instances.setdefault(new_iid, "")
-            self._prune_orphan_instances()
-            self._refresh_anno_tree()
-            self.update_group_button_state()
-            self._sync_canvas_instance_labels()
-        else:
+        # instance regrouping is handled once in modify_results() after the
+        # whole batch has been written (rebuilding the tree / bboxes per result
+        # is the main cause of UI stalls when merging many instances).
+        if old is None or getattr(old, "instance_id", 0) == getattr(result, "instance_id", 0):
             self.dockcnt_anno.set_row_by_text(result.id)
 
     def modify_results(
@@ -644,8 +638,29 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     ):
         if results is None:
             return
+        instance_changed = False
+        color_changed = False
+        anno = self.proj.crt_anno
         for r in results:
+            old = anno.results.get(r.id) if anno is not None else None
+            if old is not None and getattr(old, "instance_id", 0) != getattr(r, "instance_id", 0):
+                instance_changed = True
+            old_color = old.labels[0].color if old is not None and old.labels else None
+            new_color = r.labels[0].color if r.labels else None
+            if old_color != new_color:
+                color_changed = True
             self.modify_result(r, update)
+        if instance_changed and anno is not None:
+            for r in results:
+                iid = getattr(r, "instance_id", 0)
+                if iid:
+                    anno.instances.setdefault(iid, "")
+            self._prune_orphan_instances()
+            self._refresh_anno_tree()
+            self.update_group_button_state()
+        if (instance_changed or color_changed) and anno is not None:
+            # label-color changes must also refresh instance bboxes + ID text colors
+            self._sync_canvas_instance_labels()
         self._is_modifying = False
 
     def add_annotation(self, anno: Annotation):
@@ -748,6 +763,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.ui_update_settings()
         self._refresh_anno_tree()
         self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
+        self._sync_instance_tab()
 
     def on_dialog_settings_apply_clicked(self):
         self.rebuild_backend()
@@ -1226,11 +1242,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.is_current_anno_ok():
             self.proj.key_label = id
             self.logger.debug(f"Select label {self.proj.crt_label}")
-            label = self.proj.crt_label
-            if label is not None:
-                # keep the Annos default-status combo in sync with the label
-                # (fuzzy match: "Seed" -> "Normal seed", "Seedling" -> "Normal seedling")
-                self.dockcnt_anno.set_default_instance_by_label(label.name)
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
 
@@ -1283,6 +1294,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             if hasattr(widget, "set_visible_state"):
                 widget.set_visible_state(self._label_visibility.get(widget.id_, True))
 
+    def _sync_instance_tab(self):
+        """Populate the Labels panel Instance tab from the project statuses."""
+        self.dockcnt_labels.set_instance_statuses(
+            list(self.proj.instance_statuses),
+            selected_status=self.dockcnt_anno.default_instance_status(),
+        )
+        self.dockcnt_labels.update_instance_visibility_buttons(self._instance_status_visibility)
+
+    def on_default_instance_status_selected(self, status: str):
+        """Radio in the Instance tab -> Annos default-status combo."""
+        idx = self.dockcnt_anno.cmbox_default_instance.findData(status)
+        if idx >= 0:
+            self.dockcnt_anno.cmbox_default_instance.setCurrentIndex(idx)
+
+    def on_anno_default_instance_status_changed(self, status: str):
+        """Annos default-status combo -> Instance tab radio."""
+        self.dockcnt_labels.set_default_instance_status(status)
+
+    def on_instance_status_visibility_toggled(self, status: str):
+        """Show/hide canvas annotations whose instance status matches."""
+        anno = self.proj.crt_anno
+        if anno is None:
+            return
+        new_visible = not self._instance_status_visibility.get(status, True)
+        self._instance_status_visibility[status] = new_visible
+        for rid, item in self.canvas.showing_items.items():
+            r = anno.results.get(rid)
+            if r is None:
+                continue
+            iid = getattr(r, "instance_id", 0)
+            if not iid:
+                continue
+            if anno.instances.get(iid, "") == status:
+                item.setVisible(new_visible)
+                if not new_visible:
+                    item.setSelected(False)
+        self.dockcnt_labels.set_instance_visibility_state(status, new_visible)
+        self.canvas.refresh_instance_bboxes()
+
     def apply_label_visibility(self):
         """Apply stored per-label visibility to the current canvas items."""
         anno = self.proj.crt_anno
@@ -1292,6 +1342,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             r = anno.results.get(rid)
             if r and r.labels:
                 visible = self._label_visibility.get(r.labels[0].id, True)
+                iid = getattr(r, "instance_id", 0)
+                status = anno.instances.get(iid, "") if iid else ""
+                if status in self._instance_status_visibility and not self._instance_status_visibility[status]:
+                    visible = False
                 item.setVisible(visible)
                 if not visible:
                     item.setSelected(False)
@@ -1441,6 +1495,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # update ui
         # ^ hereafter, self.proj.crt_anno won't be None
         self.dockcnt_anno.set_instance_statuses(list(self.proj.instance_statuses))
+        self._sync_instance_tab()
         self._refresh_anno_tree()
         self.dockcnt_anno.set_row_by_text(self.proj.key_result)
         self.dockcnt_anno.set_title()
@@ -1868,13 +1923,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         pts = self._selected_point_results()
         if not pts:
             return
-        instance_id = pts[0].instance_id or self._ensure_current_instance()
+        iids = {getattr(p, "instance_id", 0) for p in pts}
+        positive_iids = {i for i in iids if i > 0}
+        instance_id = min(positive_iids) if positive_iids else self._ensure_current_instance()
         result_old = [copy.deepcopy(p) for p in pts]
         result_new = [copy.deepcopy(p) for p in pts]
         for r in result_new:
             r.instance_id = instance_id
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
-        self._refresh_anno_tree()
         self.show_toast(self.tr(f"Grouped {len(pts)} keypoints"))
 
     def _new_individual_instances(self, results: list[PointResult | RectangleResult | PolygonResult]):
@@ -1957,10 +2013,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         result_new.instance_id = instance_id
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.current_instance_id = instance_id
-        self._prune_orphan_instances()
         self._refresh_timeline()
-        self._refresh_anno_tree()
-        self.update_group_button_state()
         item = self.canvas.showing_items.get(result_id)
         if item is not None:
             color = result_new.labels[0].color if result_new.labels else None
@@ -2122,18 +2175,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         iids = {getattr(r, "instance_id", 0) for r in results}
         if len(iids) == 1 and 0 not in iids:
             return  # already one instance
-        new_iid = self._new_instance_id()
-        self._init_instance_status(new_iid)
+        # the merged instance keeps the smallest existing id among the selection
+        positive_iids = {i for i in iids if i > 0}
+        new_iid = min(positive_iids) if positive_iids else self._new_instance_id()
+        if new_iid not in anno.instances:
+            self._init_instance_status(new_iid)
         result_old = [copy.deepcopy(r) for r in results]
         result_new = [copy.deepcopy(r) for r in results]
         for r in result_new:
             r.instance_id = new_iid
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
         self.current_instance_id = new_iid
-        self._prune_orphan_instances()
-        self._refresh_anno_tree()
         self._refresh_timeline()
-        self.update_group_button_state()
         self.show_toast(self.tr(f"Grouped {len(results)} annotations into instance {new_iid}"))
 
     def on_split_instances(self):
@@ -2154,10 +2207,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # the inherited statuses now that every result carries its new id
         for iid, status in inherited.items():
             anno.instances[iid] = status
-        self._prune_orphan_instances()
         self._refresh_anno_tree()
         self._refresh_timeline()
-        self.update_group_button_state()
         self.show_toast(self.tr(f"Split {len(results)} annotations into individual instances"))
 
     def on_group_button_triggered(self):
@@ -2887,6 +2938,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_labels.sigItemColorChanged.connect(self.on_dock_label_item_color_changed)
         self.dockcnt_labels.sigItemDoubleClicked.connect(self.on_dock_label_item_double_clicked)
         self.dockcnt_labels.sigItemVisibilityToggled.connect(self.on_label_visibility_toggled)
+        self.dockcnt_labels.sigInstanceVisibilityToggled.connect(self.on_instance_status_visibility_toggled)
+        self.dockcnt_labels.sigDefaultInstanceSelected.connect(self.on_default_instance_status_selected)
+        self.dockcnt_anno.sigDefaultInstanceStatusChanged.connect(self.on_anno_default_instance_status_changed)
 
         for n in range(1, 10):
             sc = QShortcut(QKeySequence(str(n)), self)

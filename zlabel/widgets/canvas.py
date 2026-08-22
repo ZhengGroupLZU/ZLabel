@@ -65,6 +65,7 @@ class Canvas(pg.PlotWidget):
         self._default_color = "#000000"
         self._alpha: float = 0.3
         self._edit_fill_alpha: float = 0.05
+        self._draw_fill_alpha: float = 0.05
         self._drawing = False
         self._z_value = 1
         self._is_editing_handle = False
@@ -262,8 +263,16 @@ class Canvas(pg.PlotWidget):
 
     @property
     def effective_alpha(self) -> float:
-        """Fill alpha used for current mode (0.05 while editing)."""
-        return self._edit_fill_alpha if self._status_mode in (StatusMode.EDIT, StatusMode.CREATE) else self._alpha
+        """Fill alpha used for the current mode.
+
+        Drawing (CREATE) and editing use 0.05; other modes use the configured
+        alpha so loading/rebuilding annotations keeps the stored appearance.
+        """
+        if self._status_mode == StatusMode.EDIT:
+            return self._edit_fill_alpha
+        if self._status_mode == StatusMode.CREATE:
+            return self._draw_fill_alpha
+        return self._alpha
 
     # endregion
 
@@ -594,6 +603,7 @@ class Canvas(pg.PlotWidget):
                 self.current_item = Rectangle(
                     QRectF(0, 0, 0, 0),
                     color=self.default_color,
+                    alpha=self._draw_fill_alpha,
                     movable=False,
                 )  # type: ignore
             case DrawMode.POINT:
@@ -616,6 +626,7 @@ class Canvas(pg.PlotWidget):
                     closed=False,
                     color=self.default_color,
                     edge_color=None,
+                    alpha=self._draw_fill_alpha,
                     movable=False,
                     use_catmull_rom_path=self._polygon_enable_catmull_rom,
                 )
@@ -1400,7 +1411,8 @@ class Canvas(pg.PlotWidget):
                     self.remove_item(self.selecting_item)
                     return super().mouseReleaseEvent(ev)
 
-                state = self.selecting_item.getState()
+                selecting = self.selecting_item
+                state = selecting.getState()
                 lt = self.mapFromScene(self.view_box.mapViewToScene(state["pos"]))
                 rb = self.mapFromScene(
                     self.view_box.mapViewToScene(
@@ -1414,8 +1426,16 @@ class Canvas(pg.PlotWidget):
                     QRect(lt, rb),
                     Qt.ItemSelectionMode.IntersectsItemShape,
                 )
+                # remove the rubber-band before touching selections so it can
+                # never be selected/handled by the main window (rapid repeated
+                # box selects could otherwise destroy it while still referenced)
+                self.remove_item(selecting)
+                self.selecting_item = None
+
                 selected_items = []
                 for item in items:
+                    if item is selecting:
+                        continue
                     if isinstance(item, (Point, Rectangle, Polygon)) and item.isVisible():
                         item.setSelected(True)
                         selected_items.append(item)
@@ -1428,8 +1448,6 @@ class Canvas(pg.PlotWidget):
                 self.sigSelectionChanged.emit()
 
                 # self.logger.debug(f"{items=}, {rect=}")
-                self.remove_item(self.selecting_item)
-                self.selecting_item = None
             elif self._status_mode == StatusMode.VIEW:
                 pass
         return super().mouseReleaseEvent(ev)

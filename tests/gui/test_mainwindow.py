@@ -420,9 +420,8 @@ def test_timeline_image_prefers_cache(main_window):
     assert win._timeline_image("a.png") is img
 
 
-def test_label_switch_syncs_default_status_combo(main_window):
-    """Switching labels (Labels panel click or shortcut) fuzzy-matches the Annos
-    default-status combo ("Seed" -> "Normal seed"); no match leaves it unchanged."""
+def test_label_switch_does_not_change_default_status_combo(main_window):
+    """Selecting a label no longer touches the Annos default-status combo."""
     win = main_window
     proj = win.proj
     from zlabel.utils import Annotation, Label, Task
@@ -438,19 +437,30 @@ def test_label_switch_syncs_default_status_combo(main_window):
     win.dockcnt_labels.set_labels(list(proj.labels.values()), proj.key_label)
     win.dockcnt_anno.set_instance_statuses(["normal_seed", "normal_seedling", "moldy_seed"])
     combo = win.dockcnt_anno.cmbox_default_instance
-    assert combo.currentText() == "None"
+    idx = combo.findData("moldy_seed")
+    combo.setCurrentIndex(idx)
 
-    # Labels panel click (select_row emits the same click signal)
+    # Labels panel click / shortcut must not change the combo
     win.dockcnt_labels.select_row(0)  # Seed
-    assert combo.currentText() == "Normal seed"
+    assert combo.currentData() == "moldy_seed"
     win.dockcnt_labels.select_row(1)  # Seedling
-    assert combo.currentText() == "Normal seedling"
-
-    # shortcut path goes through the same handler; no match -> reset to None
+    assert combo.currentData() == "moldy_seed"
     win.on_shortcut_select_label_number(3)  # Dish
-    assert combo.currentText() == "None"
+    assert combo.currentData() == "moldy_seed"
 
-    # first-match rule wins with multiple candidates
-    win.dockcnt_anno.set_instance_statuses(["seed A", "seed B"])
-    win.dockcnt_labels.select_row(0)  # Seed
-    assert combo.currentText() == "Seed a"
+
+def test_instance_radio_syncs_annos_default_combo(populated_project):
+    """Instance-tab radio selection updates the Annos default-status combo and
+    vice versa."""
+    win, proj, anno, rebuild = populated_project
+    win.dockcnt_anno.set_instance_statuses(["normal_seed", "moldy_seed"])
+    win._sync_instance_tab()
+
+    # radio -> Annos combo
+    win.dockcnt_labels._instance_widgets["normal_seed"].radio.setChecked(True)
+    assert win.dockcnt_anno.cmbox_default_instance.currentData() == "normal_seed"
+
+    # Annos combo -> radio
+    idx = win.dockcnt_anno.cmbox_default_instance.findData("moldy_seed")
+    win.dockcnt_anno.cmbox_default_instance.setCurrentIndex(idx)
+    assert win.dockcnt_labels.default_instance_status() == "moldy_seed"

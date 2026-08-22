@@ -18,6 +18,7 @@ from pyqtgraph.Qt.QtWidgets import (
     QListWidgetItem,
     QMainWindow,
     QPushButton,
+    QRadioButton,
     QSizePolicy,
     QSlider,
     QTableWidget,
@@ -230,6 +231,59 @@ class ZLabelItemWidget(QWidget):
             event.accept()
             return
         return super().mousePressEvent(event)
+
+
+class ZInstanceItemWidget(QWidget):
+    sigVisibilityToggled = Signal(str)
+    sigDefaultSelected = Signal(str)
+
+    def __init__(
+        self,
+        id_: str,
+        text: str,
+        parent: QWidget | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.id_ = id_
+
+        self.btn_visible = QPushButton()
+        self.btn_visible.setCheckable(True)
+        self.btn_visible.setChecked(True)
+        self.btn_visible.setFixedSize(22, 22)
+        self.btn_visible.setIcon(QIcon(":/icon/icons/eye-2.svg"))
+        self.btn_visible.setToolTip("Show / hide annotations with this instance status")
+        self.btn_visible.clicked.connect(self.on_visible_clicked)
+
+        self.radio = QRadioButton()
+        self.radio.setFixedSize(22, 22)
+        self.radio.setToolTip("Use as the default instance status when merging")
+        self.radio.toggled.connect(self.on_radio_toggled)
+
+        self.label_text = QLabel(text)
+        self.label_text.setAlignment(Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)
+        # let clicks on the text fall through to the row so the item click can
+        # select the radio button
+        self.label_text.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents)
+
+        self.layout_ = QHBoxLayout()
+        self.layout_.setContentsMargins(0, 0, 0, 0)
+        self.layout_.addWidget(self.btn_visible)
+        self.layout_.addWidget(self.radio)
+        self.layout_.addWidget(self.label_text)
+        self.setLayout(self.layout_)
+
+    def set_visible_state(self, visible: bool):
+        self.btn_visible.blockSignals(True)
+        self.btn_visible.setChecked(visible)
+        self.btn_visible.blockSignals(False)
+        self.btn_visible.setStyleSheet("opacity: 0.35;" if not visible else "")
+
+    def on_visible_clicked(self):
+        self.sigVisibilityToggled.emit(self.id_)
+
+    def on_radio_toggled(self, checked: bool):
+        if checked:
+            self.sigDefaultSelected.emit(self.id_)
 
 
 class ZSwitchButton(QPushButton):

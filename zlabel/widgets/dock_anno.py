@@ -42,6 +42,7 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
     sigItemCountChanged = Signal(int)
     sigInstanceStatusChanged = Signal(int, str)
     sigAutoNewInstanceToggled = Signal(bool)
+    sigDefaultInstanceStatusChanged = Signal(str)
 
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
@@ -69,6 +70,7 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
         header_lay.addStretch()
         self.verticalLayout.insertLayout(0, header_lay)
         self.chk_auto_new.toggled.connect(self.sigAutoNewInstanceToggled.emit)
+        self.cmbox_default_instance.currentIndexChanged.connect(self._on_default_instance_changed)
 
         self._statuses: list[str] = []
 
@@ -77,6 +79,9 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
         self._instance_colors: dict[int, QColor] = {}
         self._palette_idx = 0
         self.sigItemCountChanged.connect(self.set_title)
+
+    def _on_default_instance_changed(self):
+        self.sigDefaultInstanceStatusChanged.emit(self.default_instance_status())
 
     def set_instance_statuses(self, statuses: list[str] | None):
         self._statuses = list(statuses or [])
@@ -94,20 +99,6 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
     def default_instance_status(self) -> str:
         """Germination status assigned to newly created instances ("" = None)."""
         return self.cmbox_default_instance.currentData() or ""
-
-    def set_default_instance_by_label(self, label_name: str):
-        """Fuzzy-select the default-status combo from the label name (e.g. "Seed"
-        -> "Normal seed", "Seedling" -> "Normal seedling"): select the first
-        entry whose text contains the label text (case-insensitive); reset to
-        "None" when nothing matches."""
-        if not label_name:
-            return
-        needle = label_name.strip().lower()
-        for i in range(self.cmbox_default_instance.count()):
-            if needle and needle in self.cmbox_default_instance.itemText(i).lower():
-                self.cmbox_default_instance.setCurrentIndex(i)
-                return
-        self.cmbox_default_instance.setCurrentIndex(0)
 
     def _color_for_instance(self, instance_id: int) -> QColor:
         if instance_id not in self._instance_colors:

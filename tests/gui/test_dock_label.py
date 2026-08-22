@@ -21,6 +21,44 @@ def _labels() -> list[Label]:
     return [Label.new("A", "#ff0000"), Label.new("B", "#00ff00")]
 
 
+def test_two_tabs_exist(dock):
+    assert dock.tab_widget.count() == 2
+    assert dock.tab_widget.tabText(0) == "Labels"
+    assert dock.tab_widget.tabText(1) == "Instance"
+
+
+def test_instance_statuses_populate_and_radio_emits(dock, qtbot):
+    dock.set_instance_statuses(["normal_seed", "moldy_seed"], selected_status="moldy_seed")
+    assert dock.listw_instances.count() == 2
+    assert dock.default_instance_status() == "moldy_seed"
+
+    widgets = list(dock._instance_widgets.values())
+    with qtbot.waitSignal(dock.sigDefaultInstanceSelected, timeout=1000) as blocker:
+        widgets[0].radio.setChecked(True)
+    assert blocker.args == ["normal_seed"]
+    assert dock.default_instance_status() == "normal_seed"
+
+
+def test_instance_item_click_selects_radio(dock):
+    dock.set_instance_statuses(["normal_seed", "moldy_seed"])
+    dock.on_instance_item_clicked(dock.listw_instances.item(1))
+    assert dock.default_instance_status() == "moldy_seed"
+
+
+def test_instance_label_text_left_aligned(dock):
+    dock.set_instance_statuses(["normal_seed"])
+    widget = next(iter(dock._instance_widgets.values()))
+    assert widget.label_text.alignment() & Qt.AlignmentFlag.AlignLeft
+
+
+def test_instance_visibility_toggle_emits(dock, qtbot):
+    dock.set_instance_statuses(["normal_seed"])
+    widget = next(iter(dock._instance_widgets.values()))
+    with qtbot.waitSignal(dock.sigInstanceVisibilityToggled, timeout=1000) as blocker:
+        widget.btn_visible.click()
+    assert blocker.args == ["normal_seed"]
+
+
 def test_set_labels_populates(dock):
     labels = _labels()
     dock.set_labels(labels)
