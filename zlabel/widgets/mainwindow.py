@@ -8,7 +8,7 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
-from pyqtgraph.Qt.QtGui import QAction, QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -2836,11 +2836,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_timeline.setObjectName("dock_timeline")
         self.dock_timeline.setWidget(self.dockcnt_timeline)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.dock_timeline)
-        self.actionTimeline = QAction(self.tr("Timeline"), self)
-        self.actionTimeline.setObjectName("actionTimeline")
-        self.actionTimeline.setCheckable(True)
-        self.actionTimeline.setChecked(True)
-        self.menuDocks.addAction(self.actionTimeline)
 
         # keep the side docks compact so the canvas keeps most of the width
         # (explicit min/max override the inflated minimumSizeHints)

@@ -762,6 +762,9 @@ def test_timeline_dock_at_bottom(main_window):
 
     assert win.dock_timeline.windowTitle() == "Timeline"
     assert win.actionTimeline.text() == "Timeline"
+    assert win.actionTimeline.shortcut().toString() == "Ctrl+J"
+    assert win.actionTimeline.isChecked()
+    assert not win.actionTimeline.icon().isNull()
     assert win.dockWidgetArea(win.dock_timeline) == Qt.DockWidgetArea.BottomDockWidgetArea
 
 
