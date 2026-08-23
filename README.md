@@ -191,6 +191,9 @@ Open **Export** and choose:
 | Rectangle | `R` |
 | Point | `P` |
 | Polygon | `O` |
+| Finish polygon | `Enter` / `Space` / `Double-click` |
+| Undo last polygon vertex (drawing) | `Backspace` |
+| Delete hovered polygon vertex (edit) | `Backspace` |
 | SAM | `Q` |
 | Merge / group instances | `G` / `Ctrl+G` |
 | Split keypoint instances | `U` |

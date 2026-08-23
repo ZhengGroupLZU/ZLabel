@@ -469,6 +469,35 @@ class Ui_DialogShortcut(object):
 
         self.gridLayout_8.addWidget(self.keySequenceEdit_24, 3, 1, 1, 1)
 
+        self.label_50 = QLabel(self.groupBox_3)
+        self.label_50.setObjectName(u"label_50")
+        self.label_50.setFont(font2)
+        self.label_50.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_8.addWidget(self.label_50, 4, 0, 1, 1)
+
+        self.keySequenceEdit_25 = QKeySequenceEdit(self.groupBox_3)
+        self.keySequenceEdit_25.setObjectName(u"keySequenceEdit_25")
+        self.keySequenceEdit_25.setEnabled(False)
+        self.keySequenceEdit_25.setKeySequence(u"Backspace")
+        self.keySequenceEdit_25.setClearButtonEnabled(True)
+
+        self.gridLayout_8.addWidget(self.keySequenceEdit_25, 4, 1, 1, 1)
+
+        self.label_51 = QLabel(self.groupBox_3)
+        self.label_51.setObjectName(u"label_51")
+        self.label_51.setFont(font2)
+        self.label_51.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_8.addWidget(self.label_51, 5, 0, 1, 1)
+
+        self.label_52 = QLabel(self.groupBox_3)
+        self.label_52.setObjectName(u"label_52")
+        self.label_52.setFont(font2)
+        self.label_52.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.gridLayout_8.addWidget(self.label_52, 5, 1, 1, 1)
+
 
         self.gridLayout_7.addLayout(self.gridLayout_8, 0, 0, 1, 1)
 
@@ -517,5 +546,8 @@ class Ui_DialogShortcut(object):
         self.label_37.setText(QCoreApplication.translate("DialogShortcut", u"Create Point:", None))
         self.label_47.setText(QCoreApplication.translate("DialogShortcut", u"Cancel Current Drawing:", None))
         self.label_45.setText(QCoreApplication.translate("DialogShortcut", u"Delete Previous Point:", None))
+        self.label_50.setText(QCoreApplication.translate("DialogShortcut", u"Delete Hovered Vertex:", None))
+        self.label_51.setText(QCoreApplication.translate("DialogShortcut", u"Finish by Double-click:", None))
+        self.label_52.setText(QCoreApplication.translate("DialogShortcut", u"Double-click", None))
     # retranslateUi
 

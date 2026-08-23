@@ -1478,6 +1478,22 @@ class Canvas(pg.PlotWidget):
             return
         super().mouseDoubleClickEvent(ev)
 
+    def _delete_hovered_polygon_vertex(self) -> bool:
+        """Delete the hovered vertex of a selected polygon in EDIT mode."""
+        if self._status_mode != StatusMode.EDIT:
+            return False
+        for item in self.showing_items.values():
+            if not isinstance(item, Polygon) or not item.isSelected() or not item.handles:
+                continue
+            for info in item.handles:
+                handle = info.get("item")
+                if handle is not None and getattr(handle, "hovered", False):
+                    if len(item.handles) <= 3:
+                        return False  # a polygon needs at least 3 vertices
+                    item.removeHandle(handle, finish=True)
+                    return True
+        return False
+
     def keyPressEvent(self, ev: QKeyEvent) -> None:
         if ev.key() == Qt.Key.Key_Delete:
             self.remove_selected_items()
@@ -1487,6 +1503,10 @@ class Canvas(pg.PlotWidget):
             # ESC cancels current drawing in CREATE mode
             if self._status_mode == StatusMode.CREATE:
                 self.cancel_drawing()
+                ev.accept()
+                return
+        elif ev.key() == Qt.Key.Key_Backspace and self._status_mode == StatusMode.EDIT:
+            if self._delete_hovered_polygon_vertex():
                 ev.accept()
                 return
         elif self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:

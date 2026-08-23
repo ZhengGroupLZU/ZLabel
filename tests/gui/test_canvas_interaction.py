@@ -1068,3 +1068,57 @@ def test_polygon_handle_grab_near_vertex(populated_project, canvas_view, qtbot):
     pts = item.getState()["points"]
     assert pts[0] != (10.0, 10.0)
     assert item.isSelected()
+
+
+def test_backspace_deletes_hovered_polygon_vertex(populated_project, qtbot):
+    """Backspace in EDIT mode deletes the hovered polygon vertex."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="g1",
+            points=[(10, 10), (30, 10), (30, 25), (10, 25)],
+            closed=True,
+            labels=[proj.crt_label],
+        )
+    )
+    rebuild()
+    win.on_action_edit_triggered()
+    win.canvas.select_items(["g1"])
+    poly = win.canvas.showing_items["g1"]
+    assert poly.handles
+
+    handle = poly.handles[2]["item"]
+    handle.hovered = True
+    QTest.keyClick(win.canvas, Qt.Key.Key_Backspace)
+    qtbot.wait(20)
+
+    r = anno.results["g1"]
+    assert len(r.points) == 3
+    remaining = {tuple(round(v, 1) for v in p) for p in r.points}
+    assert (30.0, 25.0) not in remaining
+
+
+def test_backspace_ignored_without_hovered_polygon_vertex(populated_project, qtbot):
+    """Backspace is ignored when no polygon vertex is hovered."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="g1",
+            points=[(10, 10), (30, 10), (30, 25), (10, 25)],
+            closed=True,
+            labels=[proj.crt_label],
+        )
+    )
+    rebuild()
+    win.on_action_edit_triggered()
+    win.canvas.select_items(["g1"])
+    poly = win.canvas.showing_items["g1"]
+    assert poly.handles
+
+    QTest.keyClick(win.canvas, Qt.Key.Key_Backspace)
+    qtbot.wait(20)
+    assert len(anno.results["g1"].points) == 4
