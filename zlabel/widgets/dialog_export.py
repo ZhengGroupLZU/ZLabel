@@ -40,9 +40,7 @@ class DialogExport(QDialog, Ui_DialogExport):
 
     def on_btn_output(self):
         if self.cmbox_format.currentIndex() == ExportFormat.COCO:
-            path, _ = QFileDialog.getSaveFileName(
-                self, self.tr("Save COCO json"), ".", "JSON (*.json)"
-            )
+            path, _ = QFileDialog.getSaveFileName(self, self.tr("Save COCO json"), ".", "JSON (*.json)")
         else:
             path = QFileDialog.getExistingDirectory(self, self.tr("Select output directory"))
         if path:
@@ -70,9 +68,7 @@ class DialogExport(QDialog, Ui_DialogExport):
             self.progressBar.setValue(0)
             return
         self.progressBar.setValue(100)
-        self.textBrowser.append(
-            self.tr(f"Exported {stats['images']} images, {stats['annotations']} annotations.")
-        )
+        self.textBrowser.append(self.tr(f"Exported {stats['images']} images, {stats['annotations']} annotations."))
 
 
 def export_dialog(

@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
 
-pytest.importorskip(
-    "zlabel.models.worker", reason="opencv-python-headless not installed (uv sync --extra local)"
-)
+pytest.importorskip("zlabel.models.worker", reason="opencv-python-headless not installed (uv sync --extra local)")
 
 from zlabel.models.worker import ZSamWorker  # noqa: E402
 from zlabel.models.ztypes import Point, Rect  # noqa: E402
@@ -48,9 +46,7 @@ def test_cv_point_whole_image():
 
 
 def test_sam_point_fake_model(fake_model):
-    results = _worker(auto_mode=AutoMode.SAM, model=fake_model).run_point(
-        [Point(x=32, y=32)], [1.0]
-    )
+    results = _worker(auto_mode=AutoMode.SAM, model=fake_model).run_point([Point(x=32, y=32)], [1.0])
     assert isinstance(results, list)
 
 
@@ -63,9 +59,7 @@ def test_sam_empty_mask_returns_empty():
 
             return [SamOnnxResult(mask=np.zeros((64, 64), np.float32), score=0.0)]
 
-    results = _worker(auto_mode=AutoMode.SAM, model=_ZeroModel()).run_point(
-        [Point(x=32, y=32)], [1.0]
-    )
+    results = _worker(auto_mode=AutoMode.SAM, model=_ZeroModel()).run_point([Point(x=32, y=32)], [1.0])
     assert results == []
 
 
@@ -88,9 +82,7 @@ def test_sam_rect_keeps_only_best_candidate():
                 SamOnnxResult(mask=mask(20, 20), score=0.2),
             ]
 
-    results = _worker(auto_mode=AutoMode.SAM, model=_MultiMaskModel()).run_rect(
-        [Rect(x=10, y=10, w=40, h=40)]
-    )
+    results = _worker(auto_mode=AutoMode.SAM, model=_MultiMaskModel()).run_rect([Rect(x=10, y=10, w=40, h=40)])
     # Only the score-0.9 candidate (single contour) survives
     assert len(results) == 1
     r = results[0]

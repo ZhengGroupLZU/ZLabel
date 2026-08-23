@@ -1,9 +1,7 @@
 import numpy as np
 import pytest
 
-pytest.importorskip(
-    "zlabel.models.worker", reason="opencv-python-headless not installed (uv sync --extra local)"
-)
+pytest.importorskip("zlabel.models.worker", reason="opencv-python-headless not installed (uv sync --extra local)")
 
 from zlabel.utils.backend import LocalInference, LocalStorage  # noqa: E402
 
@@ -19,9 +17,7 @@ def _inference(tmp_path, make_image):
 def test_dict_wire_format(tmp_path, make_image):
     """ZSamPredictWorker sends {x,y} dicts; LocalInference must accept them."""
     inf = _inference(tmp_path, make_image)
-    resp = inf.predict(
-        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
-    )
+    resp = inf.predict("x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1)
     assert resp["status"] is True
     assert resp["mode"] == "SAM"
 
@@ -34,9 +30,7 @@ def test_tuple_format(tmp_path, make_image):
 
 def test_rect_dict_cv(tmp_path, make_image):
     inf = _inference(tmp_path, make_image)
-    resp = inf.predict(
-        "x", "a.png", rects=[{"x": 5, "y": 5, "w": 20, "h": 20}], threshold=100, mode=2, return_type=1
-    )
+    resp = inf.predict("x", "a.png", rects=[{"x": 5, "y": 5, "w": 20, "h": 20}], threshold=100, mode=2, return_type=1)
     assert resp["status"] is True
     assert resp["mode"] == "CV"
 
@@ -50,9 +44,7 @@ def test_missing_image(tmp_path, make_image):
 
 def test_points_labels_length_mismatch(tmp_path, make_image):
     inf = _inference(tmp_path, make_image)
-    resp = inf.predict(
-        "x", "a.png", points=[{"x": 1, "y": 1}], labels=[1.0, 2.0], threshold=100, mode=1, return_type=1
-    )
+    resp = inf.predict("x", "a.png", points=[{"x": 1, "y": 1}], labels=[1.0, 2.0], threshold=100, mode=1, return_type=1)
     assert resp["status"] is False
 
 
@@ -66,9 +58,7 @@ def test_fake_model_sam(tmp_path, make_image, fake_model):
     """SAM branch without a real onnx model via injected fake."""
     inf = _inference(tmp_path, make_image)
     inf._model = fake_model  # noqa: E402
-    resp = inf.predict(
-        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
-    )
+    resp = inf.predict("x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1)
     assert resp["status"] is True
 
 
@@ -98,9 +88,7 @@ def test_local_inference_no_crop_keeps_coords(tmp_path, make_image):
     inf = _inference(tmp_path, make_image)
     model = _CaptureModel()
     inf._model = model
-    resp = inf.predict(
-        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
-    )
+    resp = inf.predict("x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1)
     assert resp["status"] is True
     assert model.image_shape == (64, 64)
     assert model.last_points[0] == (32.0, 32.0)
@@ -166,7 +154,5 @@ def test_real_edge_sam(tmp_path, make_image):
     except ImportError:
         pytest.skip("MNN not installed (uv sync --extra local)")
     inf = _inference(tmp_path, make_image)
-    resp = inf.predict(
-        "x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1
-    )
+    resp = inf.predict("x", "a.png", points=[{"x": 32, "y": 32}], labels=[1.0], threshold=100, mode=1, return_type=1)
     assert resp["status"] is True

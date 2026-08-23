@@ -85,9 +85,7 @@ class ZSamWorker:
                     # highest-scoring one to avoid drawing near-identical overlays.
                     candidates = self.run_sam(bboxes=[box])
                     if candidates:
-                        results.extend(
-                            self.postprocess_mask(candidates[0].mask.astype(np.uint8))
-                        )
+                        results.extend(self.postprocess_mask(candidates[0].mask.astype(np.uint8)))
             case AutoMode.CV:
                 for rect in rects:
                     results.extend(self.postprocess_mask(self.img, roi=rect))

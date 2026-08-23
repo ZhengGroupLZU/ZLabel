@@ -83,6 +83,30 @@ def test_draw_polygon_with_vertices_and_enter(populated_project, canvas_view, qt
     assert win.undo_stack.count() == 1
 
 
+def test_draw_polygon_double_click_finishes(populated_project, canvas_view, qtbot):
+    """Left double-click finishes an in-progress polygon."""
+    win, proj, anno, rebuild = populated_project
+    win.on_action_polygon_triggered()
+    canvas = win.canvas
+
+    for pt in [(10, 10), (30, 10), (30, 25)]:
+        canvas_view["click"](canvas, pt, qtbot)
+    QTest.mouseDClick(
+        canvas.viewport(),
+        Qt.MouseButton.LeftButton,
+        Qt.KeyboardModifier.NoModifier,
+        canvas_view["to_view"](canvas, 10, 25),
+    )
+    qtbot.wait(20)
+
+    assert len(anno.results) == 1
+    r = next(iter(anno.results.values()))
+    assert isinstance(r, PolygonResult)
+    assert r.closed
+    assert len(r.points) == 4
+    assert win.undo_stack.count() == 1
+
+
 def test_polygon_drawing_undo_vertex_and_esc(populated_project, canvas_view, qtbot):
     win, proj, anno, rebuild = populated_project
     win.on_action_polygon_triggered()

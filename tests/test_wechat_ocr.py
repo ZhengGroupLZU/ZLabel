@@ -4,8 +4,12 @@ import numpy as np
 import pytest
 
 HAVE_WXOCR = (platform.system() == "Windows") and (
-    (__import__("zlabel.utils.paths", fromlist=["resource_dir"]).resource_dir() / "WeChat-Local-OCR-Serve" / "wxocr"
-     / "WeChatOCR.exe").exists()
+    (
+        __import__("zlabel.utils.paths", fromlist=["resource_dir"]).resource_dir()
+        / "WeChat-Local-OCR-Serve"
+        / "wxocr"
+        / "WeChatOCR.exe"
+    ).exists()
 )
 
 pytestmark = pytest.mark.skipif(

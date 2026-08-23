@@ -37,12 +37,8 @@ def _project() -> Project:
         )
     )
     nose = p.labels[list(p.labels)[2]]
-    anno.add_result(
-        PointResult.new(labels=[nose], x=30, y=40, visible=1, category_id=2, instance_id=1)
-    )
-    anno.add_result(
-        PointResult.new(labels=[nose], x=50, y=40, visible=2, category_id=2, instance_id=2)
-    )
+    anno.add_result(PointResult.new(labels=[nose], x=30, y=40, visible=1, category_id=2, instance_id=1))
+    anno.add_result(PointResult.new(labels=[nose], x=50, y=40, visible=2, category_id=2, instance_id=2))
     p.tasks["a1"].anno = anno
     return p
 
@@ -150,9 +146,7 @@ def _germ_project() -> Project:
     p = Project(id="g", name="germ")
     for name, color in [("Seed", "#f00"), ("Root", "#0f0"), ("Seedling", "#00f"), ("Dish", "#808")]:
         p.add_label(Label.new(name, color))
-    p.add_task(
-        Task(id=1, anno_id="g1", filename="wheat/dish1/D1.png", labels=[], group="wheat/dish1", day=1)
-    )
+    p.add_task(Task(id=1, anno_id="g1", filename="wheat/dish1/D1.png", labels=[], group="wheat/dish1", day=1))
     anno = Annotation(
         id="g1",
         image_path="wheat/dish1/D1.png",
@@ -163,18 +157,12 @@ def _germ_project() -> Project:
         instances={1: GermStatus.NORMAL_SEED.value, 2: GermStatus.NORMAL_SEEDLING.value},
     )
     names = {lbl.name: lbl for lbl in p.labels.values()}
-    anno.add_result(
-        PolygonResult.new(labels=[names["Seed"]], points=[(1, 1), (9, 1), (9, 9), (1, 9)], instance_id=1)
-    )
-    anno.add_result(
-        PolygonResult.new(labels=[names["Root"]], points=[(9, 5), (18, 5), (18, 8), (9, 8)], instance_id=1)
-    )
+    anno.add_result(PolygonResult.new(labels=[names["Seed"]], points=[(1, 1), (9, 1), (9, 9), (1, 9)], instance_id=1))
+    anno.add_result(PolygonResult.new(labels=[names["Root"]], points=[(9, 5), (18, 5), (18, 8), (9, 8)], instance_id=1))
     anno.add_result(
         PolygonResult.new(labels=[names["Seedling"]], points=[(20, 20), (28, 20), (28, 28), (20, 28)], instance_id=2)
     )
-    anno.add_result(
-        PolygonResult.new(labels=[names["Dish"]], points=[(40, 40), (80, 40), (80, 80), (40, 80)])
-    )
+    anno.add_result(PolygonResult.new(labels=[names["Dish"]], points=[(40, 40), (80, 40), (80, 80), (40, 80)]))
     p.tasks["g1"].anno = anno
     return p
 

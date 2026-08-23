@@ -200,6 +200,14 @@ def canvas_view():
             mp = to_view(canvas, p0[0] + (p1[0] - p0[0]) * t, p0[1] + (p1[1] - p0[1]) * t)
             QTest.mouseMove(canvas.viewport(), mp)
             qtbot.wait(5)
+        # Re-send the final position and give the event loop time to deliver it
+        # before release when moving existing items (EDIT mode); otherwise the
+        # ROI may finish at the previous move step and the drag comes up short.
+        from zlabel.utils import StatusMode
+
+        if canvas._status_mode == StatusMode.EDIT:
+            QTest.mouseMove(canvas.viewport(), b)
+            qtbot.wait(20)
         QTest.mouseRelease(canvas.viewport(), Qt.MouseButton.LeftButton, Qt.KeyboardModifier.NoModifier, b)
         qtbot.wait(10)
 

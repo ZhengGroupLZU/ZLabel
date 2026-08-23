@@ -1453,6 +1453,29 @@ class Canvas(pg.PlotWidget):
         return super().mouseReleaseEvent(ev)
 
     def mouseDoubleClickEvent(self, ev: QMouseEvent):
+        # In polygon drawing, a left double-click commits the final vertex (if
+        # it is not already the last committed point) and finishes the polygon.
+        if (
+            ev.button() == Qt.MouseButton.LeftButton
+            and self._status_mode == StatusMode.CREATE
+            and self._draw_mode == DrawMode.POLYGON
+            and self._drawing
+            and self.current_item is not None
+        ):
+            pos = self.map_scene_to_view(ev.position())
+            if pos is not None:
+                last = self.polygon_points_committed[-1] if self.polygon_points_committed else None
+                if last is None or abs(pos.x() - last.x()) > 1e-6 or abs(pos.y() - last.y()) > 1e-6:
+                    self.polygon_points_committed.append(pg.Point(pos.x(), pos.y()))
+                    self.polygon_preview_point = None
+                    state = self.get_drawing_polygon_state()
+                    if state:
+                        state["id"] = self.current_item.id_
+                        self.current_item.setState(state, update=False)
+            if len(self.polygon_points_committed) >= 3:
+                self.stop_drawing()
+            ev.accept()
+            return
         super().mouseDoubleClickEvent(ev)
 
     def keyPressEvent(self, ev: QKeyEvent) -> None:
