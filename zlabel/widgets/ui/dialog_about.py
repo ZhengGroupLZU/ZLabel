@@ -26,6 +26,9 @@ class Ui_DialogAbout(object):
         DialogAbout.resize(550, 372)
         DialogAbout.setMinimumSize(QSize(550, 280))
         DialogAbout.setMaximumSize(QSize(550, 500))
+        icon = QIcon()
+        icon.addFile(u":/icon/icons/logo.svg", QSize(), QIcon.Mode.Normal, QIcon.State.Off)
+        DialogAbout.setWindowIcon(icon)
         self.verticalLayout = QVBoxLayout(DialogAbout)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.textBrowser = QTextBrowser(DialogAbout)
@@ -53,7 +56,7 @@ class Ui_DialogAbout(object):
     # setupUi
 
     def retranslateUi(self, DialogAbout):
-        DialogAbout.setWindowTitle(QCoreApplication.translate("DialogAbout", u"about", None))
+        DialogAbout.setWindowTitle(QCoreApplication.translate("DialogAbout", u"About", None))
         self.textBrowser.setHtml(QCoreApplication.translate("DialogAbout", u"<!DOCTYPE HTML PUBLIC \"-//W3C//DTD HTML 4.0//EN\" \"http://www.w3.org/TR/REC-html40/strict.dtd\">\n"
 "<html><head><meta name=\"qrichtext\" content=\"1\" /><meta charset=\"utf-8\" /><style type=\"text/css\">\n"
 "p, li { white-space: pre-wrap; }\n"
@@ -65,6 +68,6 @@ class Ui_DialogAbout(object):
 "<p align=\"center\" dir='rtl' style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;\"><span style=\" font-size:36pt;\">ZLabel</span></p>\n"
 "<p align=\"center\" style=\" margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-inde"
                         "nt:0; text-indent:0px;\"><span style=\" font-size:12pt;\">An image data labeling tool powered by advanced AI models.</span></p></body></html>", None))
-        self.label_4.setText(QCoreApplication.translate("DialogAbout", u"ZLabel Copyright (C) 2025 Rainyl@ZhengGroup.", None))
+        self.label_4.setText(QCoreApplication.translate("DialogAbout", u"ZLabel Copyright (C) 2023-2026 Rainyl@ZhengGroup.", None))
     # retranslateUi
 

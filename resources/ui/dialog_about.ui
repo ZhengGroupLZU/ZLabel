@@ -23,7 +23,11 @@
    </size>
   </property>
   <property name="windowTitle">
-   <string>about</string>
+   <string>About</string>
+  </property>
+  <property name="windowIcon">
+   <iconset resource="../icons.qrc">
+    <normaloff>:/icon/icons/logo.svg</normaloff>:/icon/icons/logo.svg</iconset>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -65,7 +69,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
       <string notr="true">color: rgb(18,115,166);</string>
      </property>
      <property name="text">
-      <string>ZLabel Copyright (C) 2025 Rainyl@ZhengGroup.</string>
+      <string>ZLabel Copyright (C) 2023-2026 Rainyl@ZhengGroup.</string>
      </property>
      <property name="alignment">
       <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>

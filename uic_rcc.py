@@ -1,9 +1,8 @@
+import argparse
 import os
 import warnings
 from pathlib import Path
-from typing import Literal
 
-from tap import Tap
 from tqdm.rich import tqdm  # type: ignore
 from tqdm.std import TqdmExperimentalWarning
 
@@ -25,28 +24,45 @@ def to_src_dst(s: str):
     return SrcDst(ss[0], ss[1])
 
 
-class UicRccParser(Tap):
-    pyside: Literal["pyside6", "pyside2"] = "pyside6"
-    uic_path: list[str] = []
-    rcc_path: list[str] = []
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Regenerate Qt uic/rcc output and update translations")
+    parser.add_argument(
+        "--pyside",
+        choices=["pyside6", "pyside2"],
+        default="pyside6",
+        help="PySide binding to use (default: pyside6)",
+    )
+    parser.add_argument(
+        "--uic_path",
+        nargs="+",
+        default=[],
+        metavar="SRC,DST",
+        help="uic source/destination pairs, e.g. resources/ui/mainwindow.ui,zlabel/widgets/ui/mainwindow.py",
+    )
+    parser.add_argument(
+        "--rcc_path",
+        nargs="+",
+        default=[],
+        metavar="SRC,DST",
+        help="rcc source/destination pairs, e.g. resources/icons.qrc,icons_rc.py",
+    )
+    return parser
 
-    def process_args(self) -> None:
-        self.uics = [to_src_dst(p) for p in self.uic_path]
-        self.rccs = [to_src_dst(p) for p in self.rcc_path]
 
-
-def main(args: UicRccParser):
-    for uic in tqdm(args.uics):
+def main(args: argparse.Namespace):
+    uics = [to_src_dst(p) for p in args.uic_path]
+    rccs = [to_src_dst(p) for p in args.rcc_path]
+    for uic in tqdm(uics):
         os.system(f"{args.pyside}-uic -o {uic.dst} {uic.src}")
-    for rcc in tqdm(args.rccs):
+    for rcc in tqdm(rccs):
         os.system(f"{args.pyside}-rcc -o {rcc.dst} {rcc.src}")
-    translates = " ".join([uic.src for uic in args.uics])
+    translates = " ".join([uic.src for uic in uics])
     os.system(f"{args.pyside}-lupdate  {translates} -ts i18n/zh_CN.ts")
     os.system(f"{args.pyside}-lupdate  {translates} -ts i18n/en.ts")
 
 
 if __name__ == "__main__":
-    parser = UicRccParser()
+    parser = build_parser()
     ui_dir = Path("resources/ui")
     ui_dst = Path("zlabel/widgets/ui")
     # ui_files = list(ui_dir.glob("*.ui"))
@@ -73,5 +89,4 @@ if __name__ == "__main__":
         "--rcc_path",
         "resources/icons.qrc,icons_rc.py",
     ])
-    # args = parser.parse_args()
     main(args)

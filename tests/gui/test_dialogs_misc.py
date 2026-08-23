@@ -12,11 +12,29 @@ from zlabel.widgets.zwidgets import Toast, ZPushButton, ZSlider, ZSwitchButton
 
 
 def test_about_dialog_shows(qtbot):
+    from zlabel import __version__
+
     d = DialogAbout(parent=None)
     qtbot.addWidget(d)
     d.show()
     assert d.isVisible()
     assert d.textBrowser is not None
+    html = d.textBrowser.toHtml()
+    assert __version__ in html
+    assert "Apache" in html
+    assert "as is" in html
+    assert "https://github.com/ZhengGroupLZU/ZLabel" in html
+
+
+def test_about_dialog_retranslate_keeps_version(qtbot):
+    from zlabel import __version__
+
+    d = DialogAbout(parent=None)
+    qtbot.addWidget(d)
+    d.retranslateUi(d)
+    html = d.textBrowser.toHtml()
+    assert __version__ in html
+    assert "https://github.com/ZhengGroupLZU/ZLabel" in html
 
 
 def test_shortcut_dialog_shows(qtbot):
