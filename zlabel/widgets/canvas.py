@@ -8,7 +8,7 @@ import numpy as np
 import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
-from pyqtgraph.Qt.QtCore import QPoint, QPointF, QRect, QRectF, Qt, Signal
+from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, Signal
 from pyqtgraph.Qt.QtGui import QKeyEvent, QMouseEvent, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
@@ -16,6 +16,7 @@ from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, Recta
 from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
 from zlabel.widgets.graphic_objects import InstanceBBox, Point, Polygon, Rectangle, ZHandle
+from zlabel.widgets.magnifier import MagnifierOverlay
 from zlabel.widgets.zworker import PreparedImage
 
 # Display-layer pyramid: images with a long edge above this are downsampled for
@@ -76,8 +77,14 @@ class Canvas(pg.PlotWidget):
         # connect/disconnect so update_by_anno can't double-connect items)
         self._state_signal_items: set[int] = set()
         self._last_point_zoom: float = 0.0
+        self._magnifier_enabled: bool = False
+        self._magnifier_zoom: float = 2.0
+        self._magnifier: MagnifierOverlay | None = None
+        self._last_viewport_pos: QPoint | None = None
+        self._last_magnifier_pos: QPoint | None = None
         self.view_box.sigRangeChanged.connect(self._update_points_scale)
         self.view_box.sigRightClickFit.connect(self.fit_view)
+        self.viewport().installEventFilter(self)
 
         self._image_backup: np.ndarray | None = None
         # cache flipped image for rgb channel rendering
@@ -1351,6 +1358,16 @@ class Canvas(pg.PlotWidget):
         self.last_mouse_pos_view = pos
         self.sigMouseMoved.emit(pos)
 
+        viewport_pos = ev.position().toPoint()
+        self._last_viewport_pos = viewport_pos
+        if self._magnifier_enabled and self._magnifier is not None:
+            if (
+                self._last_magnifier_pos is None
+                or (viewport_pos - self._last_magnifier_pos).manhattanLength() >= 2
+            ):
+                self._magnifier.update_content(viewport_pos)
+                self._last_magnifier_pos = viewport_pos
+
         if ev.buttons() & Qt.MouseButton.MiddleButton:
             return super().mouseMoveEvent(ev)
 
@@ -1477,6 +1494,45 @@ class Canvas(pg.PlotWidget):
             ev.accept()
             return
         super().mouseDoubleClickEvent(ev)
+
+    def set_magnifier_enabled(self, enabled: bool):
+        """Enable/disable the circular magnifier overlay."""
+        self._magnifier_enabled = enabled
+        if enabled:
+            if self._magnifier is None:
+                self._magnifier = MagnifierOverlay(self, self.viewport())
+            self._magnifier.set_zoom(self._magnifier_zoom)
+            if self._last_viewport_pos is not None:
+                self._magnifier.update_content(self._last_viewport_pos)
+        elif self._magnifier is not None:
+            self._magnifier.hide()
+
+    def set_magnifier_zoom(self, zoom: float):
+        """Set magnifier zoom (clamped to 1.0-10.0, step 0.5)."""
+        self._magnifier_zoom = max(1.0, min(10.0, round(zoom * 2) / 2))
+        if self._magnifier is not None:
+            self._magnifier.set_zoom(self._magnifier_zoom)
+
+    def eventFilter(self, obj, event):
+        # Ctrl+wheel adjusts the magnifier zoom; plain wheel is left untouched
+        # so the ViewBox keeps its normal canvas zoom behaviour.
+        if (
+            obj is self.viewport()
+            and event.type() == QEvent.Type.Wheel
+            and self._magnifier_enabled
+            and event.modifiers() & Qt.KeyboardModifier.ControlModifier
+        ):
+            delta = event.angleDelta().y()
+            if delta:
+                self.set_magnifier_zoom(self._magnifier_zoom + (0.5 if delta > 0 else -0.5))
+            event.accept()
+            return True
+        return False
+
+    def leaveEvent(self, event):
+        if self._magnifier is not None:
+            self._magnifier.hide()
+        super().leaveEvent(event)
 
     def _delete_hovered_polygon_vertex(self) -> bool:
         """Delete the hovered vertex of a selected polygon in EDIT mode."""

@@ -900,6 +900,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.canvas.clear_all_items()
 
+    def on_action_magnifier_triggered(self, checked: bool):
+        self.canvas.set_magnifier_enabled(checked)
+
     def on_action_zoom_in_triggered(self):
         self.canvas.view_box.scaleBy((0.9, 0.9))
 
@@ -2890,6 +2893,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionVisible.triggered.connect(self.on_action_visible_triggered)
         self.actionZoom_in.triggered.connect(self.on_action_zoom_in_triggered)
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
+        self.actionMagnifier.triggered.connect(self.on_action_magnifier_triggered)
         self.actionFit_wiondow.triggered.connect(self.on_action_fit_window_triggered)
 
         self.actionRestore.triggered.connect(self.on_action_restore_triggered)
