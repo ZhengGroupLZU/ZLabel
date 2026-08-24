@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import pytest
-from pyqtgraph.Qt.QtCore import QPointF, Qt
+from pyqtgraph.Qt.QtCore import QEvent, QPointF, Qt
+from pyqtgraph.Qt.QtGui import QTabletEvent
 
 from zlabel.utils import StatusMode
+
+PEN_POINTER_PEN = 1
+PEN_POINTER_ERASER = 2
 
 
 class _FakeTabletEvent:
@@ -28,6 +32,37 @@ class _FakeTabletEvent:
 
     def modifiers(self):
         return Qt.KeyboardModifier.NoModifier
+
+
+class _FakeTabletEventType:
+    def __init__(self, etype, pos, pointer=PEN_POINTER_PEN):
+        self._type = etype
+        self._pos = QPointF(*pos) if not isinstance(pos, QPointF) else pos
+        self._pointer = pointer
+
+    def type(self):
+        return self._type
+
+    def position(self):
+        return self._pos
+
+    def globalPosition(self):
+        return self._pos
+
+    def pointerType(self):
+        return self._pointer
+
+    def button(self):
+        return Qt.MouseButton.LeftButton
+
+    def buttons(self):
+        return Qt.MouseButton.LeftButton
+
+    def modifiers(self):
+        return Qt.KeyboardModifier.NoModifier
+
+    def accept(self):
+        pass
 
 
 def _pen_click(canvas, pos):
@@ -126,6 +161,16 @@ def test_pen_drag_creates_rectangle(populated_project):
     assert isinstance(next(iter(anno.results.values())), RectangleResult)
 
 
+def test_tablet_event_routed_via_event_filter(populated_project):
+    win, proj, anno, rebuild = populated_project
+    win.on_action_polygon_triggered()
+    canvas = win.canvas
+
+    ev = _FakeTabletEventType(QTabletEvent.TabletPress, (20, 20))
+    assert canvas.eventFilter(canvas.viewport(), ev) is True
+    assert canvas._pen_press_pos is not None
+
+
 def test_pinch_gesture_zooms_canvas(populated_project):
     win, proj, anno, rebuild = populated_project
     canvas = win.canvas
@@ -147,6 +192,9 @@ def test_pinch_gesture_zooms_canvas(populated_project):
         def __init__(self, scale):
             self.g = _FakeGesture(scale)
             self.accepted = False
+
+        def type(self):
+            return QEvent.Type.Gesture
 
         def gesture(self, _type):
             return self.g

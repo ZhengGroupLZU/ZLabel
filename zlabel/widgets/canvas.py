@@ -30,6 +30,8 @@ DISPLAY_MAX_SIDE = 2560
 PEN_CLICK_THRESHOLD = 8.0  # viewport px: press/release below this = click
 TRAJECTORY_MIN_DIST = 4.0  # image px: min spacing for freehand polygon samples
 PEN_DOUBLE_CLICK_MS = 400
+# QTabletEvent.PointerType.Eraser == 2 (PySide6 does not expose the enum class)
+PEN_POINTER_ERASER = 2
 
 
 class Canvas(pg.PlotWidget):
@@ -1560,15 +1562,25 @@ class Canvas(pg.PlotWidget):
             self._magnifier.set_zoom(self._magnifier_zoom)
 
     def eventFilter(self, obj, event):
+        if obj is not self.viewport():
+            return False
+        # Tablet events are delivered to the viewport widget, not to the
+        # QGraphicsView itself, so route them into tabletEvent() here.
+        if event.type() in (
+            QTabletEvent.TabletPress,
+            QTabletEvent.TabletMove,
+            QTabletEvent.TabletRelease,
+        ):
+            self.tabletEvent(event)
+            return True
         # Pinch gestures are grabbed by the viewport, so route them through the
         # same handler as Canvas.event().
-        if obj is self.viewport() and event.type() == QEvent.Type.Gesture:
+        if event.type() == QEvent.Type.Gesture:
             return self.gestureEvent(event)
         # Ctrl+wheel adjusts the magnifier zoom; plain wheel is left untouched
         # so the ViewBox keeps its normal canvas zoom behaviour.
         if (
-            obj is self.viewport()
-            and event.type() == QEvent.Type.Wheel
+            event.type() == QEvent.Type.Wheel
             and self._magnifier_enabled
             and event.modifiers() & Qt.KeyboardModifier.ControlModifier
         ):
@@ -1615,7 +1627,7 @@ class Canvas(pg.PlotWidget):
     # ------------------------------------------------------------------ tablet
     def tabletEvent(self, ev):
         pos = ev.position()
-        is_eraser = ev.pointerType() == QTabletEvent.PointerType.Eraser or self._eraser_mode
+        is_eraser = ev.pointerType() == PEN_POINTER_ERASER or self._eraser_mode
         etype = ev.type()
         if etype == QTabletEvent.TabletPress:
             if is_eraser:
