@@ -1361,10 +1361,7 @@ class Canvas(pg.PlotWidget):
         viewport_pos = ev.position().toPoint()
         self._last_viewport_pos = viewport_pos
         if self._magnifier_enabled and self._magnifier is not None:
-            if (
-                self._last_magnifier_pos is None
-                or (viewport_pos - self._last_magnifier_pos).manhattanLength() >= 2
-            ):
+            if self._last_magnifier_pos is None or (viewport_pos - self._last_magnifier_pos).manhattanLength() >= 2:
                 self._magnifier.update_content(viewport_pos)
                 self._last_magnifier_pos = viewport_pos
 
