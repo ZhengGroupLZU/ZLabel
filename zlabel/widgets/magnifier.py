@@ -21,9 +21,11 @@ CURSOR_OFFSET = QPoint(30, -30)
 
 
 class MagnifierOverlay(QWidget):
-    def __init__(self, canvas, parent: QWidget | None = None):
+    def __init__(self, canvas, parent: QWidget | None = None, min_zoom: float = 1.0, max_zoom: float = 10.0):
         super().__init__(parent)
         self._canvas = canvas
+        self._min_zoom = min_zoom
+        self._max_zoom = max_zoom
         self._zoom = 2.0
         self._diameter = MAGNIFIER_DIAMETER
         self._source_scene_rect = QRectF()
@@ -35,8 +37,13 @@ class MagnifierOverlay(QWidget):
     def zoom(self) -> float:
         return self._zoom
 
+    def set_zoom_range(self, min_zoom: float, max_zoom: float):
+        self._min_zoom = min_zoom
+        self._max_zoom = max_zoom
+        self.set_zoom(self._zoom)
+
     def set_zoom(self, zoom: float):
-        self._zoom = max(MAGNIFIER_MIN_ZOOM, min(MAGNIFIER_MAX_ZOOM, round(zoom * 2) / 2))
+        self._zoom = max(self._min_zoom, min(self._max_zoom, round(zoom * 2) / 2))
         if self.isVisible():
             self.update_content(self._cursor_pos)
 

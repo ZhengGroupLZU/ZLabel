@@ -94,3 +94,24 @@ def test_magnifier_edge_does_not_escape_viewport(populated_project, qtbot):
     assert overlay.y() >= 0
     assert overlay.x() + overlay.width() <= vp.width()
     assert overlay.y() + overlay.height() <= vp.height()
+
+
+def test_canvas_applies_appearance_settings(populated_project):
+    win, proj, anno, rebuild = populated_project
+    settings = win.settings
+    settings.hline_color = "#ff0000"
+    settings.hline_width = 3
+    settings.vline_color = "#00ff00"
+    settings.vline_width = 2
+    settings.display_max_side = 2048
+    settings.magnifier_min_zoom = 2.0
+    settings.magnifier_max_zoom = 8.0
+
+    win.canvas.apply_appearance_settings(settings)
+    assert win.canvas._display_max_side == 2048
+    assert win.canvas._magnifier_min_zoom == 2.0
+    assert win.canvas._magnifier_max_zoom == 8.0
+    assert win.canvas.hline.pen.color().name().upper() == "#FF0000"
+    assert win.canvas.hline.pen.width() == 3
+    assert win.canvas.vline.pen.color().name().upper() == "#00FF00"
+    assert win.canvas.vline.pen.width() == 2

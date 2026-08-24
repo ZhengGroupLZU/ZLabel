@@ -24,6 +24,23 @@ class ZSettings(BaseModel):
     enable_catmull_rom: bool = False
     language: str = "en"  # en or zh_CN
 
+    # Application appearance
+    hline_color: str = "#55ff00"
+    hline_width: int = 1
+    vline_color: str = "#55ff00"
+    vline_width: int = 1
+    edit_fill_alpha: float = 0.05
+    draw_fill_alpha: float = 0.05
+    magnifier_min_zoom: float = 1.0
+    magnifier_max_zoom: float = 10.0
+
+    # Application performance
+    display_max_side: int = 2560
+    image_cache_size: int = 5
+    timeline_small_image_side: int = 512
+    timeline_small_image_cache_size: int = 32
+    timeline_cell_size: int = 48
+
     cv_enabled: bool = False
     sam_enabled: bool = False
 

@@ -3,9 +3,14 @@ from pyqtgraph.Qt.QtGui import QIcon
 from pyqtgraph.Qt.QtWidgets import (
     QColorDialog,
     QDialog,
+    QDoubleSpinBox,
     QFileDialog,
+    QFormLayout,
+    QGroupBox,
     QInputDialog,
+    QLineEdit,
     QPushButton,
+    QSpinBox,
     QTableWidgetItem,
 )
 
@@ -237,6 +242,21 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ckbox_copy_prev.setChecked(self.settings.enable_copy_prev)
         self.update_inference_widgets_enabled()
 
+        self.btn_hline_color.set_color(self.settings.hline_color)
+        self.spin_hline_width.setValue(self.settings.hline_width)
+        self.btn_vline_color.set_color(self.settings.vline_color)
+        self.spin_vline_width.setValue(self.settings.vline_width)
+        self.btn_default_color.set_color(self.settings.default_color)
+        self.dspbox_edit_alpha.setValue(self.settings.edit_fill_alpha)
+        self.dspbox_draw_alpha.setValue(self.settings.draw_fill_alpha)
+        self.dspbox_mag_min.setValue(self.settings.magnifier_min_zoom)
+        self.dspbox_mag_max.setValue(self.settings.magnifier_max_zoom)
+        self.spin_display_max_side.setValue(self.settings.display_max_side)
+        self.spin_image_cache_size.setValue(self.settings.image_cache_size)
+        self.spin_tl_small_side.setValue(self.settings.timeline_small_image_side)
+        self.spin_tl_cache_size.setValue(self.settings.timeline_small_image_cache_size)
+        self.spin_tl_cell_size.setValue(self.settings.timeline_cell_size)
+
         self.set_labels(self.settings.project.labels)
         self.ledit_projname.setText(str(self.settings.project.name))
         self.ledit_prjdesc.setText(str(self.settings.project.description))
@@ -278,6 +298,23 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.ckbox_ocr_enable.toggled.connect(lambda: self.on_settings_changed("ocr_enable_manual"))
         self.ledit_ocr_dir.editingFinished.connect(lambda: self.on_settings_changed("ocr_wx_dir"))
         self.ckbox_copy_prev.toggled.connect(lambda: self.on_settings_changed("enable_copy_prev"))
+
+        self.btn_hline_color.colorChanged.connect(lambda _: self.on_settings_changed("hline_color"))
+        self.spin_hline_width.valueChanged.connect(lambda: self.on_settings_changed("hline_width"))
+        self.btn_vline_color.colorChanged.connect(lambda _: self.on_settings_changed("vline_color"))
+        self.spin_vline_width.valueChanged.connect(lambda: self.on_settings_changed("vline_width"))
+        self.btn_default_color.colorChanged.connect(lambda _: self.on_settings_changed("default_color"))
+        self.dspbox_edit_alpha.valueChanged.connect(lambda: self.on_settings_changed("edit_fill_alpha"))
+        self.dspbox_draw_alpha.valueChanged.connect(lambda: self.on_settings_changed("draw_fill_alpha"))
+        self.dspbox_mag_min.valueChanged.connect(lambda: self.on_settings_changed("magnifier_min_zoom"))
+        self.dspbox_mag_max.valueChanged.connect(lambda: self.on_settings_changed("magnifier_max_zoom"))
+        self.spin_display_max_side.valueChanged.connect(lambda: self.on_settings_changed("display_max_side"))
+        self.spin_image_cache_size.valueChanged.connect(lambda: self.on_settings_changed("image_cache_size"))
+        self.spin_tl_small_side.valueChanged.connect(lambda: self.on_settings_changed("timeline_small_image_side"))
+        self.spin_tl_cache_size.valueChanged.connect(
+            lambda: self.on_settings_changed("timeline_small_image_cache_size")
+        )
+        self.spin_tl_cell_size.valueChanged.connect(lambda: self.on_settings_changed("timeline_cell_size"))
 
         self.combo_projects.currentIndexChanged.connect(self.on_project_selected)
         self.btn_new_project.clicked.connect(self.on_new_project)
@@ -328,6 +365,34 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.on_ocr_dir_changed()
         elif k == "enable_copy_prev":
             self.settings.enable_copy_prev = self.ckbox_copy_prev.isChecked()
+        elif k == "hline_color":
+            self.settings.hline_color = self.btn_hline_color.color()
+        elif k == "hline_width":
+            self.settings.hline_width = self.spin_hline_width.value()
+        elif k == "vline_color":
+            self.settings.vline_color = self.btn_vline_color.color()
+        elif k == "vline_width":
+            self.settings.vline_width = self.spin_vline_width.value()
+        elif k == "default_color":
+            self.settings.default_color = self.btn_default_color.color()
+        elif k == "edit_fill_alpha":
+            self.settings.edit_fill_alpha = self.dspbox_edit_alpha.value()
+        elif k == "draw_fill_alpha":
+            self.settings.draw_fill_alpha = self.dspbox_draw_alpha.value()
+        elif k == "magnifier_min_zoom":
+            self.settings.magnifier_min_zoom = self.dspbox_mag_min.value()
+        elif k == "magnifier_max_zoom":
+            self.settings.magnifier_max_zoom = self.dspbox_mag_max.value()
+        elif k == "display_max_side":
+            self.settings.display_max_side = self.spin_display_max_side.value()
+        elif k == "image_cache_size":
+            self.settings.image_cache_size = self.spin_image_cache_size.value()
+        elif k == "timeline_small_image_side":
+            self.settings.timeline_small_image_side = self.spin_tl_small_side.value()
+        elif k == "timeline_small_image_cache_size":
+            self.settings.timeline_small_image_cache_size = self.spin_tl_cache_size.value()
+        elif k == "timeline_cell_size":
+            self.settings.timeline_cell_size = self.spin_tl_cell_size.value()
         elif k == "project_name":
             self._rename_project(self.ledit_projname.text().strip())
         elif k == "project_desc":

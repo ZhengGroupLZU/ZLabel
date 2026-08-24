@@ -174,3 +174,25 @@ def test_settings_tabs_split(dialog):
     assert in_tab(dialog.ledit_username, dialog.tab_remote)
     assert in_tab(dialog.cmbox_inference_mode, dialog.tab_inference)
     assert in_tab(dialog.spin_upload_size, dialog.tab_inference)
+
+
+def test_application_advanced_settings_populated(dialog, settings):
+    assert dialog.btn_hline_color.color() == settings.hline_color
+    assert dialog.spin_hline_width.value() == settings.hline_width
+    assert dialog.btn_vline_color.color() == settings.vline_color
+    assert dialog.spin_vline_width.value() == settings.vline_width
+    assert dialog.btn_default_color.color() == settings.default_color
+    assert dialog.dspbox_edit_alpha.value() == pytest.approx(settings.edit_fill_alpha)
+    assert dialog.dspbox_draw_alpha.value() == pytest.approx(settings.draw_fill_alpha)
+    assert dialog.dspbox_mag_min.value() == pytest.approx(settings.magnifier_min_zoom)
+    assert dialog.dspbox_mag_max.value() == pytest.approx(settings.magnifier_max_zoom)
+    assert dialog.spin_display_max_side.value() == settings.display_max_side
+    assert dialog.spin_image_cache_size.value() == settings.image_cache_size
+    assert dialog.spin_tl_small_side.value() == settings.timeline_small_image_side
+    assert dialog.spin_tl_cache_size.value() == settings.timeline_small_image_cache_size
+    assert dialog.spin_tl_cell_size.value() == settings.timeline_cell_size
+
+    dialog.spin_display_max_side.setValue(4096)
+    assert settings.display_max_side == 4096
+    dialog.dspbox_mag_max.setValue(12.0)
+    assert settings.magnifier_max_zoom == pytest.approx(12.0)

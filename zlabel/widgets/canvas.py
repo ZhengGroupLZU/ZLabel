@@ -80,8 +80,11 @@ class Canvas(pg.PlotWidget):
         self._magnifier_enabled: bool = False
         self._magnifier_zoom: float = 2.0
         self._magnifier: MagnifierOverlay | None = None
+        self._magnifier_min_zoom: float = 1.0
+        self._magnifier_max_zoom: float = 10.0
         self._last_viewport_pos: QPoint | None = None
         self._last_magnifier_pos: QPoint | None = None
+        self._display_max_side: int = DISPLAY_MAX_SIDE
         self.view_box.sigRangeChanged.connect(self._update_points_scale)
         self.view_box.sigRightClickFit.connect(self.fit_view)
         self.viewport().installEventFilter(self)
@@ -121,12 +124,12 @@ class Canvas(pg.PlotWidget):
 
         self.hline = pg.InfiniteLine(
             angle=0,
-            pen=pg.mkPen("#55ff00", width=1),
+            pen=pg.mkPen("#55ff00", width=3),
             movable=False,
         )
         self.vline = pg.InfiniteLine(
             angle=90,
-            pen=pg.mkPen("#55ff00", width=1),
+            pen=pg.mkPen("#55ff00", width=3),
             movable=False,
         )
         self.addItem(self.hline, ignoreBounds=True)  # type: ignore
@@ -297,12 +300,12 @@ class Canvas(pg.PlotWidget):
         # Display-layer pyramid: downsample large photos for display only. The
         # ImageItem is scaled up to cover the full-res rect, so annotation
         # coordinates / prompts / results stay in full image space untouched.
-        if max(w, h) > DISPLAY_MAX_SIDE:
-            s = DISPLAY_MAX_SIDE / max(w, h)
+        if max(w, h) > self._display_max_side:
+            s = self._display_max_side / max(w, h)
             new_w = max(1, round(w * s))
             new_h = max(1, round(h * s))
             img = np.asarray(Image.fromarray(img).resize((new_w, new_h), Image.Resampling.LANCZOS))
-            self._img_scale = max(w, h) / DISPLAY_MAX_SIDE
+            self._img_scale = max(w, h) / self._display_max_side
         else:
             self._img_scale = 1.0
         img = np.rot90(img, k=3, axes=(1, 0))
@@ -1498,12 +1501,33 @@ class Canvas(pg.PlotWidget):
             return
         super().mouseDoubleClickEvent(ev)
 
+    def apply_appearance_settings(self, settings):
+        """Apply Application-tab appearance settings to the canvas."""
+        self._display_max_side = int(getattr(settings, "display_max_side", DISPLAY_MAX_SIDE))
+        self._magnifier_min_zoom = float(getattr(settings, "magnifier_min_zoom", 1.0))
+        self._magnifier_max_zoom = float(getattr(settings, "magnifier_max_zoom", 10.0))
+        self._edit_fill_alpha = float(getattr(settings, "edit_fill_alpha", 0.05))
+        self._draw_fill_alpha = float(getattr(settings, "draw_fill_alpha", 0.05))
+        if self._magnifier is not None:
+            self._magnifier.set_zoom_range(self._magnifier_min_zoom, self._magnifier_max_zoom)
+        hline_color = getattr(settings, "hline_color", "#55ff00")
+        hline_width = getattr(settings, "hline_width", 1)
+        vline_color = getattr(settings, "vline_color", "#55ff00")
+        vline_width = getattr(settings, "vline_width", 1)
+        self.hline.setPen(pg.mkPen(hline_color, width=hline_width))
+        self.vline.setPen(pg.mkPen(vline_color, width=vline_width))
+
     def set_magnifier_enabled(self, enabled: bool):
         """Enable/disable the circular magnifier overlay."""
         self._magnifier_enabled = enabled
         if enabled:
             if self._magnifier is None:
-                self._magnifier = MagnifierOverlay(self, self.viewport())
+                self._magnifier = MagnifierOverlay(
+                    self,
+                    self.viewport(),
+                    min_zoom=self._magnifier_min_zoom,
+                    max_zoom=self._magnifier_max_zoom,
+                )
             self._magnifier.set_zoom(self._magnifier_zoom)
             if self._last_viewport_pos is not None:
                 self._magnifier.update_content(self._last_viewport_pos)
@@ -1511,8 +1535,11 @@ class Canvas(pg.PlotWidget):
             self._magnifier.hide()
 
     def set_magnifier_zoom(self, zoom: float):
-        """Set magnifier zoom (clamped to 1.0-10.0, step 0.5)."""
-        self._magnifier_zoom = max(1.0, min(10.0, round(zoom * 2) / 2))
+        """Set magnifier zoom (clamped to configured range, step 0.5)."""
+        self._magnifier_zoom = max(
+            self._magnifier_min_zoom,
+            min(self._magnifier_max_zoom, round(zoom * 2) / 2),
+        )
         if self._magnifier is not None:
             self._magnifier.set_zoom(self._magnifier_zoom)
 

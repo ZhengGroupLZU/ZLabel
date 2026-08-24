@@ -1,7 +1,7 @@
 from collections.abc import Callable
 
 from PIL import Image
-from pyqtgraph.Qt.QtWidgets import QComboBox, QDialog, QFileDialog, QLabel
+from pyqtgraph.Qt.QtWidgets import QDialog, QFileDialog
 
 from zlabel.utils.exporters import (
     ExportFormat,
@@ -27,12 +27,6 @@ class DialogExport(QDialog, Ui_DialogExport):
         self.setupUi(self)
         self.project: Project | None = project
         self.get_image = get_image
-
-        self.label_inst = QLabel(self.tr("Instance mode:"), self)
-        self.cmbox_inst = QComboBox(self)
-        self.cmbox_inst.addItems([self.tr("Split by part"), self.tr("Merge by instance")])
-        self.gridLayout.addWidget(self.label_inst, 4, 0)
-        self.gridLayout.addWidget(self.cmbox_inst, 4, 1)
 
         self.btn_output.clicked.connect(self.on_btn_output)
         self.btn_export.clicked.connect(self.on_export)

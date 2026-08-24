@@ -278,6 +278,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.set_color(self.settings.default_color, self.settings.alpha)
         self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
         self.canvas.alpha = self.settings.alpha
+        self.canvas.apply_appearance_settings(self.settings)
+        size = max(1, self.settings.image_cache_size)
+        if self._image_cache.maxsize != size:
+            self._image_cache = LRUCache(size)
+            self._prepared_cache = LRUCache(size)
+        if hasattr(self, "dockcnt_timeline"):
+            self.dockcnt_timeline.apply_performance_settings(
+                small_image_side=self.settings.timeline_small_image_side,
+                cache_size=self.settings.timeline_small_image_cache_size,
+                cell_size=self.settings.timeline_cell_size,
+            )
         self.dockcnt_labels.set_labels(list(self.proj.labels.values()))
         self.update_label_visibility_buttons()
         self.dockcnt_files.cmbox_project.setCurrentIndex(self.settings.project_idx)
@@ -508,6 +519,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     img_name,
                     self.settings.username,
                     self.settings.password,
+                    display_max_side=self.settings.display_max_side,
                 )
                 worker.emitter.success.connect(self.cache_image)
                 worker.emitter.success.connect(self.on_try_set_image_get_success)

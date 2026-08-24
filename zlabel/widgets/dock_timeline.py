@@ -213,18 +213,44 @@ class ZDockTimelineContent(QWidget):
         self._project: Project | None = None
         # (small_image, full_w, full_h) per filename, LRU-bounded
         self._small_images: LRUCache[str, tuple[Image.Image, int, int]] = LRUCache(SMALL_IMAGE_CACHE_SIZE)
+        self._small_image_side: int = SMALL_IMAGE_SIDE
+        self._cell_size: int = CELL_SIZE
+        self._thumbnail_max: int = THUMBNAIL_MAX
 
         lay = QVBoxLayout(self)
         lay.setContentsMargins(0, 0, 0, 0)
         self.table = _TimelineTable(0, 0)
         self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Fixed)
-        self.table.horizontalHeader().setDefaultSectionSize(CELL_SIZE)
+        self.table.horizontalHeader().setDefaultSectionSize(self._cell_size)
         self.table.verticalHeader().setVisible(False)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSelectionMode(QAbstractItemView.SelectionMode.SingleSelection)
         self.table.itemClicked.connect(self._on_item_clicked)
         self.table.sigCellMoved.connect(self.sigCellMoved)
         lay.addWidget(self.table)
+
+    def apply_performance_settings(
+        self,
+        small_image_side: int | None = None,
+        cache_size: int | None = None,
+        cell_size: int | None = None,
+    ):
+        """Apply Application-tab performance settings (rebuilds when needed)."""
+        changed = False
+        if small_image_side is not None and small_image_side != self._small_image_side:
+            self._small_image_side = max(64, int(small_image_side))
+            self._small_images.clear()
+            changed = True
+        if cache_size is not None and cache_size != self._small_images.maxsize:
+            self._small_images = LRUCache(max(1, int(cache_size)))
+            changed = True
+        if cell_size is not None and cell_size != self._cell_size:
+            self._cell_size = max(16, int(cell_size))
+            self._thumbnail_max = 2 * self._cell_size
+            self.table.horizontalHeader().setDefaultSectionSize(self._cell_size)
+            changed = True
+        if changed and self._tasks:
+            self._rebuild()
 
     def set_group(self, project: Project, group: str, tasks: list[Task]):
         """Rebuild the timeline for ``group`` from its (ordered) tasks."""
@@ -282,7 +308,7 @@ class ZDockTimelineContent(QWidget):
         self.table.setRowCount(max_iid + 1)
         # square cells: row height matches the (fixed) column width
         for row in range(self.table.rowCount()):
-            self.table.setRowHeight(row, CELL_SIZE)
+            self.table.setRowHeight(row, self._cell_size)
 
         for iid in range(1, max_iid + 1):
             row = iid - 1
@@ -349,8 +375,8 @@ class ZDockTimelineContent(QWidget):
         if img is None:
             return None
         w, h = img.size
-        if max(w, h) > SMALL_IMAGE_SIDE:
-            s = SMALL_IMAGE_SIDE / max(w, h)
+        if max(w, h) > self._small_image_side:
+            s = self._small_image_side / max(w, h)
             small = img.resize((max(1, round(w * s)), max(1, round(h * s))), Image.Resampling.LANCZOS)
         else:
             small = img
@@ -378,7 +404,7 @@ class ZDockTimelineContent(QWidget):
         if x1 <= x0 or y1 <= y0:
             return None
         crop = small.crop((x0, y0, x1, y1))
-        crop.thumbnail((THUMBNAIL_MAX, THUMBNAIL_MAX), Image.Resampling.LANCZOS)
+        crop.thumbnail((self._thumbnail_max, self._thumbnail_max), Image.Resampling.LANCZOS)
         qimg = _QImage(crop.tobytes(), crop.width, crop.height, crop.width * 3, _QImage.Format.Format_RGB888)
         return QPixmap.fromImage(qimg)
 

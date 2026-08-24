@@ -20,6 +20,10 @@ class LRUCache(Generic[K, V]):
         self._maxsize = max(1, int(maxsize))
         self._data: OrderedDict[K, V] = OrderedDict()
 
+    @property
+    def maxsize(self) -> int:
+        return self._maxsize
+
     def get(self, key: K, default=None) -> V:
         if key not in self._data:
             return default

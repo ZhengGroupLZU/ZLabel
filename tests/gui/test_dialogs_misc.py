@@ -123,3 +123,13 @@ def test_zslider_value_changes(qtbot):
     sl.setValue(75)
     assert values == [75]
     assert sl.label.text() == "75"
+
+
+def test_zcolorbutton_sets_color(qtbot):
+    from zlabel.widgets.zwidgets import ZColorButton
+
+    b = ZColorButton()
+    qtbot.addWidget(b)
+    b.set_color("#ff0000")
+    assert b.color() == "#ff0000"
+    assert "#ff0000" in b.styleSheet()

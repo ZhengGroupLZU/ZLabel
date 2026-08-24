@@ -21,13 +21,15 @@ from PySide6.QtWidgets import (QApplication, QCheckBox, QComboBox, QDialog,
     QScrollArea, QSizePolicy, QSpacerItem, QSpinBox,
     QTabWidget, QTableWidget, QTableWidgetItem, QVBoxLayout,
     QWidget)
+
+from zlabel.widgets.zwidgets import ZColorButton
 import icons_rc
 
 class Ui_DialogSettings(object):
     def setupUi(self, DialogSettings):
         if not DialogSettings.objectName():
             DialogSettings.setObjectName(u"DialogSettings")
-        DialogSettings.resize(925, 797)
+        DialogSettings.resize(977, 790)
         font = QFont()
         font.setFamilies([u"Times New Roman"])
         font.setPointSize(12)
@@ -69,10 +71,15 @@ class Ui_DialogSettings(object):
         self.gridLayout_7.setContentsMargins(5, 5, 5, 5)
         self.scrollArea = QScrollArea(self.tab_application)
         self.scrollArea.setObjectName(u"scrollArea")
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.scrollArea.sizePolicy().hasHeightForWidth())
+        self.scrollArea.setSizePolicy(sizePolicy)
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 895, 706))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 947, 699))
         self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(3, 3, 3, 3)
@@ -83,31 +90,15 @@ class Ui_DialogSettings(object):
         self.gridLayout_2.setContentsMargins(5, 5, 5, 5)
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
-        self.dspbox_alpha = QDoubleSpinBox(self.groupBox_application)
-        self.dspbox_alpha.setObjectName(u"dspbox_alpha")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.dspbox_alpha.sizePolicy().hasHeightForWidth())
-        self.dspbox_alpha.setSizePolicy(sizePolicy)
-        self.dspbox_alpha.setMinimumSize(QSize(63, 0))
-        self.dspbox_alpha.setMaximum(1.000000000000000)
-        self.dspbox_alpha.setSingleStep(0.100000000000000)
-        self.dspbox_alpha.setValue(0.100000000000000)
+        self.label_2 = QLabel(self.groupBox_application)
+        self.label_2.setObjectName(u"label_2")
+        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Preferred)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.label_2.sizePolicy().hasHeightForWidth())
+        self.label_2.setSizePolicy(sizePolicy1)
 
-        self.gridLayout_4.addWidget(self.dspbox_alpha, 3, 1, 1, 1)
-
-        self.ckbox_random = QCheckBox(self.groupBox_application)
-        self.ckbox_random.setObjectName(u"ckbox_random")
-        self.ckbox_random.setChecked(True)
-
-        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
-
-        self.ckbox_catmull_rom = QCheckBox(self.groupBox_application)
-        self.ckbox_catmull_rom.setObjectName(u"ckbox_catmull_rom")
-        self.ckbox_catmull_rom.setChecked(False)
-
-        self.gridLayout_4.addWidget(self.ckbox_catmull_rom, 5, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.label_2, 6, 0, 1, 1)
 
         self.cmbox_loglevel = QComboBox(self.groupBox_application)
         self.cmbox_loglevel.addItem("")
@@ -115,6 +106,11 @@ class Ui_DialogSettings(object):
         self.cmbox_loglevel.addItem("")
         self.cmbox_loglevel.addItem("")
         self.cmbox_loglevel.setObjectName(u"cmbox_loglevel")
+        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Fixed)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.cmbox_loglevel.sizePolicy().hasHeightForWidth())
+        self.cmbox_loglevel.setSizePolicy(sizePolicy2)
 
         self.gridLayout_4.addWidget(self.cmbox_loglevel, 6, 1, 1, 1)
 
@@ -128,47 +124,305 @@ class Ui_DialogSettings(object):
         self.gbox_others.setObjectName(u"gbox_others")
         self.grid_inference_2 = QGridLayout(self.gbox_others)
         self.grid_inference_2.setObjectName(u"grid_inference_2")
+        self.ledit_ocr_dir = QLineEdit(self.gbox_others)
+        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
+        sizePolicy3 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Fixed)
+        sizePolicy3.setHorizontalStretch(0)
+        sizePolicy3.setVerticalStretch(0)
+        sizePolicy3.setHeightForWidth(self.ledit_ocr_dir.sizePolicy().hasHeightForWidth())
+        self.ledit_ocr_dir.setSizePolicy(sizePolicy3)
+
+        self.grid_inference_2.addWidget(self.ledit_ocr_dir, 1, 1, 1, 1)
+
         self.label_ocr_dir = QLabel(self.gbox_others)
         self.label_ocr_dir.setObjectName(u"label_ocr_dir")
 
-        self.grid_inference_2.addWidget(self.label_ocr_dir, 2, 0, 1, 1)
-
-        self.ledit_ocr_dir = QLineEdit(self.gbox_others)
-        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
-
-        self.grid_inference_2.addWidget(self.ledit_ocr_dir, 2, 1, 1, 1)
+        self.grid_inference_2.addWidget(self.label_ocr_dir, 1, 0, 1, 1)
 
         self.btn_ocr_dir = QPushButton(self.gbox_others)
         self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
 
-        self.grid_inference_2.addWidget(self.btn_ocr_dir, 2, 2, 1, 1)
-
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.ckbox_auto_dish = QCheckBox(self.gbox_others)
-        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
-
-        self.horizontalLayout.addWidget(self.ckbox_auto_dish)
-
-        self.ckbox_ocr_enable = QCheckBox(self.gbox_others)
-        self.ckbox_ocr_enable.setObjectName(u"ckbox_ocr_enable")
-
-        self.horizontalLayout.addWidget(self.ckbox_ocr_enable)
-
-        self.ckbox_copy_prev = QCheckBox(self.gbox_others)
-        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
-
-        self.horizontalLayout.addWidget(self.ckbox_copy_prev)
+        self.grid_inference_2.addWidget(self.btn_ocr_dir, 1, 2, 1, 1)
 
 
-        self.grid_inference_2.addLayout(self.horizontalLayout, 0, 0, 1, 3)
-
-
-        self.gridLayout.addWidget(self.gbox_others, 1, 0, 1, 1)
+        self.gridLayout.addWidget(self.gbox_others, 4, 0, 1, 1)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout.addItem(self.verticalSpacer, 2, 0, 1, 1)
+        self.gridLayout.addItem(self.verticalSpacer, 6, 0, 1, 1)
+
+        self.gbox_performance = QGroupBox(self.scrollAreaWidgetContents)
+        self.gbox_performance.setObjectName(u"gbox_performance")
+        self.grid_performance = QGridLayout(self.gbox_performance)
+        self.grid_performance.setObjectName(u"grid_performance")
+        self.spin_image_cache_size = QSpinBox(self.gbox_performance)
+        self.spin_image_cache_size.setObjectName(u"spin_image_cache_size")
+        self.spin_image_cache_size.setMinimum(1)
+        self.spin_image_cache_size.setMaximum(64)
+        self.spin_image_cache_size.setValue(5)
+
+        self.grid_performance.addWidget(self.spin_image_cache_size, 0, 3, 1, 1)
+
+        self.spin_tl_cache_size = QSpinBox(self.gbox_performance)
+        self.spin_tl_cache_size.setObjectName(u"spin_tl_cache_size")
+        self.spin_tl_cache_size.setMinimum(1)
+        self.spin_tl_cache_size.setMaximum(256)
+        self.spin_tl_cache_size.setValue(32)
+
+        self.grid_performance.addWidget(self.spin_tl_cache_size, 2, 1, 1, 1)
+
+        self.spin_tl_cell_size = QSpinBox(self.gbox_performance)
+        self.spin_tl_cell_size.setObjectName(u"spin_tl_cell_size")
+        self.spin_tl_cell_size.setMinimum(16)
+        self.spin_tl_cell_size.setMaximum(128)
+        self.spin_tl_cell_size.setValue(48)
+
+        self.grid_performance.addWidget(self.spin_tl_cell_size, 2, 3, 1, 1)
+
+        self.label_display_max_side = QLabel(self.gbox_performance)
+        self.label_display_max_side.setObjectName(u"label_display_max_side")
+        sizePolicy1.setHeightForWidth(self.label_display_max_side.sizePolicy().hasHeightForWidth())
+        self.label_display_max_side.setSizePolicy(sizePolicy1)
+        self.label_display_max_side.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_display_max_side, 0, 0, 1, 1)
+
+        self.label_tl_cell_size = QLabel(self.gbox_performance)
+        self.label_tl_cell_size.setObjectName(u"label_tl_cell_size")
+        sizePolicy1.setHeightForWidth(self.label_tl_cell_size.sizePolicy().hasHeightForWidth())
+        self.label_tl_cell_size.setSizePolicy(sizePolicy1)
+        self.label_tl_cell_size.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_tl_cell_size, 2, 2, 1, 1)
+
+        self.spin_display_max_side = QSpinBox(self.gbox_performance)
+        self.spin_display_max_side.setObjectName(u"spin_display_max_side")
+        self.spin_display_max_side.setMinimum(512)
+        self.spin_display_max_side.setMaximum(8192)
+        self.spin_display_max_side.setSingleStep(256)
+        self.spin_display_max_side.setValue(2560)
+
+        self.grid_performance.addWidget(self.spin_display_max_side, 0, 1, 1, 1)
+
+        self.label_tl_cache_size = QLabel(self.gbox_performance)
+        self.label_tl_cache_size.setObjectName(u"label_tl_cache_size")
+        sizePolicy1.setHeightForWidth(self.label_tl_cache_size.sizePolicy().hasHeightForWidth())
+        self.label_tl_cache_size.setSizePolicy(sizePolicy1)
+        self.label_tl_cache_size.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_tl_cache_size, 2, 0, 1, 1)
+
+        self.label_image_cache_size = QLabel(self.gbox_performance)
+        self.label_image_cache_size.setObjectName(u"label_image_cache_size")
+        sizePolicy1.setHeightForWidth(self.label_image_cache_size.sizePolicy().hasHeightForWidth())
+        self.label_image_cache_size.setSizePolicy(sizePolicy1)
+        self.label_image_cache_size.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_image_cache_size, 0, 2, 1, 1)
+
+        self.ckbox_copy_prev = QCheckBox(self.gbox_performance)
+        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
+
+        self.grid_performance.addWidget(self.ckbox_copy_prev, 3, 5, 1, 1)
+
+        self.ckbox_ocr_enable = QCheckBox(self.gbox_performance)
+        self.ckbox_ocr_enable.setObjectName(u"ckbox_ocr_enable")
+
+        self.grid_performance.addWidget(self.ckbox_ocr_enable, 3, 4, 1, 1)
+
+        self.ckbox_random = QCheckBox(self.gbox_performance)
+        self.ckbox_random.setObjectName(u"ckbox_random")
+        self.ckbox_random.setChecked(False)
+
+        self.grid_performance.addWidget(self.ckbox_random, 3, 3, 1, 1)
+
+        self.ckbox_auto_dish = QCheckBox(self.gbox_performance)
+        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
+
+        self.grid_performance.addWidget(self.ckbox_auto_dish, 3, 2, 1, 1)
+
+        self.ckbox_catmull_rom = QCheckBox(self.gbox_performance)
+        self.ckbox_catmull_rom.setObjectName(u"ckbox_catmull_rom")
+        self.ckbox_catmull_rom.setChecked(False)
+
+        self.grid_performance.addWidget(self.ckbox_catmull_rom, 3, 0, 1, 2)
+
+        self.label_tl_small_side = QLabel(self.gbox_performance)
+        self.label_tl_small_side.setObjectName(u"label_tl_small_side")
+        sizePolicy1.setHeightForWidth(self.label_tl_small_side.sizePolicy().hasHeightForWidth())
+        self.label_tl_small_side.setSizePolicy(sizePolicy1)
+        self.label_tl_small_side.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_tl_small_side, 2, 4, 1, 1)
+
+        self.spin_tl_small_side = QSpinBox(self.gbox_performance)
+        self.spin_tl_small_side.setObjectName(u"spin_tl_small_side")
+        self.spin_tl_small_side.setMinimum(128)
+        self.spin_tl_small_side.setMaximum(2048)
+        self.spin_tl_small_side.setSingleStep(64)
+        self.spin_tl_small_side.setValue(512)
+
+        self.grid_performance.addWidget(self.spin_tl_small_side, 2, 5, 1, 1)
+
+
+        self.gridLayout.addWidget(self.gbox_performance, 3, 0, 1, 1)
+
+        self.gbox_appearance = QGroupBox(self.scrollAreaWidgetContents)
+        self.gbox_appearance.setObjectName(u"gbox_appearance")
+        self.grid_appearance = QGridLayout(self.gbox_appearance)
+        self.grid_appearance.setObjectName(u"grid_appearance")
+        self.label = QLabel(self.gbox_appearance)
+        self.label.setObjectName(u"label")
+        sizePolicy1.setHeightForWidth(self.label.sizePolicy().hasHeightForWidth())
+        self.label.setSizePolicy(sizePolicy1)
+        self.label.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label, 0, 0, 1, 1)
+
+        self.dspbox_alpha = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_alpha.setObjectName(u"dspbox_alpha")
+        sizePolicy2.setHeightForWidth(self.dspbox_alpha.sizePolicy().hasHeightForWidth())
+        self.dspbox_alpha.setSizePolicy(sizePolicy2)
+        self.dspbox_alpha.setMinimumSize(QSize(63, 0))
+        self.dspbox_alpha.setMaximum(1.000000000000000)
+        self.dspbox_alpha.setSingleStep(0.100000000000000)
+        self.dspbox_alpha.setValue(0.100000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_alpha, 0, 1, 1, 1)
+
+        self.label_default_color = QLabel(self.gbox_appearance)
+        self.label_default_color.setObjectName(u"label_default_color")
+        self.label_default_color.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_default_color, 0, 2, 1, 1)
+
+        self.btn_default_color = ZColorButton(self.gbox_appearance)
+        self.btn_default_color.setObjectName(u"btn_default_color")
+        sizePolicy2.setHeightForWidth(self.btn_default_color.sizePolicy().hasHeightForWidth())
+        self.btn_default_color.setSizePolicy(sizePolicy2)
+
+        self.grid_appearance.addWidget(self.btn_default_color, 0, 3, 1, 1)
+
+        self.label_edit_alpha = QLabel(self.gbox_appearance)
+        self.label_edit_alpha.setObjectName(u"label_edit_alpha")
+        self.label_edit_alpha.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_edit_alpha, 1, 0, 1, 1)
+
+        self.dspbox_edit_alpha = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_edit_alpha.setObjectName(u"dspbox_edit_alpha")
+        self.dspbox_edit_alpha.setMaximum(1.000000000000000)
+        self.dspbox_edit_alpha.setSingleStep(0.050000000000000)
+        self.dspbox_edit_alpha.setValue(0.050000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_edit_alpha, 1, 1, 1, 1)
+
+        self.label_draw_alpha = QLabel(self.gbox_appearance)
+        self.label_draw_alpha.setObjectName(u"label_draw_alpha")
+        self.label_draw_alpha.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_draw_alpha, 1, 2, 1, 1)
+
+        self.dspbox_draw_alpha = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_draw_alpha.setObjectName(u"dspbox_draw_alpha")
+        self.dspbox_draw_alpha.setMaximum(1.000000000000000)
+        self.dspbox_draw_alpha.setSingleStep(0.050000000000000)
+        self.dspbox_draw_alpha.setValue(0.050000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_draw_alpha, 1, 3, 1, 1)
+
+        self.label_hline_color = QLabel(self.gbox_appearance)
+        self.label_hline_color.setObjectName(u"label_hline_color")
+        sizePolicy1.setHeightForWidth(self.label_hline_color.sizePolicy().hasHeightForWidth())
+        self.label_hline_color.setSizePolicy(sizePolicy1)
+        self.label_hline_color.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_hline_color, 0, 4, 1, 1)
+
+        self.btn_hline_color = ZColorButton(self.gbox_appearance)
+        self.btn_hline_color.setObjectName(u"btn_hline_color")
+        sizePolicy2.setHeightForWidth(self.btn_hline_color.sizePolicy().hasHeightForWidth())
+        self.btn_hline_color.setSizePolicy(sizePolicy2)
+
+        self.grid_appearance.addWidget(self.btn_hline_color, 0, 5, 1, 1)
+
+        self.label_hline_width = QLabel(self.gbox_appearance)
+        self.label_hline_width.setObjectName(u"label_hline_width")
+        sizePolicy1.setHeightForWidth(self.label_hline_width.sizePolicy().hasHeightForWidth())
+        self.label_hline_width.setSizePolicy(sizePolicy1)
+        self.label_hline_width.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_hline_width, 1, 4, 1, 1)
+
+        self.spin_hline_width = QSpinBox(self.gbox_appearance)
+        self.spin_hline_width.setObjectName(u"spin_hline_width")
+        self.spin_hline_width.setMinimum(1)
+        self.spin_hline_width.setMaximum(10)
+
+        self.grid_appearance.addWidget(self.spin_hline_width, 1, 5, 1, 1)
+
+        self.label_mag_min = QLabel(self.gbox_appearance)
+        self.label_mag_min.setObjectName(u"label_mag_min")
+        self.label_mag_min.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_mag_min, 8, 0, 1, 1)
+
+        self.dspbox_mag_min = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_mag_min.setObjectName(u"dspbox_mag_min")
+        self.dspbox_mag_min.setMinimum(0.500000000000000)
+        self.dspbox_mag_min.setMaximum(20.000000000000000)
+        self.dspbox_mag_min.setSingleStep(0.500000000000000)
+        self.dspbox_mag_min.setValue(1.000000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_mag_min, 8, 1, 1, 1)
+
+        self.label_mag_max = QLabel(self.gbox_appearance)
+        self.label_mag_max.setObjectName(u"label_mag_max")
+        self.label_mag_max.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_mag_max, 8, 2, 1, 1)
+
+        self.dspbox_mag_max = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_mag_max.setObjectName(u"dspbox_mag_max")
+        self.dspbox_mag_max.setMinimum(0.500000000000000)
+        self.dspbox_mag_max.setMaximum(20.000000000000000)
+        self.dspbox_mag_max.setSingleStep(0.500000000000000)
+        self.dspbox_mag_max.setValue(10.000000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_mag_max, 8, 3, 1, 1)
+
+        self.label_vline_color = QLabel(self.gbox_appearance)
+        self.label_vline_color.setObjectName(u"label_vline_color")
+        sizePolicy1.setHeightForWidth(self.label_vline_color.sizePolicy().hasHeightForWidth())
+        self.label_vline_color.setSizePolicy(sizePolicy1)
+        self.label_vline_color.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_vline_color, 5, 4, 1, 1)
+
+        self.btn_vline_color = ZColorButton(self.gbox_appearance)
+        self.btn_vline_color.setObjectName(u"btn_vline_color")
+        sizePolicy2.setHeightForWidth(self.btn_vline_color.sizePolicy().hasHeightForWidth())
+        self.btn_vline_color.setSizePolicy(sizePolicy2)
+
+        self.grid_appearance.addWidget(self.btn_vline_color, 5, 5, 1, 1)
+
+        self.label_vline_width = QLabel(self.gbox_appearance)
+        self.label_vline_width.setObjectName(u"label_vline_width")
+        sizePolicy1.setHeightForWidth(self.label_vline_width.sizePolicy().hasHeightForWidth())
+        self.label_vline_width.setSizePolicy(sizePolicy1)
+        self.label_vline_width.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_vline_width, 8, 4, 1, 1)
+
+        self.spin_vline_width = QSpinBox(self.gbox_appearance)
+        self.spin_vline_width.setObjectName(u"spin_vline_width")
+        self.spin_vline_width.setMinimum(1)
+        self.spin_vline_width.setMaximum(10)
+
+        self.grid_appearance.addWidget(self.spin_vline_width, 8, 5, 1, 1)
+
+
+        self.gridLayout.addWidget(self.gbox_appearance, 1, 0, 1, 1)
 
         self.scrollArea.setWidget(self.scrollAreaWidgetContents)
 
@@ -185,7 +439,7 @@ class Ui_DialogSettings(object):
         self.scrollArea_remote.setWidgetResizable(True)
         self.scrollAreaWidgetContents_remote = QWidget()
         self.scrollAreaWidgetContents_remote.setObjectName(u"scrollAreaWidgetContents_remote")
-        self.scrollAreaWidgetContents_remote.setGeometry(QRect(0, 0, 895, 706))
+        self.scrollAreaWidgetContents_remote.setGeometry(QRect(0, 0, 947, 699))
         self.gridLayout_remote_body = QGridLayout(self.scrollAreaWidgetContents_remote)
         self.gridLayout_remote_body.setObjectName(u"gridLayout_remote_body")
         self.gridLayout_remote_body.setContentsMargins(3, 3, 3, 3)
@@ -214,6 +468,21 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4_remote.addWidget(self.ledit_password, 2, 1, 1, 1)
 
+        self.label_3 = QLabel(self.groupBox_remote)
+        self.label_3.setObjectName(u"label_3")
+
+        self.gridLayout_4_remote.addWidget(self.label_3, 0, 0, 1, 1)
+
+        self.label_4 = QLabel(self.groupBox_remote)
+        self.label_4.setObjectName(u"label_4")
+
+        self.gridLayout_4_remote.addWidget(self.label_4, 1, 0, 1, 1)
+
+        self.label_5 = QLabel(self.groupBox_remote)
+        self.label_5.setObjectName(u"label_5")
+
+        self.gridLayout_4_remote.addWidget(self.label_5, 2, 0, 1, 1)
+
 
         self.gridLayout_2_remote.addLayout(self.gridLayout_4_remote, 0, 0, 1, 1)
 
@@ -239,7 +508,7 @@ class Ui_DialogSettings(object):
         self.scrollArea_inference.setWidgetResizable(True)
         self.scrollAreaWidgetContents_inference = QWidget()
         self.scrollAreaWidgetContents_inference.setObjectName(u"scrollAreaWidgetContents_inference")
-        self.scrollAreaWidgetContents_inference.setGeometry(QRect(0, 0, 895, 706))
+        self.scrollAreaWidgetContents_inference.setGeometry(QRect(0, 0, 947, 699))
         self.gridLayout_inference_body = QGridLayout(self.scrollAreaWidgetContents_inference)
         self.gridLayout_inference_body.setObjectName(u"gridLayout_inference_body")
         self.gridLayout_inference_body.setContentsMargins(3, 3, 3, 3)
@@ -339,17 +608,17 @@ class Ui_DialogSettings(object):
         self.scrollArea_2.setWidgetResizable(True)
         self.scrollAreaWidgetContents_2 = QWidget()
         self.scrollAreaWidgetContents_2.setObjectName(u"scrollAreaWidgetContents_2")
-        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 887, 698))
+        self.scrollAreaWidgetContents_2.setGeometry(QRect(0, 0, 939, 691))
         self.gridLayout_8 = QGridLayout(self.scrollAreaWidgetContents_2)
         self.gridLayout_8.setObjectName(u"gridLayout_8")
         self.gridLayout_8.setContentsMargins(3, 3, 3, 3)
         self.groupBox_5 = QGroupBox(self.scrollAreaWidgetContents_2)
         self.groupBox_5.setObjectName(u"groupBox_5")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.groupBox_5.sizePolicy().hasHeightForWidth())
-        self.groupBox_5.setSizePolicy(sizePolicy1)
+        sizePolicy4 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        sizePolicy4.setHorizontalStretch(0)
+        sizePolicy4.setVerticalStretch(0)
+        sizePolicy4.setHeightForWidth(self.groupBox_5.sizePolicy().hasHeightForWidth())
+        self.groupBox_5.setSizePolicy(sizePolicy4)
         self.groupBox_5.setMinimumSize(QSize(0, 500))
         self.gridLayout_11 = QGridLayout(self.groupBox_5)
         self.gridLayout_11.setObjectName(u"gridLayout_11")
@@ -407,11 +676,8 @@ class Ui_DialogSettings(object):
         __qtablewidgetitem3 = QTableWidgetItem()
         self.table_labels.setHorizontalHeaderItem(3, __qtablewidgetitem3)
         self.table_labels.setObjectName(u"table_labels")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
-        sizePolicy2.setHorizontalStretch(0)
-        sizePolicy2.setVerticalStretch(0)
-        sizePolicy2.setHeightForWidth(self.table_labels.sizePolicy().hasHeightForWidth())
-        self.table_labels.setSizePolicy(sizePolicy2)
+        sizePolicy.setHeightForWidth(self.table_labels.sizePolicy().hasHeightForWidth())
+        self.table_labels.setSizePolicy(sizePolicy)
 
         self.gridLayout_12.addWidget(self.table_labels, 5, 1, 1, 1)
 
@@ -519,8 +785,7 @@ class Ui_DialogSettings(object):
         self.btn_cancel.setText(QCoreApplication.translate("DialogSettings", u"Cancel", None))
         self.btn_apply.setText(QCoreApplication.translate("DialogSettings", u"Apply", None))
         self.groupBox_application.setTitle(QCoreApplication.translate("DialogSettings", u"Application", None))
-        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enable Random Tasks", None))
-        self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
+        self.label_2.setText(QCoreApplication.translate("DialogSettings", u"Log level:", None))
         self.cmbox_loglevel.setItemText(0, QCoreApplication.translate("DialogSettings", u"DEBUG", None))
         self.cmbox_loglevel.setItemText(1, QCoreApplication.translate("DialogSettings", u"INFO", None))
         self.cmbox_loglevel.setItemText(2, QCoreApplication.translate("DialogSettings", u"WARNING", None))
@@ -529,11 +794,35 @@ class Ui_DialogSettings(object):
         self.gbox_others.setTitle(QCoreApplication.translate("DialogSettings", u"Others", None))
         self.label_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"WeChat OCR Folder:", None))
         self.btn_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
-        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish", None))
-        self.ckbox_ocr_enable.setText(QCoreApplication.translate("DialogSettings", u"Manual timestamp", None))
+        self.gbox_performance.setTitle(QCoreApplication.translate("DialogSettings", u"Performance", None))
+        self.label_display_max_side.setText(QCoreApplication.translate("DialogSettings", u"Display max side:", None))
+        self.label_tl_cell_size.setText(QCoreApplication.translate("DialogSettings", u"Timeline cell size:", None))
+        self.spin_display_max_side.setSuffix(QCoreApplication.translate("DialogSettings", u"px", None))
+        self.label_tl_cache_size.setText(QCoreApplication.translate("DialogSettings", u"Timeline cache size:", None))
+        self.label_image_cache_size.setText(QCoreApplication.translate("DialogSettings", u"Image cache size:", None))
         self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Copy previous frame", None))
+        self.ckbox_ocr_enable.setText(QCoreApplication.translate("DialogSettings", u"Manual timestamp", None))
+        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enable Random Tasks", None))
+        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish", None))
+        self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
+        self.label_tl_small_side.setText(QCoreApplication.translate("DialogSettings", u"Timeline small side:", None))
+        self.spin_tl_small_side.setSuffix(QCoreApplication.translate("DialogSettings", u"px", None))
+        self.gbox_appearance.setTitle(QCoreApplication.translate("DialogSettings", u"Appearance", None))
+        self.label.setText(QCoreApplication.translate("DialogSettings", u"Fill alpha:", None))
+        self.label_default_color.setText(QCoreApplication.translate("DialogSettings", u"Default color:", None))
+        self.label_edit_alpha.setText(QCoreApplication.translate("DialogSettings", u"Edit fill alpha:", None))
+        self.label_draw_alpha.setText(QCoreApplication.translate("DialogSettings", u"Draw fill alpha:", None))
+        self.label_hline_color.setText(QCoreApplication.translate("DialogSettings", u"Hline color:", None))
+        self.label_hline_width.setText(QCoreApplication.translate("DialogSettings", u"Hline width:", None))
+        self.label_mag_min.setText(QCoreApplication.translate("DialogSettings", u"Magnifier min zoom:", None))
+        self.label_mag_max.setText(QCoreApplication.translate("DialogSettings", u"Magnifier max zoom:", None))
+        self.label_vline_color.setText(QCoreApplication.translate("DialogSettings", u"Vline color:", None))
+        self.label_vline_width.setText(QCoreApplication.translate("DialogSettings", u"Vline width:", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_application), QCoreApplication.translate("DialogSettings", u"Application", None))
         self.groupBox_remote.setTitle(QCoreApplication.translate("DialogSettings", u"Remote API", None))
+        self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Host:", None))
+        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User name:", None))
+        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_remote), QCoreApplication.translate("DialogSettings", u"Remote", None))
         self.gbox_inference.setTitle(QCoreApplication.translate("DialogSettings", u"Inference", None))
         self.cmbox_backend.setItemText(0, QCoreApplication.translate("DialogSettings", u"AUTO", None))

@@ -286,6 +286,40 @@ class ZInstanceItemWidget(QWidget):
             self.sigDefaultSelected.emit(self.id_)
 
 
+class ZColorButton(QPushButton):
+    """A small color-swatch button that opens a QColorDialog on click."""
+
+    colorChanged = Signal(str)
+
+    def __init__(self, parent: QWidget | None = None, color: str = "#000000"):
+        super().__init__(parent)
+        self._color = QColor(color)
+        self.setCursor(Qt.CursorShape.PointingHandCursor)
+        self.setFixedHeight(24)
+        self.setMinimumWidth(64)
+        self.clicked.connect(self._pick_color)
+        self._update_style()
+
+    def color(self) -> str:
+        return self._color.name()
+
+    def set_color(self, color: str):
+        self._color = QColor(color)
+        self._update_style()
+
+    def _update_style(self):
+        self.setText(self._color.name())
+        self.setStyleSheet(
+            f"QPushButton {{ background-color: {self._color.name()}; color: white; border: 1px solid #888; }}"
+        )
+
+    def _pick_color(self):
+        color = QColorDialog.getColor(self._color, self)
+        if color.isValid():
+            self.set_color(color.name())
+            self.colorChanged.emit(self.color())
+
+
 class ZSwitchButton(QPushButton):
     sigCheckStateChanged = Signal(bool)
 

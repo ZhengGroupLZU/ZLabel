@@ -86,10 +86,31 @@
      </item>
     </layout>
    </item>
-   <item row="3" column="0" colspan="2">
-    <widget class="QTextBrowser" name="textBrowser"/>
+   <item row="3" column="0">
+    <widget class="QLabel" name="label_inst">
+     <property name="text">
+      <string>Instance mode:</string>
+     </property>
+    </widget>
+   </item>
+   <item row="3" column="1">
+    <widget class="QComboBox" name="cmbox_inst">
+     <item>
+      <property name="text">
+       <string>Split by part</string>
+      </property>
+     </item>
+     <item>
+      <property name="text">
+       <string>Merge by instance</string>
+      </property>
+     </item>
+    </widget>
    </item>
    <item row="4" column="0" colspan="2">
+    <widget class="QTextBrowser" name="textBrowser"/>
+   </item>
+   <item row="5" column="0" colspan="2">
     <widget class="QProgressBar" name="progressBar">
      <property name="maximum">
       <number>100</number>
@@ -99,7 +120,7 @@
      </property>
     </widget>
    </item>
-   <item row="5" column="1">
+   <item row="6" column="1">
     <layout class="QHBoxLayout" name="horizontalLayout_2">
      <item>
       <spacer name="horizontalSpacer">

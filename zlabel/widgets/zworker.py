@@ -41,17 +41,17 @@ class GetImageResult:
     prepared: PreparedImage | None = None
 
 
-def prepare_image(image: Image.Image) -> PreparedImage:
+def prepare_image(image: Image.Image, display_max_side: int = DISPLAY_MAX_SIDE) -> PreparedImage:
     """Decode/downsample/rotate an image for canvas display in a worker thread."""
     full_hw = (image.height, image.width)
     img = np.asarray(image, dtype=np.uint8)
     h, w = img.shape[:2]
-    if max(w, h) > DISPLAY_MAX_SIDE:
-        s = DISPLAY_MAX_SIDE / max(w, h)
+    if max(w, h) > display_max_side:
+        s = display_max_side / max(w, h)
         new_w = max(1, round(w * s))
         new_h = max(1, round(h * s))
         img = np.asarray(Image.fromarray(img).resize((new_w, new_h), Image.Resampling.LANCZOS))
-        img_scale = max(w, h) / DISPLAY_MAX_SIDE
+        img_scale = max(w, h) / display_max_side
     else:
         img_scale = 1.0
     img = np.rot90(img, k=3, axes=(1, 0))
@@ -269,6 +269,7 @@ class ZGetImageWorker(QRunnable):
         filename: str,
         username: str | None = None,
         password: str | None = None,
+        display_max_side: int = DISPLAY_MAX_SIDE,
     ) -> None:
         super().__init__()
 
@@ -276,6 +277,7 @@ class ZGetImageWorker(QRunnable):
         self.filename = filename
         self.username = username
         self.password = password
+        self.display_max_side = display_max_side
         self.emitter = GetFileEmitter()
         self.setAutoDelete(True)
 
@@ -285,7 +287,10 @@ class ZGetImageWorker(QRunnable):
         image = self.api.get_image(self.filename)
         time.sleep(0.5)
         if image is not None:
-            self.emitter.success.emit(self.filename, GetImageResult(image=image, prepared=prepare_image(image)))
+            self.emitter.success.emit(
+                self.filename,
+                GetImageResult(image=image, prepared=prepare_image(image, self.display_max_side)),
+            )
         else:
             self.emitter.fail.emit(f"Get image {self.filename} failed")
 

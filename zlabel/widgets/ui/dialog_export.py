@@ -72,17 +72,29 @@ class Ui_DialogExport(object):
 
         self.gridLayout.addLayout(self.horizontalLayout, 2, 1, 1, 1)
 
+        self.label_inst = QLabel(DialogExport)
+        self.label_inst.setObjectName(u"label_inst")
+
+        self.gridLayout.addWidget(self.label_inst, 3, 0, 1, 1)
+
+        self.cmbox_inst = QComboBox(DialogExport)
+        self.cmbox_inst.addItem("")
+        self.cmbox_inst.addItem("")
+        self.cmbox_inst.setObjectName(u"cmbox_inst")
+
+        self.gridLayout.addWidget(self.cmbox_inst, 3, 1, 1, 1)
+
         self.textBrowser = QTextBrowser(DialogExport)
         self.textBrowser.setObjectName(u"textBrowser")
 
-        self.gridLayout.addWidget(self.textBrowser, 3, 0, 1, 2)
+        self.gridLayout.addWidget(self.textBrowser, 4, 0, 1, 2)
 
         self.progressBar = QProgressBar(DialogExport)
         self.progressBar.setObjectName(u"progressBar")
         self.progressBar.setMaximum(100)
         self.progressBar.setValue(0)
 
-        self.gridLayout.addWidget(self.progressBar, 4, 0, 1, 2)
+        self.gridLayout.addWidget(self.progressBar, 5, 0, 1, 2)
 
         self.horizontalLayout_2 = QHBoxLayout()
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
@@ -101,7 +113,7 @@ class Ui_DialogExport(object):
         self.horizontalLayout_2.addWidget(self.btn_export)
 
 
-        self.gridLayout.addLayout(self.horizontalLayout_2, 5, 1, 1, 1)
+        self.gridLayout.addLayout(self.horizontalLayout_2, 6, 1, 1, 1)
 
 
         self.retranslateUi(DialogExport)
@@ -123,6 +135,10 @@ class Ui_DialogExport(object):
         self.label_output.setText(QCoreApplication.translate("DialogExport", u"Output:", None))
         self.ledit_output.setPlaceholderText(QCoreApplication.translate("DialogExport", u"COCO json path / YOLO output directory", None))
         self.btn_output.setText(QCoreApplication.translate("DialogExport", u"Browse...", None))
+        self.label_inst.setText(QCoreApplication.translate("DialogExport", u"Instance mode:", None))
+        self.cmbox_inst.setItemText(0, QCoreApplication.translate("DialogExport", u"Split by part", None))
+        self.cmbox_inst.setItemText(1, QCoreApplication.translate("DialogExport", u"Merge by instance", None))
+
         self.btn_cancel.setText(QCoreApplication.translate("DialogExport", u"Cancel", None))
         self.btn_export.setText(QCoreApplication.translate("DialogExport", u"Export", None))
     # retranslateUi
