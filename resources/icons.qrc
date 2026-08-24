@@ -1,6 +1,8 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/pointer.png</file>
     <file>icons/magnifier.svg</file>
+    <file>icons/dot.svg</file>
     <file>icons/go_backward90.svg</file>
     <file>icons/go_forward90.svg</file>
     <file>icons/copy.svg</file>

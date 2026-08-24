@@ -9,7 +9,7 @@ import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, Signal
-from pyqtgraph.Qt.QtGui import QKeyEvent, QMouseEvent, QTransform
+from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPixmap, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
@@ -411,17 +411,22 @@ class Canvas(pg.PlotWidget):
         # autoLevels=False keeps the fixed levels (no full-image scan per toggle)
         self.image_item.updateImage(arr, autoLevels=False, levels=self._image_levels)
 
+    def _update_cursor(self):
+        """Cursor for the current mode/draw tool."""
+        if self._status_mode in (StatusMode.VIEW, StatusMode.EDIT):
+            self.setCursor(Qt.CursorShape.ArrowCursor)
+        elif self._draw_mode == DrawMode.POLYGON:
+            self.setCursor(Qt.CursorShape.BlankCursor)
+        else:
+            self.setCursor(Qt.CursorShape.CrossCursor)
+
     def set_status_mode(self, mode: StatusMode):
         # guard to avoid redundant text updates
         if self._status_mode == mode:
             return
         was_edit = self._status_mode == StatusMode.EDIT
-        # editing keeps the normal arrow cursor; only CREATE uses a crosshair
-        if mode in (StatusMode.VIEW, StatusMode.EDIT):
-            self.setCursor(Qt.CursorShape.ArrowCursor)
-        else:
-            self.setCursor(Qt.CursorShape.CrossCursor)
         self._status_mode = mode
+        self._update_cursor()
         if was_edit and mode != StatusMode.EDIT:
             self._apply_fill_alpha(self._alpha)
         elif mode == StatusMode.EDIT and not was_edit:
@@ -443,6 +448,7 @@ class Canvas(pg.PlotWidget):
         if self._draw_mode == mode:
             return
         self._draw_mode = mode
+        self._update_cursor()
         self.set_mode_text()
 
     def set_mode_text(self):
