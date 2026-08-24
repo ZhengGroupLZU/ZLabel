@@ -915,6 +915,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_magnifier_triggered(self, checked: bool):
         self.canvas.set_magnifier_enabled(checked)
 
+    def on_toggle_eraser_mode(self):
+        enabled = not self.canvas._eraser_mode
+        self.canvas.set_eraser_mode(enabled)
+        self.show_toast(self.tr("Eraser mode on") if enabled else self.tr("Eraser mode off"), timeout=1500)
+
     def on_action_zoom_in_triggered(self):
         self.canvas.view_box.scaleBy((0.9, 0.9))
 
@@ -2997,6 +3002,11 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         sc.setContext(Qt.ShortcutContext.WindowShortcut)
         sc.activated.connect(self.on_group_button_triggered)
         self._group_shortcuts.append(sc)
+
+        # pen eraser mode toggle (also triggered by the pen's eraser end)
+        sc = QShortcut(QKeySequence("Shift+E"), self)
+        sc.setContext(Qt.ShortcutContext.WindowShortcut)
+        sc.activated.connect(self.on_toggle_eraser_mode)
 
         # dock annotation context menu
         self.dockcnt_anno.listWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)

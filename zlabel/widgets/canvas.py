@@ -1,6 +1,7 @@
 import functools
 import math
 import os
+import time
 from collections import OrderedDict
 from typing import Any
 
@@ -9,7 +10,7 @@ import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, Signal
-from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPixmap, QTransform
+from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPixmap, QTabletEvent, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
@@ -24,6 +25,11 @@ from zlabel.widgets.zworker import PreparedImage
 # image space (the ImageItem is scaled up to cover the full-res rect), so only
 # the texture/arrays held by the canvas shrink.
 DISPLAY_MAX_SIDE = 2560
+
+# pen input thresholds
+PEN_CLICK_THRESHOLD = 8.0  # viewport px: press/release below this = click
+TRAJECTORY_MIN_DIST = 4.0  # image px: min spacing for freehand polygon samples
+PEN_DOUBLE_CLICK_MS = 400
 
 
 class Canvas(pg.PlotWidget):
@@ -85,9 +91,19 @@ class Canvas(pg.PlotWidget):
         self._last_viewport_pos: QPoint | None = None
         self._last_magnifier_pos: QPoint | None = None
         self._display_max_side: int = DISPLAY_MAX_SIDE
+        # pen / stylus input state
+        self._eraser_mode: bool = False
+        self._pen_press_pos: QPointF | None = None
+        self._pen_sliding: bool = False
+        self._pen_trajectory: list[pg.Point] = []
+        self._pen_last_press_pos: QPointF | None = None
+        self._pen_last_press_time: int = 0
+        # pinch gesture state
+        self._pinch_last_scale: float = 1.0
         self.view_box.sigRangeChanged.connect(self._update_points_scale)
         self.view_box.sigRightClickFit.connect(self.fit_view)
         self.viewport().installEventFilter(self)
+        self.viewport().grabGesture(Qt.GestureType.PinchGesture)
 
         self._image_backup: np.ndarray | None = None
         # cache flipped image for rgb channel rendering
@@ -1544,6 +1560,10 @@ class Canvas(pg.PlotWidget):
             self._magnifier.set_zoom(self._magnifier_zoom)
 
     def eventFilter(self, obj, event):
+        # Pinch gestures are grabbed by the viewport, so route them through the
+        # same handler as Canvas.event().
+        if obj is self.viewport() and event.type() == QEvent.Type.Gesture:
+            return self.gestureEvent(event)
         # Ctrl+wheel adjusts the magnifier zoom; plain wheel is left untouched
         # so the ViewBox keeps its normal canvas zoom behaviour.
         if (
@@ -1563,6 +1583,238 @@ class Canvas(pg.PlotWidget):
         if self._magnifier is not None:
             self._magnifier.hide()
         super().leaveEvent(event)
+
+    def set_eraser_mode(self, enabled: bool):
+        self._eraser_mode = enabled
+
+    # ------------------------------------------------------------------ gestures
+    def event(self, ev):
+        if ev.type() == QEvent.Type.Gesture:
+            return self.gestureEvent(ev)
+        return super().event(ev)
+
+    def gestureEvent(self, ev):
+        gesture = ev.gesture(Qt.GestureType.PinchGesture)
+        if gesture is not None:
+            state = gesture.state()
+            if state == Qt.GestureState.GestureStarted:
+                self._pinch_last_scale = 1.0
+            elif state == Qt.GestureState.GestureUpdated:
+                factor = gesture.scaleFactor() / self._pinch_last_scale
+                self._pinch_last_scale = gesture.scaleFactor()
+                if factor and factor != 1.0:
+                    center = gesture.centerPoint()
+                    data_center = self.view_box.mapSceneToView(self.mapToScene(center.toPoint()))
+                    # QPinchGesture scaleFactor>1 means fingers moved apart (zoom in),
+                    # while ViewBox.scaleBy(factor>1) zooms out.
+                    self.view_box.scaleBy((1.0 / factor, 1.0 / factor), center=data_center)
+            ev.accept()
+            return True
+        return False
+
+    # ------------------------------------------------------------------ tablet
+    def tabletEvent(self, ev):
+        pos = ev.position()
+        is_eraser = ev.pointerType() == QTabletEvent.PointerType.Eraser or self._eraser_mode
+        etype = ev.type()
+        if etype == QTabletEvent.TabletPress:
+            if is_eraser:
+                self._handle_pen_eraser_press(pos)
+            else:
+                self._handle_pen_press(pos, ev)
+            ev.accept()
+            return
+        if etype == QTabletEvent.TabletMove:
+            if ev.buttons() & Qt.MouseButton.LeftButton:
+                if is_eraser:
+                    self._handle_pen_eraser_move(pos)
+                else:
+                    self._handle_pen_move(pos, ev)
+            else:
+                self._handle_pen_hover(pos, ev)
+            ev.accept()
+            return
+        if etype == QTabletEvent.TabletRelease:
+            if is_eraser:
+                self._handle_pen_eraser_release()
+            else:
+                self._handle_pen_release(pos, ev)
+            ev.accept()
+            return
+        super().tabletEvent(ev)
+
+    def _make_mouse_event(self, etype, pos, button, buttons, modifiers, global_pos=None):
+        if global_pos is None:
+            global_pos = pos
+        return QMouseEvent(etype, QPointF(pos), QPointF(global_pos), button, buttons, modifiers)
+
+    def _handle_pen_hover(self, pos, ev):
+        mouse = self._make_mouse_event(
+            QEvent.Type.MouseMove,
+            pos,
+            Qt.MouseButton.NoButton,
+            Qt.MouseButton.NoButton,
+            ev.modifiers(),
+            ev.globalPosition(),
+        )
+        self.mouseMoveEvent(mouse)
+
+    def _handle_pen_press(self, pos, ev):
+        # Polygon creation with a pen defers the click/slide decision until
+        # release so a drag can become a freehand trajectory instead of a vertex.
+        if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
+            now_ms = int(time.time() * 1000)
+            last = self._pen_last_press_pos
+            if (
+                last is not None
+                and now_ms - self._pen_last_press_time <= PEN_DOUBLE_CLICK_MS
+                and (pos - last).manhattanLength() <= PEN_CLICK_THRESHOLD
+            ):
+                self._finish_pen_polygon(pos)
+                self._reset_pen_state()
+                return
+            self._pen_last_press_pos = QPointF(pos)
+            self._pen_last_press_time = now_ms
+            self._pen_press_pos = QPointF(pos)
+            self._pen_sliding = False
+            self._pen_trajectory = []
+            return
+        mouse = self._make_mouse_event(
+            QEvent.Type.MouseButtonPress,
+            pos,
+            ev.button(),
+            ev.buttons(),
+            ev.modifiers(),
+            ev.globalPosition(),
+        )
+        self.mousePressEvent(mouse)
+
+    def _handle_pen_move(self, pos, ev):
+        if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
+            press = self._pen_press_pos
+            if press is None:
+                return
+            if not self._pen_sliding and (pos - press).manhattanLength() >= PEN_CLICK_THRESHOLD:
+                self._pen_sliding = True
+                self.mouse_down_pos = press
+                if self.current_item is None:
+                    self.start_drawing()
+                self.polygon_points_committed = [pg.Point(press.x(), press.y())]
+                self._pen_trajectory = [pg.Point(press.x(), press.y())]
+            if self._pen_sliding:
+                last = self._pen_trajectory[-1]
+                if math.hypot(pos.x() - last.x(), pos.y() - last.y()) >= TRAJECTORY_MIN_DIST:
+                    self._pen_trajectory.append(pg.Point(pos.x(), pos.y()))
+                    self.polygon_points_committed = list(self._pen_trajectory)
+                    self.polygon_preview_point = None
+                    state = self.get_drawing_polygon_state()
+                    if state:
+                        state["id"] = self.current_item.id_
+                        self.current_item.setState(state, update=False)
+            return
+        mouse = self._make_mouse_event(
+            QEvent.Type.MouseMove,
+            pos,
+            ev.button(),
+            ev.buttons(),
+            ev.modifiers(),
+            ev.globalPosition(),
+        )
+        self.mouseMoveEvent(mouse)
+
+    def _handle_pen_release(self, pos, ev):
+        if self._status_mode == StatusMode.CREATE and self._draw_mode == DrawMode.POLYGON:
+            if self._pen_sliding:
+                if self._pen_trajectory:
+                    last = self._pen_trajectory[-1]
+                    if math.hypot(pos.x() - last.x(), pos.y() - last.y()) >= TRAJECTORY_MIN_DIST:
+                        self._pen_trajectory.append(pg.Point(pos.x(), pos.y()))
+                pts = self._simplify_trajectory(self._pen_trajectory)
+                if len(pts) >= 3 and self.current_item is not None:
+                    self.polygon_points_committed = pts
+                    self.polygon_preview_point = None
+                    self.stop_drawing()
+                else:
+                    self.cancel_drawing()
+            else:
+                press = self._pen_press_pos
+                if press is not None:
+                    self.mouse_down_pos = press
+                    if self.current_item is None:
+                        self.start_drawing()
+                    else:
+                        self.polygon_points_committed.append(pg.Point(press.x(), press.y()))
+                        self.polygon_preview_point = None
+                        state = self.get_drawing_polygon_state()
+                        if state:
+                            state["id"] = self.current_item.id_
+                            self.current_item.setState(state, update=False)
+            self._reset_pen_state()
+            return
+        mouse = self._make_mouse_event(
+            QEvent.Type.MouseButtonRelease,
+            pos,
+            ev.button(),
+            ev.buttons(),
+            ev.modifiers(),
+            ev.globalPosition(),
+        )
+        self.mouseReleaseEvent(mouse)
+
+    def _finish_pen_polygon(self, pos):
+        if self.current_item is not None:
+            last = self.polygon_points_committed[-1] if self.polygon_points_committed else None
+            if last is None or math.hypot(pos.x() - last.x(), pos.y() - last.y()) > 1e-6:
+                self.polygon_points_committed.append(pg.Point(pos.x(), pos.y()))
+                self.polygon_preview_point = None
+                state = self.get_drawing_polygon_state()
+                if state:
+                    state["id"] = self.current_item.id_
+                    self.current_item.setState(state, update=False)
+            if len(self.polygon_points_committed) >= 3:
+                self.stop_drawing()
+
+    def _simplify_trajectory(self, points: list[pg.Point]) -> list[pg.Point]:
+        if not points:
+            return []
+        out = [points[0]]
+        for p in points[1:]:
+            if math.hypot(p.x() - out[-1].x(), p.y() - out[-1].y()) >= TRAJECTORY_MIN_DIST:
+                out.append(p)
+        return out
+
+    def _reset_pen_state(self):
+        self._pen_press_pos = None
+        self._pen_sliding = False
+        self._pen_trajectory = []
+
+    # ------------------------------------------------------------------ eraser
+    def _handle_pen_eraser_press(self, pos):
+        if self._status_mode == StatusMode.CREATE:
+            if self._draw_mode == DrawMode.POLYGON:
+                self.undo_last_polygon_point(self.map_scene_to_view(pos))
+            else:
+                self.cancel_drawing()
+        elif self._status_mode == StatusMode.EDIT:
+            self._eraser_delete_at(pos)
+
+    def _handle_pen_eraser_move(self, pos):
+        if self._status_mode == StatusMode.EDIT:
+            self._eraser_delete_at(pos)
+
+    def _handle_pen_eraser_release(self):
+        pass
+
+    def _eraser_delete_at(self, pos):
+        img_pos = self.map_scene_to_view(pos)
+        item = self.item_at_point(img_pos)
+        if item is None:
+            return
+        if isinstance(item, (ZHandle, Handle)):
+            item = item.parentItem()
+        if isinstance(item, (Point, Rectangle, Polygon)) and item.id_ in self.showing_items:
+            self.sigItemsRemoved.emit([item.id_])
+            self.remove_item(item)
 
     def _delete_hovered_polygon_vertex(self) -> bool:
         """Delete the hovered vertex of a selected polygon in EDIT mode."""
