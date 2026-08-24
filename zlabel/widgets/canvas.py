@@ -419,7 +419,7 @@ class Canvas(pg.PlotWidget):
         if self._status_mode in (StatusMode.VIEW, StatusMode.EDIT):
             self.setCursor(Qt.CursorShape.ArrowCursor)
         elif self._draw_mode == DrawMode.POLYGON:
-            self.setCursor(Qt.CursorShape.BlankCursor)
+            self.setCursor(Qt.CursorShape.ArrowCursor)
         else:
             self.setCursor(Qt.CursorShape.CrossCursor)
 

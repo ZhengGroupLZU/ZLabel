@@ -44,6 +44,9 @@ if os.path.isdir(_wxocr_src):
 includes = [
     "PySide6.QtOpenGL",
     "PySide6.QtOpenGLWidgets",
+    # pyqtgraph.parametertree.interactive imports pydoc at runtime; cx_Freeze
+    # does not detect it automatically.
+    "pydoc",
 ]
 try:
     import cv2  # noqa: F401
@@ -175,6 +178,85 @@ def _prune_build(build_dir: str) -> None:
             if p.name not in keep:
                 p.unlink()
                 print(f"_prune_build: removed {p}")
+
+    # Qt modules ZLabel never imports (WebEngine, Quick/Qml, 3D, Designer,
+    # Help/Pdf, Positioning, Lottie, Sql, PrintSupport, DBus, UiTools, ...).
+    qt_dir = build_dir / "lib" / "PySide6"
+    if qt_dir.is_dir():
+        unused_prefixes = (
+            "Qt6WebEngine",
+            "Qt63D",
+            "Qt6Quick",
+            "Qt6Qml",
+            "Qt6Designer",
+            "Qt6Help",
+            "Qt6Pdf",
+            "Qt6Positioning",
+            "Qt6Lottie",
+            "Qt6Sql",
+            "Qt6PrintSupport",
+            "Qt6DBus",
+            "Qt6UiTools",
+            "Qt6StateMachine",
+            "Qt6Test",
+            "Qt6Labs",
+            "Qt6VirtualKeyboard",
+            "Qt6WebChannel",
+            "Qt6Bluetooth",
+            "Qt6CanvasPainter",
+            "Qt6Charts",
+            "Qt6DataVisualization",
+            "Qt6Graphs",
+            "Qt6HttpServer",
+            "Qt6Location",
+            "Qt6Multimedia",
+            "Qt6NetworkAuth",
+            "Qt6Nfc",
+            "Qt6RemoteObjects",
+            "Qt6Scxml",
+            "Qt6Sensors",
+            "Qt6SerialBus",
+            "Qt6SerialPort",
+            "Qt6ShaderTools",
+            "Qt6SpatialAudio",
+            "Qt6TextToSpeech",
+            "Qt6WebSockets",
+            "Qt6WebView",
+        )
+        for p in qt_dir.glob("Qt6*.dll"):
+            if p.name.startswith(unused_prefixes):
+                p.unlink()
+                print(f"_prune_build: removed {p}")
+
+        # QML runtime + plugin dirs that ship with the Qt modules above.
+        qml_dir = qt_dir / "qml"
+        if qml_dir.is_dir():
+            import shutil
+
+            shutil.rmtree(qml_dir)
+            print(f"_prune_build: removed {qml_dir}")
+        # ffmpeg DLLs shipped with QtMultimedia (unused by ZLabel)
+        for ffmpeg_dll in ("avcodec-61.dll", "avformat-61.dll", "avutil-59.dll", "swresample-5.dll", "swscale-8.dll"):
+            dll = qt_dir / ffmpeg_dll
+            if dll.exists():
+                dll.unlink()
+                print(f"_prune_build: removed {dll}")
+
+        for plugin_dir in (
+            "designer",
+            "qmltooling",
+            "qmllint",
+            "sqldrivers",
+            "networkinformation",
+            "tls",
+            "multimedia",
+        ):
+            d = qt_dir / "plugins" / plugin_dir
+            if d.is_dir():
+                import shutil
+
+                shutil.rmtree(d)
+                print(f"_prune_build: removed {d}")
 
 
 setup(
