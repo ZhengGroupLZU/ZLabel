@@ -62,12 +62,12 @@ class Ui_DialogSettings(object):
 
         self.tabWidget = QTabWidget(DialogSettings)
         self.tabWidget.setObjectName(u"tabWidget")
-        self.tab_global = QWidget()
-        self.tab_global.setObjectName(u"tab_global")
-        self.gridLayout_7 = QGridLayout(self.tab_global)
+        self.tab_application = QWidget()
+        self.tab_application.setObjectName(u"tab_application")
+        self.gridLayout_7 = QGridLayout(self.tab_application)
         self.gridLayout_7.setObjectName(u"gridLayout_7")
         self.gridLayout_7.setContentsMargins(5, 5, 5, 5)
-        self.scrollArea = QScrollArea(self.tab_global)
+        self.scrollArea = QScrollArea(self.tab_application)
         self.scrollArea.setObjectName(u"scrollArea")
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
@@ -76,14 +76,14 @@ class Ui_DialogSettings(object):
         self.gridLayout = QGridLayout(self.scrollAreaWidgetContents)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(3, 3, 3, 3)
-        self.groupBox = QGroupBox(self.scrollAreaWidgetContents)
-        self.groupBox.setObjectName(u"groupBox")
-        self.gridLayout_2 = QGridLayout(self.groupBox)
+        self.groupBox_application = QGroupBox(self.scrollAreaWidgetContents)
+        self.groupBox_application.setObjectName(u"groupBox_application")
+        self.gridLayout_2 = QGridLayout(self.groupBox_application)
         self.gridLayout_2.setObjectName(u"gridLayout_2")
         self.gridLayout_2.setContentsMargins(5, 5, 5, 5)
         self.gridLayout_4 = QGridLayout()
         self.gridLayout_4.setObjectName(u"gridLayout_4")
-        self.dspbox_alpha = QDoubleSpinBox(self.groupBox)
+        self.dspbox_alpha = QDoubleSpinBox(self.groupBox_application)
         self.dspbox_alpha.setObjectName(u"dspbox_alpha")
         sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
         sizePolicy.setHorizontalStretch(0)
@@ -97,55 +97,19 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.dspbox_alpha, 3, 1, 1, 1)
 
-        self.ledit_username = QLineEdit(self.groupBox)
-        self.ledit_username.setObjectName(u"ledit_username")
+        self.ckbox_random = QCheckBox(self.groupBox_application)
+        self.ckbox_random.setObjectName(u"ckbox_random")
+        self.ckbox_random.setChecked(True)
 
-        self.gridLayout_4.addWidget(self.ledit_username, 1, 1, 1, 1)
+        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
 
-        self.label_4 = QLabel(self.groupBox)
-        self.label_4.setObjectName(u"label_4")
-        self.label_4.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+        self.ckbox_catmull_rom = QCheckBox(self.groupBox_application)
+        self.ckbox_catmull_rom.setObjectName(u"ckbox_catmull_rom")
+        self.ckbox_catmull_rom.setChecked(False)
 
-        self.gridLayout_4.addWidget(self.label_4, 1, 0, 1, 1)
+        self.gridLayout_4.addWidget(self.ckbox_catmull_rom, 5, 1, 1, 1)
 
-        self.label_6 = QLabel(self.groupBox)
-        self.label_6.setObjectName(u"label_6")
-        self.label_6.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_6, 3, 0, 1, 1)
-
-        self.ledit_password = QLineEdit(self.groupBox)
-        self.ledit_password.setObjectName(u"ledit_password")
-        self.ledit_password.setInputMethodHints(Qt.InputMethodHint.ImhHiddenText|Qt.InputMethodHint.ImhNoAutoUppercase|Qt.InputMethodHint.ImhNoPredictiveText|Qt.InputMethodHint.ImhSensitiveData)
-        self.ledit_password.setEchoMode(QLineEdit.EchoMode.Password)
-
-        self.gridLayout_4.addWidget(self.ledit_password, 2, 1, 1, 1)
-
-        self.ledit_host = QLineEdit(self.groupBox)
-        self.ledit_host.setObjectName(u"ledit_host")
-        self.ledit_host.setEnabled(True)
-
-        self.gridLayout_4.addWidget(self.ledit_host, 0, 1, 1, 1)
-
-        self.label_11 = QLabel(self.groupBox)
-        self.label_11.setObjectName(u"label_11")
-        self.label_11.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_11, 6, 0, 1, 1)
-
-        self.label_5 = QLabel(self.groupBox)
-        self.label_5.setObjectName(u"label_5")
-        self.label_5.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_5, 2, 0, 1, 1)
-
-        self.label = QLabel(self.groupBox)
-        self.label.setObjectName(u"label")
-        self.label.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label, 0, 0, 1, 1)
-
-        self.cmbox_loglevel = QComboBox(self.groupBox)
+        self.cmbox_loglevel = QComboBox(self.groupBox_application)
         self.cmbox_loglevel.addItem("")
         self.cmbox_loglevel.addItem("")
         self.cmbox_loglevel.addItem("")
@@ -154,41 +118,132 @@ class Ui_DialogSettings(object):
 
         self.gridLayout_4.addWidget(self.cmbox_loglevel, 6, 1, 1, 1)
 
-        self.ckbox_random = QCheckBox(self.groupBox)
-        self.ckbox_random.setObjectName(u"ckbox_random")
-        self.ckbox_random.setChecked(True)
-
-        self.gridLayout_4.addWidget(self.ckbox_random, 4, 1, 1, 1)
-
-        self.label_2 = QLabel(self.groupBox)
-        self.label_2.setObjectName(u"label_2")
-        self.label_2.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_2, 4, 0, 1, 1)
-
-        self.label_3 = QLabel(self.groupBox)
-        self.label_3.setObjectName(u"label_3")
-        self.label_3.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout_4.addWidget(self.label_3, 5, 0, 1, 1)
-
-        self.ckbox_catmull_rom = QCheckBox(self.groupBox)
-        self.ckbox_catmull_rom.setObjectName(u"ckbox_catmull_rom")
-        self.ckbox_catmull_rom.setChecked(False)
-
-        self.gridLayout_4.addWidget(self.ckbox_catmull_rom, 5, 1, 1, 1)
-
 
         self.gridLayout_2.addLayout(self.gridLayout_4, 0, 0, 1, 1)
 
 
-        self.gridLayout.addWidget(self.groupBox, 0, 0, 1, 1)
+        self.gridLayout.addWidget(self.groupBox_application, 0, 0, 1, 1)
+
+        self.gbox_others = QGroupBox(self.scrollAreaWidgetContents)
+        self.gbox_others.setObjectName(u"gbox_others")
+        self.grid_inference_2 = QGridLayout(self.gbox_others)
+        self.grid_inference_2.setObjectName(u"grid_inference_2")
+        self.label_ocr_dir = QLabel(self.gbox_others)
+        self.label_ocr_dir.setObjectName(u"label_ocr_dir")
+
+        self.grid_inference_2.addWidget(self.label_ocr_dir, 2, 0, 1, 1)
+
+        self.ledit_ocr_dir = QLineEdit(self.gbox_others)
+        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
+
+        self.grid_inference_2.addWidget(self.ledit_ocr_dir, 2, 1, 1, 1)
+
+        self.btn_ocr_dir = QPushButton(self.gbox_others)
+        self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
+
+        self.grid_inference_2.addWidget(self.btn_ocr_dir, 2, 2, 1, 1)
+
+        self.horizontalLayout = QHBoxLayout()
+        self.horizontalLayout.setObjectName(u"horizontalLayout")
+        self.ckbox_auto_dish = QCheckBox(self.gbox_others)
+        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
+
+        self.horizontalLayout.addWidget(self.ckbox_auto_dish)
+
+        self.ckbox_ocr_enable = QCheckBox(self.gbox_others)
+        self.ckbox_ocr_enable.setObjectName(u"ckbox_ocr_enable")
+
+        self.horizontalLayout.addWidget(self.ckbox_ocr_enable)
+
+        self.ckbox_copy_prev = QCheckBox(self.gbox_others)
+        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
+
+        self.horizontalLayout.addWidget(self.ckbox_copy_prev)
+
+
+        self.grid_inference_2.addLayout(self.horizontalLayout, 0, 0, 1, 3)
+
+
+        self.gridLayout.addWidget(self.gbox_others, 1, 0, 1, 1)
 
         self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.gridLayout.addItem(self.verticalSpacer, 3, 0, 1, 1)
+        self.gridLayout.addItem(self.verticalSpacer, 2, 0, 1, 1)
 
-        self.gbox_inference = QGroupBox(self.scrollAreaWidgetContents)
+        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
+
+        self.gridLayout_7.addWidget(self.scrollArea, 0, 0, 1, 1)
+
+        self.tabWidget.addTab(self.tab_application, "")
+        self.tab_remote = QWidget()
+        self.tab_remote.setObjectName(u"tab_remote")
+        self.gridLayout_remote = QGridLayout(self.tab_remote)
+        self.gridLayout_remote.setObjectName(u"gridLayout_remote")
+        self.gridLayout_remote.setContentsMargins(5, 5, 5, 5)
+        self.scrollArea_remote = QScrollArea(self.tab_remote)
+        self.scrollArea_remote.setObjectName(u"scrollArea_remote")
+        self.scrollArea_remote.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_remote = QWidget()
+        self.scrollAreaWidgetContents_remote.setObjectName(u"scrollAreaWidgetContents_remote")
+        self.scrollAreaWidgetContents_remote.setGeometry(QRect(0, 0, 895, 706))
+        self.gridLayout_remote_body = QGridLayout(self.scrollAreaWidgetContents_remote)
+        self.gridLayout_remote_body.setObjectName(u"gridLayout_remote_body")
+        self.gridLayout_remote_body.setContentsMargins(3, 3, 3, 3)
+        self.groupBox_remote = QGroupBox(self.scrollAreaWidgetContents_remote)
+        self.groupBox_remote.setObjectName(u"groupBox_remote")
+        self.gridLayout_2_remote = QGridLayout(self.groupBox_remote)
+        self.gridLayout_2_remote.setObjectName(u"gridLayout_2_remote")
+        self.gridLayout_2_remote.setContentsMargins(5, 5, 5, 5)
+        self.gridLayout_4_remote = QGridLayout()
+        self.gridLayout_4_remote.setObjectName(u"gridLayout_4_remote")
+        self.ledit_host = QLineEdit(self.groupBox_remote)
+        self.ledit_host.setObjectName(u"ledit_host")
+        self.ledit_host.setEnabled(True)
+
+        self.gridLayout_4_remote.addWidget(self.ledit_host, 0, 1, 1, 1)
+
+        self.ledit_username = QLineEdit(self.groupBox_remote)
+        self.ledit_username.setObjectName(u"ledit_username")
+
+        self.gridLayout_4_remote.addWidget(self.ledit_username, 1, 1, 1, 1)
+
+        self.ledit_password = QLineEdit(self.groupBox_remote)
+        self.ledit_password.setObjectName(u"ledit_password")
+        self.ledit_password.setInputMethodHints(Qt.InputMethodHint.ImhHiddenText|Qt.InputMethodHint.ImhNoAutoUppercase|Qt.InputMethodHint.ImhNoPredictiveText|Qt.InputMethodHint.ImhSensitiveData)
+        self.ledit_password.setEchoMode(QLineEdit.EchoMode.Password)
+
+        self.gridLayout_4_remote.addWidget(self.ledit_password, 2, 1, 1, 1)
+
+
+        self.gridLayout_2_remote.addLayout(self.gridLayout_4_remote, 0, 0, 1, 1)
+
+
+        self.gridLayout_remote_body.addWidget(self.groupBox_remote, 0, 0, 1, 1)
+
+        self.verticalSpacer_remote = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+
+        self.gridLayout_remote_body.addItem(self.verticalSpacer_remote, 1, 0, 1, 1)
+
+        self.scrollArea_remote.setWidget(self.scrollAreaWidgetContents_remote)
+
+        self.gridLayout_remote.addWidget(self.scrollArea_remote, 0, 0, 1, 1)
+
+        self.tabWidget.addTab(self.tab_remote, "")
+        self.tab_inference = QWidget()
+        self.tab_inference.setObjectName(u"tab_inference")
+        self.gridLayout_inference = QGridLayout(self.tab_inference)
+        self.gridLayout_inference.setObjectName(u"gridLayout_inference")
+        self.gridLayout_inference.setContentsMargins(5, 5, 5, 5)
+        self.scrollArea_inference = QScrollArea(self.tab_inference)
+        self.scrollArea_inference.setObjectName(u"scrollArea_inference")
+        self.scrollArea_inference.setWidgetResizable(True)
+        self.scrollAreaWidgetContents_inference = QWidget()
+        self.scrollAreaWidgetContents_inference.setObjectName(u"scrollAreaWidgetContents_inference")
+        self.scrollAreaWidgetContents_inference.setGeometry(QRect(0, 0, 895, 706))
+        self.gridLayout_inference_body = QGridLayout(self.scrollAreaWidgetContents_inference)
+        self.gridLayout_inference_body.setObjectName(u"gridLayout_inference_body")
+        self.gridLayout_inference_body.setContentsMargins(3, 3, 3, 3)
+        self.gbox_inference = QGroupBox(self.scrollAreaWidgetContents_inference)
         self.gbox_inference.setObjectName(u"gbox_inference")
         self.grid_inference = QGridLayout(self.gbox_inference)
         self.grid_inference.setObjectName(u"grid_inference")
@@ -264,55 +319,17 @@ class Ui_DialogSettings(object):
         self.grid_inference.addWidget(self.label_upload_size, 4, 0, 1, 1)
 
 
-        self.gridLayout.addWidget(self.gbox_inference, 1, 0, 1, 1)
+        self.gridLayout_inference_body.addWidget(self.gbox_inference, 0, 0, 1, 1)
 
-        self.gbox_others = QGroupBox(self.scrollAreaWidgetContents)
-        self.gbox_others.setObjectName(u"gbox_others")
-        self.grid_inference_2 = QGridLayout(self.gbox_others)
-        self.grid_inference_2.setObjectName(u"grid_inference_2")
-        self.label_ocr_dir = QLabel(self.gbox_others)
-        self.label_ocr_dir.setObjectName(u"label_ocr_dir")
+        self.verticalSpacer_inference = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
-        self.grid_inference_2.addWidget(self.label_ocr_dir, 2, 0, 1, 1)
+        self.gridLayout_inference_body.addItem(self.verticalSpacer_inference, 1, 0, 1, 1)
 
-        self.ledit_ocr_dir = QLineEdit(self.gbox_others)
-        self.ledit_ocr_dir.setObjectName(u"ledit_ocr_dir")
+        self.scrollArea_inference.setWidget(self.scrollAreaWidgetContents_inference)
 
-        self.grid_inference_2.addWidget(self.ledit_ocr_dir, 2, 1, 1, 1)
+        self.gridLayout_inference.addWidget(self.scrollArea_inference, 0, 0, 1, 1)
 
-        self.btn_ocr_dir = QPushButton(self.gbox_others)
-        self.btn_ocr_dir.setObjectName(u"btn_ocr_dir")
-
-        self.grid_inference_2.addWidget(self.btn_ocr_dir, 2, 2, 1, 1)
-
-        self.horizontalLayout = QHBoxLayout()
-        self.horizontalLayout.setObjectName(u"horizontalLayout")
-        self.ckbox_auto_dish = QCheckBox(self.gbox_others)
-        self.ckbox_auto_dish.setObjectName(u"ckbox_auto_dish")
-
-        self.horizontalLayout.addWidget(self.ckbox_auto_dish)
-
-        self.ckbox_ocr_enable = QCheckBox(self.gbox_others)
-        self.ckbox_ocr_enable.setObjectName(u"ckbox_ocr_enable")
-
-        self.horizontalLayout.addWidget(self.ckbox_ocr_enable)
-
-        self.ckbox_copy_prev = QCheckBox(self.gbox_others)
-        self.ckbox_copy_prev.setObjectName(u"ckbox_copy_prev")
-
-        self.horizontalLayout.addWidget(self.ckbox_copy_prev)
-
-
-        self.grid_inference_2.addLayout(self.horizontalLayout, 0, 0, 1, 3)
-
-
-        self.gridLayout.addWidget(self.gbox_others, 2, 0, 1, 1)
-
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
-
-        self.gridLayout_7.addWidget(self.scrollArea, 0, 0, 1, 1)
-
-        self.tabWidget.addTab(self.tab_global, "")
+        self.tabWidget.addTab(self.tab_inference, "")
         self.tab = QWidget()
         self.tab.setObjectName(u"tab")
         self.gridLayout_13 = QGridLayout(self.tab)
@@ -501,21 +518,23 @@ class Ui_DialogSettings(object):
         DialogSettings.setWindowTitle(QCoreApplication.translate("DialogSettings", u"Setting", None))
         self.btn_cancel.setText(QCoreApplication.translate("DialogSettings", u"Cancel", None))
         self.btn_apply.setText(QCoreApplication.translate("DialogSettings", u"Apply", None))
-        self.groupBox.setTitle(QCoreApplication.translate("DialogSettings", u"API", None))
-        self.label_4.setText(QCoreApplication.translate("DialogSettings", u"User Name:", None))
-        self.label_6.setText(QCoreApplication.translate("DialogSettings", u"Alpha:", None))
-        self.label_11.setText(QCoreApplication.translate("DialogSettings", u"LogLevel:", None))
-        self.label_5.setText(QCoreApplication.translate("DialogSettings", u"Password:", None))
-        self.label.setText(QCoreApplication.translate("DialogSettings", u"Server Host:", None))
+        self.groupBox_application.setTitle(QCoreApplication.translate("DialogSettings", u"Application", None))
+        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enable Random Tasks", None))
+        self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
         self.cmbox_loglevel.setItemText(0, QCoreApplication.translate("DialogSettings", u"DEBUG", None))
         self.cmbox_loglevel.setItemText(1, QCoreApplication.translate("DialogSettings", u"INFO", None))
         self.cmbox_loglevel.setItemText(2, QCoreApplication.translate("DialogSettings", u"WARNING", None))
         self.cmbox_loglevel.setItemText(3, QCoreApplication.translate("DialogSettings", u"ERROR", None))
 
-        self.ckbox_random.setText(QCoreApplication.translate("DialogSettings", u"Enable Random Tasks", None))
-        self.label_2.setText(QCoreApplication.translate("DialogSettings", u"Random:", None))
-        self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Catmull-Rom:", None))
-        self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
+        self.gbox_others.setTitle(QCoreApplication.translate("DialogSettings", u"Others", None))
+        self.label_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"WeChat OCR Folder:", None))
+        self.btn_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
+        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish", None))
+        self.ckbox_ocr_enable.setText(QCoreApplication.translate("DialogSettings", u"Manual timestamp", None))
+        self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Copy previous frame", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_application), QCoreApplication.translate("DialogSettings", u"Application", None))
+        self.groupBox_remote.setTitle(QCoreApplication.translate("DialogSettings", u"Remote API", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_remote), QCoreApplication.translate("DialogSettings", u"Remote", None))
         self.gbox_inference.setTitle(QCoreApplication.translate("DialogSettings", u"Inference", None))
         self.cmbox_backend.setItemText(0, QCoreApplication.translate("DialogSettings", u"AUTO", None))
         self.cmbox_backend.setItemText(1, QCoreApplication.translate("DialogSettings", u"CPU", None))
@@ -538,13 +557,7 @@ class Ui_DialogSettings(object):
 
         self.btn_model_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
         self.label_upload_size.setText(QCoreApplication.translate("DialogSettings", u"Upload Image Size:", None))
-        self.gbox_others.setTitle(QCoreApplication.translate("DialogSettings", u"Others", None))
-        self.label_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"WeChat OCR Folder:", None))
-        self.btn_ocr_dir.setText(QCoreApplication.translate("DialogSettings", u"Browse...", None))
-        self.ckbox_auto_dish.setText(QCoreApplication.translate("DialogSettings", u"Auto-fit dish", None))
-        self.ckbox_ocr_enable.setText(QCoreApplication.translate("DialogSettings", u"Manual timestamp", None))
-        self.ckbox_copy_prev.setText(QCoreApplication.translate("DialogSettings", u"Copy previous frame", None))
-        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_global), QCoreApplication.translate("DialogSettings", u"Global", None))
+        self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_inference), QCoreApplication.translate("DialogSettings", u"Inference", None))
         self.groupBox_5.setTitle(QCoreApplication.translate("DialogSettings", u"Project", None))
         self.btn_new_project.setText(QCoreApplication.translate("DialogSettings", u"New", None))
         self.btn_add_status.setText(QCoreApplication.translate("DialogSettings", u"Add", None))

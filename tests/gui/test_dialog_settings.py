@@ -150,3 +150,27 @@ def test_apply_and_cancel_signals(dialog, qtbot):
 def test_unknown_setting_key_raises(dialog):
     with pytest.raises(ValueError):
         dialog.on_settings_changed("no_such_key")
+
+
+def test_settings_tabs_split(dialog):
+    tabs = dialog.tabWidget
+    assert tabs.count() == 4
+    assert [tabs.tabText(i) for i in range(tabs.count())] == ["Application", "Remote", "Inference", "Project"]
+    assert tabs.indexOf(dialog.tab_application) == 0
+    assert tabs.indexOf(dialog.tab_remote) == 1
+    assert tabs.indexOf(dialog.tab_inference) == 2
+
+    def in_tab(widget, tab):
+        p = widget.parent()
+        while p is not None:
+            if p is tab:
+                return True
+            p = p.parent()
+        return False
+
+    assert in_tab(dialog.dspbox_alpha, dialog.tab_application)
+    assert in_tab(dialog.ckbox_auto_dish, dialog.tab_application)
+    assert in_tab(dialog.ledit_host, dialog.tab_remote)
+    assert in_tab(dialog.ledit_username, dialog.tab_remote)
+    assert in_tab(dialog.cmbox_inference_mode, dialog.tab_inference)
+    assert in_tab(dialog.spin_upload_size, dialog.tab_inference)
