@@ -33,6 +33,7 @@ class ZSettings(BaseModel):
     draw_fill_alpha: float = 0.05
     magnifier_min_zoom: float = 1.0
     magnifier_max_zoom: float = 10.0
+    magnifier_diameter: int = 200
 
     # Application performance
     display_max_side: int = 2560

@@ -79,6 +79,17 @@ def test_magnifier_zoom_clamped(populated_project):
     assert canvas._magnifier_zoom == 1.0
 
 
+def test_magnifier_diameter_from_settings(populated_project):
+    win, proj, anno, rebuild = populated_project
+    win.settings.magnifier_diameter = 150
+    win.canvas.apply_appearance_settings(win.settings)
+    win.canvas.set_magnifier_enabled(True)
+    assert win.canvas._magnifier.width() == 150
+
+    win.canvas.set_magnifier_diameter(180)
+    assert win.canvas._magnifier.width() == 180
+
+
 def test_magnifier_edge_does_not_escape_viewport(populated_project, qtbot):
     win, proj, anno, rebuild = populated_project
     canvas = win.canvas

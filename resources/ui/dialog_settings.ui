@@ -638,32 +638,6 @@
                 </property>
                </widget>
               </item>
-              <item row="8" column="2">
-               <widget class="QLabel" name="label_mag_max">
-                <property name="text">
-                 <string>Magnifier max zoom:</string>
-                </property>
-                <property name="alignment">
-                 <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
-                </property>
-               </widget>
-              </item>
-              <item row="8" column="3">
-               <widget class="QDoubleSpinBox" name="dspbox_mag_max">
-                <property name="minimum">
-                 <double>0.500000000000000</double>
-                </property>
-                <property name="maximum">
-                 <double>20.000000000000000</double>
-                </property>
-                <property name="singleStep">
-                 <double>0.500000000000000</double>
-                </property>
-                <property name="value">
-                 <double>10.000000000000000</double>
-                </property>
-               </widget>
-              </item>
               <item row="5" column="4">
                <widget class="QLabel" name="label_vline_color">
                 <property name="sizePolicy">
@@ -713,6 +687,55 @@
                 </property>
                 <property name="maximum">
                  <number>10</number>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="0">
+               <widget class="QLabel" name="label_mag_diameter">
+                <property name="text">
+                 <string>Magnifier diameter:</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="1">
+               <widget class="QSpinBox" name="spin_mag_diameter">
+                <property name="minimum">
+                 <number>80</number>
+                </property>
+                <property name="maximum">
+                 <number>400</number>
+                </property>
+                <property name="value">
+                 <number>200</number>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="2">
+               <widget class="QLabel" name="label_mag_max">
+                <property name="text">
+                 <string>Magnifier max zoom:</string>
+                </property>
+                <property name="alignment">
+                 <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+                </property>
+               </widget>
+              </item>
+              <item row="5" column="3">
+               <widget class="QDoubleSpinBox" name="dspbox_mag_max">
+                <property name="minimum">
+                 <double>0.500000000000000</double>
+                </property>
+                <property name="maximum">
+                 <double>20.000000000000000</double>
+                </property>
+                <property name="singleStep">
+                 <double>0.500000000000000</double>
+                </property>
+                <property name="value">
+                 <double>10.000000000000000</double>
                 </property>
                </widget>
               </item>
@@ -1331,11 +1354,6 @@
    </item>
   </layout>
  </widget>
- <resources>
-  <include location="../icons.qrc"/>
- </resources>
- <connections/>
-
  <customwidgets>
   <customwidget>
    <class>ZColorButton</class>
@@ -1343,4 +1361,8 @@
    <header>zlabel.widgets.zwidgets</header>
   </customwidget>
  </customwidgets>
+ <resources>
+  <include location="../icons.qrc"/>
+ </resources>
+ <connections/>
 </ui>

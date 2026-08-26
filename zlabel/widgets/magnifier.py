@@ -17,7 +17,7 @@ MAGNIFIER_MIN_ZOOM = 1.0
 MAGNIFIER_MAX_ZOOM = 10.0
 MAGNIFIER_STEP = 0.5
 # lens is drawn above-right of the cursor so it does not hide the mouse
-CURSOR_OFFSET = QPoint(30, -30)
+CURSOR_OFFSET = QPoint(10, -10)
 
 
 class MagnifierOverlay(QWidget):
@@ -41,6 +41,12 @@ class MagnifierOverlay(QWidget):
         self._min_zoom = min_zoom
         self._max_zoom = max_zoom
         self.set_zoom(self._zoom)
+
+    def set_diameter(self, diameter: int):
+        self._diameter = max(1, int(diameter))
+        self.setFixedSize(self._diameter, self._diameter)
+        if self.isVisible():
+            self.update_content(self._cursor_pos)
 
     def set_zoom(self, zoom: float):
         self._zoom = max(self._min_zoom, min(self._max_zoom, round(zoom * 2) / 2))

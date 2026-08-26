@@ -1124,12 +1124,12 @@ def test_backspace_ignored_without_hovered_polygon_vertex(populated_project, qtb
     assert len(anno.results["g1"].points) == 4
 
 
-def test_polygon_create_uses_dot_cursor(populated_project):
-    """Polygon drawing uses the dot.svg custom cursor; other modes keep defaults."""
+def test_polygon_create_uses_arrow_cursor(populated_project):
+    """Polygon drawing keeps the arrow cursor; other modes keep defaults."""
     win, proj, anno, rebuild = populated_project
 
     win.on_action_polygon_triggered()
-    assert win.canvas.cursor().shape() == Qt.CursorShape.BlankCursor
+    assert win.canvas.cursor().shape() == Qt.CursorShape.ArrowCursor
 
     win.on_action_rectangle_triggered()
     assert win.canvas.cursor().shape() == Qt.CursorShape.CrossCursor

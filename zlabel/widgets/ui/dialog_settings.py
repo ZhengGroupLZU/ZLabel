@@ -376,21 +376,6 @@ class Ui_DialogSettings(object):
 
         self.grid_appearance.addWidget(self.dspbox_mag_min, 8, 1, 1, 1)
 
-        self.label_mag_max = QLabel(self.gbox_appearance)
-        self.label_mag_max.setObjectName(u"label_mag_max")
-        self.label_mag_max.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
-
-        self.grid_appearance.addWidget(self.label_mag_max, 8, 2, 1, 1)
-
-        self.dspbox_mag_max = QDoubleSpinBox(self.gbox_appearance)
-        self.dspbox_mag_max.setObjectName(u"dspbox_mag_max")
-        self.dspbox_mag_max.setMinimum(0.500000000000000)
-        self.dspbox_mag_max.setMaximum(20.000000000000000)
-        self.dspbox_mag_max.setSingleStep(0.500000000000000)
-        self.dspbox_mag_max.setValue(10.000000000000000)
-
-        self.grid_appearance.addWidget(self.dspbox_mag_max, 8, 3, 1, 1)
-
         self.label_vline_color = QLabel(self.gbox_appearance)
         self.label_vline_color.setObjectName(u"label_vline_color")
         sizePolicy1.setHeightForWidth(self.label_vline_color.sizePolicy().hasHeightForWidth())
@@ -420,6 +405,35 @@ class Ui_DialogSettings(object):
         self.spin_vline_width.setMaximum(10)
 
         self.grid_appearance.addWidget(self.spin_vline_width, 8, 5, 1, 1)
+
+        self.label_mag_diameter = QLabel(self.gbox_appearance)
+        self.label_mag_diameter.setObjectName(u"label_mag_diameter")
+        self.label_mag_diameter.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_mag_diameter, 5, 0, 1, 1)
+
+        self.spin_mag_diameter = QSpinBox(self.gbox_appearance)
+        self.spin_mag_diameter.setObjectName(u"spin_mag_diameter")
+        self.spin_mag_diameter.setMinimum(80)
+        self.spin_mag_diameter.setMaximum(400)
+        self.spin_mag_diameter.setValue(200)
+
+        self.grid_appearance.addWidget(self.spin_mag_diameter, 5, 1, 1, 1)
+
+        self.label_mag_max = QLabel(self.gbox_appearance)
+        self.label_mag_max.setObjectName(u"label_mag_max")
+        self.label_mag_max.setAlignment(Qt.AlignmentFlag.AlignLeading|Qt.AlignmentFlag.AlignLeft|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_appearance.addWidget(self.label_mag_max, 5, 2, 1, 1)
+
+        self.dspbox_mag_max = QDoubleSpinBox(self.gbox_appearance)
+        self.dspbox_mag_max.setObjectName(u"dspbox_mag_max")
+        self.dspbox_mag_max.setMinimum(0.500000000000000)
+        self.dspbox_mag_max.setMaximum(20.000000000000000)
+        self.dspbox_mag_max.setSingleStep(0.500000000000000)
+        self.dspbox_mag_max.setValue(10.000000000000000)
+
+        self.grid_appearance.addWidget(self.dspbox_mag_max, 5, 3, 1, 1)
 
 
         self.gridLayout.addWidget(self.gbox_appearance, 1, 0, 1, 1)
@@ -815,9 +829,10 @@ class Ui_DialogSettings(object):
         self.label_hline_color.setText(QCoreApplication.translate("DialogSettings", u"Hline color:", None))
         self.label_hline_width.setText(QCoreApplication.translate("DialogSettings", u"Hline width:", None))
         self.label_mag_min.setText(QCoreApplication.translate("DialogSettings", u"Magnifier min zoom:", None))
-        self.label_mag_max.setText(QCoreApplication.translate("DialogSettings", u"Magnifier max zoom:", None))
         self.label_vline_color.setText(QCoreApplication.translate("DialogSettings", u"Vline color:", None))
         self.label_vline_width.setText(QCoreApplication.translate("DialogSettings", u"Vline width:", None))
+        self.label_mag_diameter.setText(QCoreApplication.translate("DialogSettings", u"Magnifier diameter:", None))
+        self.label_mag_max.setText(QCoreApplication.translate("DialogSettings", u"Magnifier max zoom:", None))
         self.tabWidget.setTabText(self.tabWidget.indexOf(self.tab_application), QCoreApplication.translate("DialogSettings", u"Application", None))
         self.groupBox_remote.setTitle(QCoreApplication.translate("DialogSettings", u"Remote API", None))
         self.label_3.setText(QCoreApplication.translate("DialogSettings", u"Host:", None))

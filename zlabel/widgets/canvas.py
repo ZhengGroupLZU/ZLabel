@@ -82,6 +82,7 @@ class Canvas(pg.PlotWidget):
         self._magnifier: MagnifierOverlay | None = None
         self._magnifier_min_zoom: float = 1.0
         self._magnifier_max_zoom: float = 10.0
+        self._magnifier_diameter: int = 200
         self._last_viewport_pos: QPoint | None = None
         self._last_magnifier_pos: QPoint | None = None
         self._display_max_side: int = DISPLAY_MAX_SIDE
@@ -1506,10 +1507,12 @@ class Canvas(pg.PlotWidget):
         self._display_max_side = int(getattr(settings, "display_max_side", DISPLAY_MAX_SIDE))
         self._magnifier_min_zoom = float(getattr(settings, "magnifier_min_zoom", 1.0))
         self._magnifier_max_zoom = float(getattr(settings, "magnifier_max_zoom", 10.0))
+        self._magnifier_diameter = int(getattr(settings, "magnifier_diameter", 200))
         self._edit_fill_alpha = float(getattr(settings, "edit_fill_alpha", 0.05))
         self._draw_fill_alpha = float(getattr(settings, "draw_fill_alpha", 0.05))
         if self._magnifier is not None:
             self._magnifier.set_zoom_range(self._magnifier_min_zoom, self._magnifier_max_zoom)
+            self._magnifier.set_diameter(self._magnifier_diameter)
         hline_color = getattr(settings, "hline_color", "#55ff00")
         hline_width = getattr(settings, "hline_width", 1)
         vline_color = getattr(settings, "vline_color", "#55ff00")
@@ -1528,6 +1531,7 @@ class Canvas(pg.PlotWidget):
                     min_zoom=self._magnifier_min_zoom,
                     max_zoom=self._magnifier_max_zoom,
                 )
+            self._magnifier.set_diameter(self._magnifier_diameter)
             self._magnifier.set_zoom(self._magnifier_zoom)
             if self._last_viewport_pos is not None:
                 self._magnifier.update_content(self._last_viewport_pos)
@@ -1542,6 +1546,12 @@ class Canvas(pg.PlotWidget):
         )
         if self._magnifier is not None:
             self._magnifier.set_zoom(self._magnifier_zoom)
+
+    def set_magnifier_diameter(self, diameter: int):
+        """Set magnifier lens diameter (pixels)."""
+        self._magnifier_diameter = max(1, int(diameter))
+        if self._magnifier is not None:
+            self._magnifier.set_diameter(self._magnifier_diameter)
 
     def eventFilter(self, obj, event):
         # Ctrl+wheel adjusts the magnifier zoom; plain wheel is left untouched
