@@ -11,22 +11,6 @@
             "program": "zlabel.py",
             "console": "integratedTerminal",
             "justMyCode": true
-        },
-        {
-            "name": "zlabel.widgets.zworker",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "zlabel.widgets.zworker",
-            "justMyCode": true
-        },
-        {
-            "name": "run",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "zlabel",
-            "args": [],
-            "console": "integratedTerminal",
-            "justMyCode": true
         }
     ]
 }

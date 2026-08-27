@@ -1,5 +1,6 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/fullscreen.svg</file>
     <file>icons/pointer.png</file>
     <file>icons/magnifier.svg</file>
     <file>icons/dot.svg</file>

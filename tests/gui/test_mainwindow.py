@@ -464,3 +464,50 @@ def test_instance_radio_syncs_annos_default_combo(populated_project):
     idx = win.dockcnt_anno.cmbox_default_instance.findData("moldy_seed")
     win.dockcnt_anno.cmbox_default_instance.setCurrentIndex(idx)
     assert win.dockcnt_labels.default_instance_status() == "moldy_seed"
+
+
+def test_fullscreen_toggle_hides_docks_and_restores(main_window):
+    win = main_window
+    docks = [win.dock_files, win.dock_infos, win.dock_annos, win.dock_labels, win.dock_timeline]
+    for d in docks:
+        d.show()
+
+    win.actionFullScreen.trigger()
+    assert win.actionFullScreen.isChecked()
+    assert all(not d.isVisible() for d in docks)
+    assert not win.menuBar().isVisible()
+    assert not win.statusBar().isVisible()
+    assert win.toolBar.isVisible()
+
+    win.actionFullScreen.trigger()
+    assert not win.actionFullScreen.isChecked()
+    assert all(d.isVisible() for d in docks)
+    assert win.menuBar().isVisible()
+    assert win.statusBar().isVisible()
+
+
+def test_fullscreen_restores_window_geometry(main_window):
+    win = main_window
+    win.resize(640, 480)
+    before = win.geometry()
+    win.actionFullScreen.trigger()
+    win.actionFullScreen.trigger()
+    assert win.geometry() == before
+
+
+def test_fullscreen_restores_maximized_state(main_window):
+    win = main_window
+    win.showMaximized()
+    win.actionFullScreen.trigger()
+    win.actionFullScreen.trigger()
+    assert win.isMaximized()
+
+
+def test_fullscreen_ctrl_j_toggles_timeline(main_window):
+    win = main_window
+    win.actionFullScreen.trigger()
+    assert not win.dock_timeline.isVisible()
+    win.actionTimeline.trigger()
+    assert win.dock_timeline.isVisible()
+    win.actionTimeline.trigger()
+    assert not win.dock_timeline.isVisible()

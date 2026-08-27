@@ -146,6 +146,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._skip_copy_anno: str = ""
         self._label_visibility: dict[str, bool] = {}
         self._instance_status_visibility: dict[str, bool] = {}
+        self._fullscreen_restore: dict = {}
 
         self.init_ui()
         self.init_statusbar()
@@ -915,6 +916,38 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_action_magnifier_triggered(self, checked: bool):
         self.canvas.set_magnifier_enabled(checked)
 
+    def on_action_full_screen_triggered(self, checked: bool):
+        """Toggle fullscreen: keep only the toolbar and canvas visible."""
+        if checked:
+            self._enter_fullscreen()
+        else:
+            self._exit_fullscreen()
+
+    def _enter_fullscreen(self):
+        self._fullscreen_normal_geometry = self.normalGeometry()
+        self._fullscreen_window_state = self.windowState()
+        self._fullscreen_restore = {}
+        for dock in (self.dock_files, self.dock_infos, self.dock_annos, self.dock_labels, self.dock_timeline):
+            self._fullscreen_restore[dock] = dock.isVisible()
+            dock.hide()
+        self._fullscreen_menu_visible = self.menuBar().isVisible()
+        self._fullscreen_status_visible = self.statusBar().isVisible()
+        self.menuBar().hide()
+        self.statusBar().hide()
+        self.showFullScreen()
+
+    def _exit_fullscreen(self):
+        saved_state = getattr(self, "_fullscreen_window_state", Qt.WindowState.WindowNoState)
+        self.showNormal()
+        if saved_state & Qt.WindowState.WindowMaximized:
+            self.showMaximized()
+        elif getattr(self, "_fullscreen_normal_geometry", None) is not None:
+            self.setGeometry(self._fullscreen_normal_geometry)
+        for dock, visible in self._fullscreen_restore.items():
+            dock.setVisible(visible)
+        self.menuBar().setVisible(self._fullscreen_menu_visible)
+        self.statusBar().setVisible(self._fullscreen_status_visible)
+
     def on_action_zoom_in_triggered(self):
         self.canvas.view_box.scaleBy((0.9, 0.9))
 
@@ -956,6 +989,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.dock_labels.hide()
 
     def on_action_timeline_triggered(self):
+        if self.isFullScreen():
+            # in fullscreen the timeline is hidden with the other docks; Ctrl+J
+            # toggles just this panel directly
+            visible = not self.dock_timeline.isVisible()
+            self.dock_timeline.setVisible(visible)
+            self.actionTimeline.setChecked(visible)
+            return
         if self.actionTimeline.isChecked():
             self.dock_timeline.show()
         else:
@@ -2906,6 +2946,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionZoom_in.triggered.connect(self.on_action_zoom_in_triggered)
         self.actionZoom_out.triggered.connect(self.on_action_zoom_out_triggered)
         self.actionMagnifier.triggered.connect(self.on_action_magnifier_triggered)
+        self.actionFullScreen.triggered.connect(self.on_action_full_screen_triggered)
         self.actionFit_wiondow.triggered.connect(self.on_action_fit_window_triggered)
 
         self.actionRestore.triggered.connect(self.on_action_restore_triggered)

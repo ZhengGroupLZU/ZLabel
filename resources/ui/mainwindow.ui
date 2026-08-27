@@ -107,6 +107,7 @@
     <addaction name="actionZoom_in"/>
     <addaction name="actionZoom_out"/>
     <addaction name="actionFit_wiondow"/>
+    <addaction name="actionFullScreen"/>
     <addaction name="separator"/>
     <addaction name="actionR"/>
     <addaction name="actionG"/>
@@ -275,6 +276,8 @@
    <addaction name="actionZoom_in"/>
    <addaction name="actionZoom_out"/>
    <addaction name="actionFit_wiondow"/>
+   <addaction name="actionFullScreen"/>
+   <addaction name="actionTimeline"/>
    <addaction name="actionVisible"/>
    <addaction name="separator"/>
    <addaction name="action_copy_prev"/>
@@ -1011,6 +1014,9 @@
    <property name="shortcut">
     <string>Ctrl+J</string>
    </property>
+   <property name="shortcutContext">
+    <enum>Qt::ShortcutContext::ApplicationShortcut</enum>
+   </property>
   </action>
   <action name="actionOpenCV">
    <property name="checkable">
@@ -1274,6 +1280,30 @@
    </property>
    <property name="text">
     <string>Restore</string>
+   </property>
+  </action>
+  <action name="actionFullScreen">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/fullscreen.svg</normaloff>:/icon/icons/fullscreen.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Full screen</string>
+   </property>
+   <property name="toolTip">
+    <string>Full screen (F11)</string>
+   </property>
+   <property name="statusTip">
+    <string>Enter/Exit full screen mode.</string>
+   </property>
+   <property name="whatsThis">
+    <string>Enter/Exit full screen mode.</string>
+   </property>
+   <property name="shortcut">
+    <string>F11</string>
    </property>
   </action>
  </widget>
