@@ -305,7 +305,7 @@
    <property name="sizePolicy">
     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>3</verstretch>
+     <verstretch>1</verstretch>
     </sizepolicy>
    </property>
    <property name="windowTitle">
@@ -329,7 +329,7 @@
    <property name="sizePolicy">
     <sizepolicy hsizetype="Preferred" vsizetype="Preferred">
      <horstretch>0</horstretch>
-     <verstretch>3</verstretch>
+     <verstretch>1</verstretch>
     </sizepolicy>
    </property>
    <property name="floating">

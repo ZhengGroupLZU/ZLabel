@@ -2870,17 +2870,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.toolBar.addWidget(w)
 
-        # right dock vertical height ratio Info:Annos:Labels = 1:2:2
-        for dock, stretch in [
-            (self.dock_infos, 1),
-            (self.dock_annos, 2),
-            (self.dock_labels, 2),
-        ]:
-            sp = dock.sizePolicy()
-            sp.setVerticalStretch(stretch)
-            sp.setVerticalPolicy(QSizePolicy.Policy.Preferred)
-            dock.setSizePolicy(sp)
-
         # Timeline dock: cross-frame instance timeline (video-editor style) at the bottom
         self.dockcnt_timeline = ZDockTimelineContent(
             self._load_anno_for_task,

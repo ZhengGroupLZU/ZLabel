@@ -1580,12 +1580,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1297"/>
+        <source>Full screen (F11)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../resources/ui/mainwindow.ui" line="1300"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1303"/>
         <source>Enter/Exit full screen mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1303"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1306"/>
         <source>F11</source>
         <translation type="unfinished"></translation>
     </message>

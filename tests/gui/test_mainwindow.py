@@ -181,6 +181,16 @@ def test_dock_visibility_syncs_action(populated_project):
     assert win.actionLabels.isChecked()
 
 
+def test_right_dock_default_height_ratio(main_window):
+    win = main_window
+    stretches = [
+        win.dock_infos.sizePolicy().verticalStretch(),
+        win.dock_annos.sizePolicy().verticalStretch(),
+        win.dock_labels.sizePolicy().verticalStretch(),
+    ]
+    assert stretches == [1, 1, 1]
+
+
 # ---------------------------------------------------------------------------
 # Undo / redo integration
 # ---------------------------------------------------------------------------
