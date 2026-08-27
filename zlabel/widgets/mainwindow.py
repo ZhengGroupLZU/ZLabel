@@ -124,7 +124,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_instance_id: int = 0
         self._instance_auto_new: bool = True  # canvas annotations always get a new instance
         self._syncing_selection: bool = False  # guard annos<->canvas selection feedback
-        self._group_shortcuts: list[QShortcut] = []
         self._point_visible_shortcuts: list[QShortcut] = []
 
         self.anno_suffix = "zlabel"
@@ -379,6 +378,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         else:
             self.statusbar_storage.setText("Storage: Remote")
 
+    def _update_canvas_text(self):
+        """Show current file path and selected label in the canvas overlay."""
+        path = ""
+        if self.proj.crt_task is not None:
+            filename = self.proj.crt_task.filename
+            storage = getattr(self.backend, "storage", None) if self.backend is not None else None
+            img_dir = getattr(storage, "image_dir", None)
+            path = str(Path(img_dir) / filename) if img_dir is not None else filename
+        label = ""
+        if self.proj.key_label:
+            lbl = self.proj.labels.get(self.proj.key_label)
+            if lbl is not None:
+                label = lbl.name
+        self.canvas.set_text_info(path, label)
+
     def login(self):
         # TODO: use async or worker?
         if self.backend is None:
@@ -559,6 +573,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dialog_processing.close()
         self.canvas.fit_view()
         self._maybe_auto_fit_dish()
+        self._update_canvas_text()
         self._refresh_timeline()
 
     def on_get_image_fail(self, msg: str):
@@ -1236,6 +1251,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         dialog = DialogExport(project=self.proj, get_image=get_image, parent=self)
         dialog.show()
 
+    def on_action_anno_type_triggered(self, anno_type: AnnotationType, checked: bool = False):
+        index = anno_type.value
+        if 0 <= index < self.cmbox_anno_type.count():
+            self.cmbox_anno_type.setCurrentIndex(index)
+            self.update_anno_type_actions()
+
     def on_cmbox_annotype_index_changed(self, index: int):
         if index < 0 or index >= len(self.annotation_types):
             return
@@ -1246,8 +1267,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def update_anno_type_actions(self):
         """KeyPoint mode disables Rectangle/Polygon/Merge and drops into Move
         (preview) mode; Move is shown as the active mode, the user clicks Point
-        to start drawing keypoints."""
+        to start drawing keypoints. The Anno Type menu mirrors the toolbar combo."""
         is_keypoint = self.settings.annotation_type == AnnotationType.POINT
+        # the active Anno Type menu item is disabled so the other two stay
+        # clickable for switching; the toolbar combo is the persistent control
+        self.actionAnnoTypeRectangle.setEnabled(self.settings.annotation_type != AnnotationType.RECTANGLE)
+        self.actionAnnoTypePolygon.setEnabled(self.settings.annotation_type != AnnotationType.POLYGON)
+        self.actionAnnoTypeKeyPoint.setEnabled(self.settings.annotation_type != AnnotationType.POINT)
         self.actionRectangle.setEnabled(not is_keypoint)
         self.actionPolygon.setEnabled(not is_keypoint)
         # keypoint visibility shortcuts (L/O/X) are only meaningful - and only
@@ -1296,6 +1322,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_label_listw_item_clicked(self, id: str):
         if self.is_current_anno_ok():
             self.proj.key_label = id
+            self._update_canvas_text()
             self.logger.debug(f"Select label {self.proj.crt_label}")
         else:
             self.logger.warning(f"Current anno is None, {self.proj.crt_task=}")
@@ -1566,6 +1593,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._refresh_anno_tree()
         self._apply_annotation_rotation()
         self._refresh_timeline()
+        self._update_canvas_text()
         self._maybe_copy_prev_frame()
 
     def _apply_annotation_rotation(self):
@@ -2945,6 +2973,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionLabels.triggered.connect(self.on_action_labels_triggered)
 
         self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
+        self.actionAnnoTypeRectangle.triggered.connect(
+            functools.partial(self.on_action_anno_type_triggered, AnnotationType.RECTANGLE)
+        )
+        self.actionAnnoTypePolygon.triggered.connect(
+            functools.partial(self.on_action_anno_type_triggered, AnnotationType.POLYGON)
+        )
+        self.actionAnnoTypeKeyPoint.triggered.connect(
+            functools.partial(self.on_action_anno_type_triggered, AnnotationType.POINT)
+        )
         self.cmbox_rgb.currentIndexChanged.connect(self.on_cmbox_rgb_index_changed)
 
         # self.btn_online_mode.sigCheckStateChanged.connect(self.on_btn_online_mode_check_changed)
@@ -3019,14 +3056,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         sc.setContext(Qt.ShortcutContext.WindowShortcut)
         sc.activated.connect(self.on_action_save_triggered)
 
-        # group selected annotations into one instance (merge) / split (unmerge):
-        # a single Ctrl+G toggles between the two based on the selection state
         self.actionGroup.triggered.connect(self.on_group_button_triggered)
-        self._group_shortcuts: list[QShortcut] = []
-        sc = QShortcut(QKeySequence("Ctrl+G"), self)
-        sc.setContext(Qt.ShortcutContext.WindowShortcut)
-        sc.activated.connect(self.on_group_button_triggered)
-        self._group_shortcuts.append(sc)
 
         # dock annotation context menu
         self.dockcnt_anno.listWidget.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)

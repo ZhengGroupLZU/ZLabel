@@ -1,5 +1,11 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/file.svg</file>
+    <file>icons/edit.svg</file>
+    <file>icons/window.svg</file>
+    <file>icons/help.svg</file>
+    <file>icons/eye-3.svg</file>
+    <file>icons/annotate.svg</file>
     <file>icons/fullscreen.svg</file>
     <file>icons/pointer.png</file>
     <file>icons/magnifier.svg</file>

@@ -101,6 +101,47 @@ def test_anno_type_combo_updates_settings(populated_project):
     assert win.settings.annotation_type == AnnotationType.POLYGON
 
 
+def test_anno_type_actions_sync_with_combo(populated_project):
+    win, proj, anno, rebuild = populated_project
+
+    # combo selection disables exactly the matching menu action
+    win.cmbox_anno_type.setCurrentIndex(AnnotationType.POLYGON.value)  # force initial sync
+    cases = [
+        (AnnotationType.RECTANGLE, "actionAnnoTypeRectangle"),
+        (AnnotationType.POLYGON, "actionAnnoTypePolygon"),
+        (AnnotationType.POINT, "actionAnnoTypeKeyPoint"),
+    ]
+    for anno_type, action_name in cases:
+        win.cmbox_anno_type.setCurrentIndex(anno_type.value)
+        assert not getattr(win, action_name).isEnabled(), action_name
+        for other_name in ("actionAnnoTypeRectangle", "actionAnnoTypePolygon", "actionAnnoTypeKeyPoint"):
+            if other_name != action_name:
+                assert getattr(win, other_name).isEnabled(), other_name
+
+    # clicking an enabled menu action selects the matching combo item
+    win.cmbox_anno_type.setCurrentIndex(AnnotationType.RECTANGLE.value)
+    win.actionAnnoTypePolygon.trigger()
+    assert win.cmbox_anno_type.currentIndex() == AnnotationType.POLYGON.value
+    assert win.settings.annotation_type == AnnotationType.POLYGON
+    assert not win.actionAnnoTypePolygon.isEnabled()
+    assert win.actionAnnoTypeRectangle.isEnabled()
+    assert win.actionAnnoTypeKeyPoint.isEnabled()
+
+    win.actionAnnoTypeKeyPoint.trigger()
+    assert win.cmbox_anno_type.currentIndex() == AnnotationType.POINT.value
+    assert win.settings.annotation_type == AnnotationType.POINT
+    assert not win.actionAnnoTypeKeyPoint.isEnabled()
+    assert win.actionAnnoTypeRectangle.isEnabled()
+    assert win.actionAnnoTypePolygon.isEnabled()
+
+    win.actionAnnoTypeRectangle.trigger()
+    assert win.cmbox_anno_type.currentIndex() == AnnotationType.RECTANGLE.value
+    assert win.settings.annotation_type == AnnotationType.RECTANGLE
+    assert not win.actionAnnoTypeRectangle.isEnabled()
+    assert win.actionAnnoTypePolygon.isEnabled()
+    assert win.actionAnnoTypeKeyPoint.isEnabled()
+
+
 def test_rgb_combo_updates_canvas(populated_project):
     win, proj, anno, rebuild = populated_project
     win.cmbox_rgb.setCurrentIndex(0)  # Gray
@@ -189,6 +230,25 @@ def test_right_dock_default_height_ratio(main_window):
         win.dock_labels.sizePolicy().verticalStretch(),
     ]
     assert stretches == [1, 1, 1]
+
+
+def test_canvas_text_shows_file_path_and_label(populated_project):
+    win, proj, anno, rebuild = populated_project
+    win._update_canvas_text()
+    html = win.canvas.text_item.toHtml()
+    assert "a.png" in html
+    assert "A" in html
+
+    from zlabel.utils import Label
+
+    lbl2 = Label.new("B", "#00ff00")
+    proj.labels[lbl2.id] = lbl2
+    win.dockcnt_labels.set_labels(list(proj.labels.values()), proj.key_label)
+    win.dockcnt_labels.select_row_by_id(lbl2.id)
+    html = win.canvas.text_item.toHtml()
+    assert "Label: B" in html
+    assert "Label: A" not in html
+    assert "a.png" in html
 
 
 # ---------------------------------------------------------------------------

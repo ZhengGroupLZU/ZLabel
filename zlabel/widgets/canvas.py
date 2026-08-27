@@ -1,4 +1,5 @@
 import functools
+import html
 import math
 import os
 from collections import OrderedDict
@@ -137,6 +138,8 @@ class Canvas(pg.PlotWidget):
         self.addItem(self.vline, ignoreBounds=True)  # type: ignore
 
         self.text_item = pg.TextItem(text="", anchor=(0, 0))
+        self._text_path = ""
+        self._text_label = ""
         self.set_mode_text()
         self.addItem(self.text_item)
 
@@ -456,13 +459,23 @@ class Canvas(pg.PlotWidget):
         self.set_mode_text()
 
     def set_mode_text(self):
-        html = f"""
+        mode = self._status_mode.name if self._status_mode is not None else "None"
+        draw = self._draw_mode.name if self._draw_mode is not None else "None"
+        html_text = f"""
         <div style='color: red; font-size: 8pt; font-weight: bold;'>
-            <p>Mode: {self._status_mode.name}</p>
-            <p>Draw: {self._draw_mode.name}</p>
+            <p>Mode: {mode}</p>
+            <p>Draw: {draw}</p>
+            <p>File: {html.escape(self._text_path)}</p>
+            <p>Label: {html.escape(self._text_label)}</p>
         </div>
         """
-        self.text_item.setHtml(html)
+        self.text_item.setHtml(html_text)
+
+    def set_text_info(self, path: str = "", label: str = ""):
+        """Show the current file path and selected label in the overlay text."""
+        self._text_path = path
+        self._text_label = label
+        self.set_mode_text()
 
     def set_item_state_by_result(
         self,

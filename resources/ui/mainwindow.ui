@@ -104,6 +104,9 @@
     <property name="title">
      <string>View</string>
     </property>
+    <property name="separatorsCollapsible">
+     <bool>false</bool>
+    </property>
     <addaction name="actionZoom_in"/>
     <addaction name="actionZoom_out"/>
     <addaction name="actionFit_wiondow"/>
@@ -140,20 +143,6 @@
     <addaction name="actionShortcut"/>
     <addaction name="actionAbout"/>
    </widget>
-   <widget class="QMenu" name="menuTools">
-    <property name="enabled">
-     <bool>true</bool>
-    </property>
-    <property name="font">
-     <font>
-      <family>Times New Roman</family>
-      <pointsize>12</pointsize>
-     </font>
-    </property>
-    <property name="title">
-     <string>Tools</string>
-    </property>
-   </widget>
    <widget class="QMenu" name="menuEdit">
     <property name="font">
      <font>
@@ -166,14 +155,24 @@
     </property>
     <widget class="QMenu" name="menuAnno_Type">
      <property name="enabled">
-      <bool>false</bool>
+      <bool>true</bool>
+     </property>
+     <property name="toolTip">
+      <string>Select annotation type (Rectangle, Polygon, KeyPoint).</string>
      </property>
      <property name="title">
       <string>Anno Type</string>
      </property>
+     <property name="icon">
+      <iconset resource="../icons.qrc">
+       <normaloff>:/icon/icons/annotate.svg</normaloff>:/icon/icons/annotate.svg</iconset>
+     </property>
+     <property name="toolTipsVisible">
+      <bool>true</bool>
+     </property>
      <addaction name="actionAnnoTypeRectangle"/>
      <addaction name="actionAnnoTypePolygon"/>
-     <addaction name="actionAnnoTypeRLEMask"/>
+     <addaction name="actionAnnoTypeKeyPoint"/>
     </widget>
     <addaction name="menuAnno_Type"/>
     <addaction name="actionSAM"/>
@@ -190,6 +189,7 @@
     <addaction name="separator"/>
     <addaction name="actionUndo"/>
     <addaction name="actionRedo"/>
+    <addaction name="actionGroup"/>
     <addaction name="actionMerge"/>
    </widget>
    <widget class="QMenu" name="menuWindow">
@@ -216,7 +216,6 @@
    <addaction name="menuFile"/>
    <addaction name="menuEdit"/>
    <addaction name="menuView"/>
-   <addaction name="menuTools"/>
    <addaction name="menuWindow"/>
    <addaction name="menuAbout"/>
   </widget>
@@ -265,6 +264,9 @@
    <addaction name="actionPoint"/>
    <addaction name="actionPolygon"/>
    <addaction name="separator"/>
+   <addaction name="actionUndo"/>
+   <addaction name="separator"/>
+   <addaction name="actionRedo"/>
    <addaction name="actionGroup"/>
    <addaction name="actionMerge"/>
    <addaction name="separator"/>
@@ -1178,10 +1180,17 @@
    <property name="toolTip">
     <string>Group selected annotations into one instance (Ctrl+G); split (Ctrl+G)</string>
    </property>
+   <property name="shortcut">
+    <string>Ctrl+G</string>
+   </property>
   </action>
   <action name="actionAnnoTypeRectangle">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/rectangle_two_points.svg</normaloff>:/icon/icons/rectangle_two_points.svg</iconset>
    </property>
    <property name="text">
     <string>Rectangle</string>
@@ -1189,7 +1198,11 @@
   </action>
   <action name="actionAnnoTypePolygon">
    <property name="enabled">
-    <bool>false</bool>
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/polygon_0.svg</normaloff>:/icon/icons/polygon_0.svg</iconset>
    </property>
    <property name="text">
     <string>Polygon</string>
@@ -1304,6 +1317,15 @@
    </property>
    <property name="shortcut">
     <string>F11</string>
+   </property>
+  </action>
+  <action name="actionAnnoTypeKeyPoint">
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/three_dots.svg</normaloff>:/icon/icons/three_dots.svg</iconset>
+   </property>
+   <property name="text">
+    <string>KeyPoint</string>
    </property>
   </action>
  </widget>
