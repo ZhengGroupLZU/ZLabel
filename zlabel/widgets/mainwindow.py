@@ -643,16 +643,56 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             item.set_instance_label(result.instance_id, color)
         self.canvas.refresh_instance_bboxes()
 
+    @staticmethod
+    def _same_except_instance(
+        a: PointResult | RectangleResult | PolygonResult, b: PointResult | RectangleResult | PolygonResult
+    ) -> bool:
+        """True when two results differ only in ``instance_id`` (and nothing else)."""
+        if type(a) is not type(b):
+            return False
+        if a.labels != b.labels or a.origin != b.origin or a.score != b.score:
+            return False
+        if isinstance(a, PointResult):
+            return a.x == b.x and a.y == b.y and a.visible == b.visible and a.category_id == b.category_id
+        if isinstance(a, RectangleResult):
+            return (
+                a.x == b.x
+                and a.y == b.y
+                and a.w == b.w
+                and a.h == b.h
+                and a.rotation == b.rotation
+                and a.text == b.text
+            )
+        if isinstance(a, PolygonResult):
+            return (
+                a.x == b.x
+                and a.y == b.y
+                and a.w == b.w
+                and a.h == b.h
+                and a.rotation == b.rotation
+                and a.closed == b.closed
+                and a.points == b.points
+            )
+        return False
+
     def modify_result(self, result: PointResult | RectangleResult | PolygonResult, update: bool = False):
         if self.proj.crt_anno is None or result.id not in self.proj.crt_anno.results:
             return
         old = self.proj.crt_anno.results.get(result.id)
         self.logger.debug(f"{result=}")
         self.proj.crt_anno.results.update({result.id: result})
-        self.canvas.set_item_state_by_result(result, update=update)
         item = self.canvas.showing_items.get(result.id, None)
-        if item is not None:
-            item.setFillColor(result.labels[0].color, self.canvas.effective_alpha)
+        if old is not None and self._same_except_instance(old, result):
+            # instance-only change (group/split/assign): update the id label and
+            # fill color directly - no geometry/handle rebuild needed
+            if item is not None:
+                color = result.labels[0].color if result.labels else None
+                item.set_instance_label(result.instance_id, color)
+                item.setFillColor(result.labels[0].color, self.canvas.effective_alpha)
+        else:
+            self.canvas.set_item_state_by_result(result, update=update)
+            if item is not None:
+                item.setFillColor(result.labels[0].color, self.canvas.effective_alpha)
         # instance regrouping is handled once in modify_results() after the
         # whole batch has been written (rebuilding the tree / bboxes per result
         # is the main cause of UI stalls when merging many instances).
@@ -669,15 +709,25 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         instance_changed = False
         color_changed = False
         anno = self.proj.crt_anno
-        for r in results:
-            old = anno.results.get(r.id) if anno is not None else None
-            if old is not None and getattr(old, "instance_id", 0) != getattr(r, "instance_id", 0):
-                instance_changed = True
-            old_color = old.labels[0].color if old is not None and old.labels else None
-            new_color = r.labels[0].color if r.labels else None
-            if old_color != new_color:
-                color_changed = True
-            self.modify_result(r, update)
+        # suppress per-item canvas state signals + bbox rebuilds: each
+        # Polygon.setState() emits sigRegionChanged per handle operation, which
+        # is O(instances * items) per call and can re-enter Qt's handle code.
+        # Disconnect item signals for the batch and rebuild once at the end.
+        self.canvas.block_item_state_changed(True)
+        self.canvas.begin_batch_update()
+        try:
+            for r in results:
+                old = anno.results.get(r.id) if anno is not None else None
+                if old is not None and getattr(old, "instance_id", 0) != getattr(r, "instance_id", 0):
+                    instance_changed = True
+                old_color = old.labels[0].color if old is not None and old.labels else None
+                new_color = r.labels[0].color if r.labels else None
+                if old_color != new_color:
+                    color_changed = True
+                self.modify_result(r, update)
+        finally:
+            self.canvas.end_batch_update()
+            self.canvas.block_item_state_changed(False)
         if instance_changed and anno is not None:
             for r in results:
                 iid = getattr(r, "instance_id", 0)
@@ -2009,10 +2059,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         iids = {getattr(p, "instance_id", 0) for p in pts}
         positive_iids = {i for i in iids if i > 0}
         instance_id = min(positive_iids) if positive_iids else self._ensure_current_instance()
-        result_old = [copy.deepcopy(p) for p in pts]
-        result_new = [copy.deepcopy(p) for p in pts]
-        for r in result_new:
-            r.instance_id = instance_id
+        result_old = list(pts)
+        result_new = [p.model_copy(update={"instance_id": instance_id}) for p in pts]
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
         self.show_toast(self.tr(f"Grouped {len(pts)} keypoints"))
 
@@ -2026,14 +2074,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         per-result redo pruning recreates instance entries empty.
         """
         anno = self.proj.crt_anno
-        result_new = [copy.deepcopy(r) for r in results]
+        result_new: list[PointResult | RectangleResult | PolygonResult] = []
         inherited: dict[int, str] = {}
         used = self._used_instance_ids()
-        for r in result_new:
+        for r in results:
             old_iid = r.instance_id
             iid = self._next_free_instance_id(used)
             used.add(iid)
-            r.instance_id = iid
+            result_new.append(r.model_copy(update={"instance_id": iid}))
             if anno is not None:
                 inherited[iid] = anno.instances.get(old_iid, "") or self._default_instance_status()
         return result_new, inherited
@@ -2045,7 +2093,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if not pts:
             return
         anno = self.proj.crt_anno
-        result_old = [copy.deepcopy(p) for p in pts]
+        result_old = list(pts)
         result_new, inherited = self._new_individual_instances(pts)
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
         if anno is not None:
@@ -2091,9 +2139,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         if instance_id not in anno.instances:
             self._init_instance_status(instance_id)
-        result_old = copy.deepcopy(result)
-        result_new = copy.deepcopy(result)
-        result_new.instance_id = instance_id
+        result_old = result
+        result_new = result.model_copy(update={"instance_id": instance_id})
         self.add_result_undo_cmd([result_new], ResultUndoMode.MODIFY_NO_UPDATE, [result_old])
         self.current_instance_id = instance_id
         self._refresh_timeline()
@@ -2263,10 +2310,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         new_iid = min(positive_iids) if positive_iids else self._new_instance_id()
         if new_iid not in anno.instances:
             self._init_instance_status(new_iid)
-        result_old = [copy.deepcopy(r) for r in results]
-        result_new = [copy.deepcopy(r) for r in results]
-        for r in result_new:
-            r.instance_id = new_iid
+        result_old = list(results)
+        result_new = [r.model_copy(update={"instance_id": new_iid}) for r in results]
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
         self.current_instance_id = new_iid
         self._refresh_timeline()
@@ -2283,7 +2328,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         results = [r for r in self._selected_results() if getattr(r, "instance_id", 0)]
         if not results:
             return
-        result_old = [copy.deepcopy(r) for r in results]
+        result_old = list(results)
         result_new, inherited = self._new_individual_instances(results)
         self.add_result_undo_cmd(result_new, ResultUndoMode.MODIFY_NO_UPDATE, result_old)
         # the per-result redo pruning recreates instance entries empty; re-apply

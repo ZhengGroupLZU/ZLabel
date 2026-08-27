@@ -142,6 +142,8 @@ class Canvas(pg.PlotWidget):
         self._text_label = ""
         self.set_mode_text()
         self.addItem(self.text_item)
+        self._batch_update_depth = 0
+        self._refresh_bboxes_pending = False
 
         self.mouse_down_pos: QPointF | None = None
         self.mouse_up_pos: QPointF | None = None
@@ -865,59 +867,80 @@ class Canvas(pg.PlotWidget):
         self.block_item_state_changed(False)
         self.view_box.enableAutoRange()
 
+    def begin_batch_update(self):
+        """Suppress per-item instance-bbox rebuilds until end_batch_update()."""
+        self._batch_update_depth += 1
+
+    def end_batch_update(self):
+        """Re-enable instance-bbox rebuilds and run the single pending refresh."""
+        if self._batch_update_depth > 0:
+            self._batch_update_depth -= 1
+        if self._batch_update_depth == 0 and self._refresh_bboxes_pending:
+            self._refresh_bboxes_pending = False
+            self.refresh_instance_bboxes()
+
     def refresh_instance_bboxes(self):
         """Rebuild the per-instance dashed bboxes shown for polygon instances.
 
         Only instances containing at least one polygon get an overlay; the box
         is the union (maximum) axis-aligned bbox of all member annotations.
+        During a batch update the rebuild is deferred to end_batch_update() so
+        per-item state events do not trigger O(instances * items) rescans.
         """
+        if self._batch_update_depth > 0:
+            self._refresh_bboxes_pending = True
+            return
         for item in self._instance_bbox_items.values():
             self.removeItem(item)
         self._instance_bbox_items.clear()
 
-        groups: dict[int, list[Rectangle | Point | Polygon]] = {}
+        # two linear passes, same rule as before: an overlay only exists for
+        # instances containing at least one polygon, and the union includes all
+        # member annotations (rectangle/point included)
+        polygon_iids = {
+            getattr(item, "instance_id", 0)
+            for item in self.showing_items.values()
+            if item.isVisible() and isinstance(item, Polygon) and getattr(item, "instance_id", 0)
+        }
+        groups: dict[int, dict[str, Any]] = {}
         for item in self.showing_items.values():
             if not item.isVisible():
                 continue
             iid = getattr(item, "instance_id", 0)
-            if iid and isinstance(item, Polygon):
-                groups.setdefault(iid, []).append(item)
-        if not groups:
-            return
-
-        for iid in groups:
-            xs: list[float] = []
-            ys: list[float] = []
-            color: str | None = None
-            for item in self.showing_items.values():
-                if not item.isVisible() or getattr(item, "instance_id", 0) != iid:
-                    continue
-                if color is None:
-                    color = getattr(item, "label_color", None) or item.fill_color.name()
-                if isinstance(item, Polygon):
-                    pts = item.getState().get("points") or []
-                    xs.extend(float(p[0]) for p in pts)
-                    ys.extend(float(p[1]) for p in pts)
-                elif isinstance(item, Rectangle):
-                    st = item.getState()
-                    x = float(st["pos"].x())
-                    y = float(st["pos"].y())
-                    w = float(st["size"].x())
-                    h = float(st["size"].y())
-                    ang = math.radians(float(st.get("angle", 0.0)))
-                    cos_a, sin_a = math.cos(ang), math.sin(ang)
-                    for lx, ly in ((0.0, 0.0), (w, 0.0), (0.0, h), (w, h)):
-                        xs.append(x + lx * cos_a - ly * sin_a)
-                        ys.append(y + lx * sin_a + ly * cos_a)
-                elif isinstance(item, Point):
-                    st = item.getState()
-                    xs.append(float(st["pos"].x()))
-                    ys.append(float(st["pos"].y()))
+            if not iid or iid not in polygon_iids:
+                continue
+            entry = groups.get(iid)
+            if entry is None:
+                entry = groups[iid] = {"xs": [], "ys": [], "color": None}
+            if entry["color"] is None:
+                entry["color"] = getattr(item, "label_color", None) or item.fill_color.name()
+            if isinstance(item, Polygon):
+                pts = item.getState().get("points") or []
+                entry["xs"].extend(float(p[0]) for p in pts)
+                entry["ys"].extend(float(p[1]) for p in pts)
+            elif isinstance(item, Rectangle):
+                st = item.getState()
+                x = float(st["pos"].x())
+                y = float(st["pos"].y())
+                w = float(st["size"].x())
+                h = float(st["size"].y())
+                ang = math.radians(float(st.get("angle", 0.0)))
+                cos_a, sin_a = math.cos(ang), math.sin(ang)
+                for lx, ly in ((0.0, 0.0), (w, 0.0), (0.0, h), (w, h)):
+                    entry["xs"].append(x + lx * cos_a - ly * sin_a)
+                    entry["ys"].append(y + lx * sin_a + ly * cos_a)
+            elif isinstance(item, Point):
+                st = item.getState()
+                entry["xs"].append(float(st["pos"].x()))
+                entry["ys"].append(float(st["pos"].y()))
+        for iid, entry in groups.items():
+            xs = entry["xs"]
+            ys = entry["ys"]
             if not xs or not ys:
                 continue
             rect = QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
             bbox = InstanceBBox()
-            bbox.set_instance(iid, rect, color)
+            bbox.set_instance(iid, rect, entry["color"])
             bbox.setZValue(self._z_value + 0.5)
             self.addItem(bbox)
             bbox.setParentItem(self._content_group)
@@ -1097,10 +1120,13 @@ class Canvas(pg.PlotWidget):
         if anno is None:
             return
         self.view_box.disableAutoRange()  # for performance
-        self.clear_all_items()
-        for result in anno.results.values():
-            self.create_item_by_result(result)
-        self.refresh_instance_bboxes()
+        self.begin_batch_update()
+        try:
+            self.clear_all_items()
+            for result in anno.results.values():
+                self.create_item_by_result(result)
+        finally:
+            self.end_batch_update()
         self.view_box.enableAutoRange()
 
     # endregion
@@ -1170,9 +1196,16 @@ class Canvas(pg.PlotWidget):
     def select_items(self, ids: list[str]):
         """Select exactly the given annotation items (clears the rest)."""
         id_set = set(ids)
-        for item in self.items():
-            if isinstance(item, (Rectangle, Point, Polygon)):
-                item.setSelected(item.id_ in id_set)
+        # creating/removing polygon handles emits sigRegionChanged per handle,
+        # which would rebuild instance bboxes per item; disconnect the signals
+        # during the batch so selecting N items costs O(N), not O(N * instances)
+        self.begin_batch_update()
+        try:
+            for item in self.items():
+                if isinstance(item, (Rectangle, Point, Polygon)):
+                    item.setSelected(item.id_ in id_set)
+        finally:
+            self.end_batch_update()
         self.update()
 
     def item_at_point(self, point: QPoint | QPointF):

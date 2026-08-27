@@ -607,6 +607,48 @@ def test_group_instances_syncs_canvas_once(populated_project, monkeypatch):
     assert calls == 1
 
 
+def test_group_many_polygons_batches_bbox_refresh(populated_project, monkeypatch):
+    """Merging many polygons must not rebuild instance bboxes per item.
+
+    Polygon.setState() emits sigRegionChanged per handle operation; each event
+    used to trigger refresh_instance_bboxes() (O(instances * items)), making
+    group/merge stall with many polygons. The batch flag defers rebuilds to a
+    few full refreshes (selection end, batch end, sync).
+    """
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult
+
+    n = 50
+    for i in range(n):
+        x = (i % 10) * 5
+        y = (i // 10) * 5
+        anno.add_result(
+            PolygonResult.new(
+                id_=f"p{i}",
+                points=[(x, y), (x + 8, y), (x + 8, y + 8), (x, y + 8)],
+                closed=True,
+                labels=[proj.crt_label],
+                instance_id=i + 1,
+            )
+        )
+    rebuild()
+
+    full_calls = 0
+    original = win.canvas.refresh_instance_bboxes
+
+    def counting(*args, **kwargs):
+        nonlocal full_calls
+        if win.canvas._batch_update_depth == 0:
+            full_calls += 1
+        return original(*args, **kwargs)
+
+    monkeypatch.setattr(win.canvas, "refresh_instance_bboxes", counting)
+
+    win.canvas.select_items(list(anno.results))
+    win.on_group_instances()
+    assert full_calls <= 5
+
+
 def test_ctrl_g_toggles_group_and_split(populated_project, qtbot):
     """A single Ctrl+G shortcut groups a multi-selection into one instance and
     splits it back when the selection already forms one instance."""

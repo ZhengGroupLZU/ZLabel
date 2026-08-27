@@ -168,7 +168,7 @@ class ZLServerApiHelper:
         if resp.status_code == 200:
             return resp.text
         else:
-            self.logger.error(f"Get anno failed, {resp.text=}")
+            self.logger.info(f"Get anno failed, {resp.text=}")
             return None
 
     def get_projects(self) -> list[dict[str, int | str]] | None:

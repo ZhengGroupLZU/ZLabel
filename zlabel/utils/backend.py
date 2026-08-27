@@ -314,14 +314,14 @@ class LocalStorage:
     def get_image(self, name: str) -> Image.Image | None:
         p = self.image_dir / name
         if not p.exists():
-            self.logger.error(f"Get image failed, {name=} not found in {self.image_dir}")
+            self.logger.info(f"Get image failed, {name=} not found in {self.image_dir}")
             return None
         return Image.open(p)
 
     def get_zlabel(self, name: str) -> str | None:
         p = self.anno_dir / name
         if not p.exists():
-            self.logger.error(f"Get anno failed, {name=} not found in {self.anno_dir}")
+            self.logger.info(f"Get anno failed, {name=} not found in {self.anno_dir}")
             return None
         return p.read_text(encoding="utf-8")
 
