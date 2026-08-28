@@ -209,6 +209,10 @@
      <addaction name="actionAnnotations"/>
      <addaction name="actionLabels"/>
      <addaction name="actionTimeline"/>
+     <addaction name="separator"/>
+     <addaction name="actionDockLeft"/>
+     <addaction name="actionDockRight"/>
+     <addaction name="actionDockBottom"/>
     </widget>
     <addaction name="menuDocks"/>
     <addaction name="actionRestore"/>
@@ -265,7 +269,6 @@
    <addaction name="actionPolygon"/>
    <addaction name="separator"/>
    <addaction name="actionUndo"/>
-   <addaction name="separator"/>
    <addaction name="actionRedo"/>
    <addaction name="actionGroup"/>
    <addaction name="actionMerge"/>
@@ -278,8 +281,11 @@
    <addaction name="actionZoom_in"/>
    <addaction name="actionZoom_out"/>
    <addaction name="actionFit_wiondow"/>
+   <addaction name="separator"/>
    <addaction name="actionFullScreen"/>
-   <addaction name="actionTimeline"/>
+   <addaction name="actionDockLeft"/>
+   <addaction name="actionDockRight"/>
+   <addaction name="actionDockBottom"/>
    <addaction name="actionVisible"/>
    <addaction name="separator"/>
    <addaction name="action_copy_prev"/>
@@ -1005,16 +1011,13 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/dock_bottom.svg</normaloff>:/icon/icons/dock_bottom.svg</iconset>
+     <normaloff>:/icon/icons/timeline.svg</normaloff>:/icon/icons/timeline.svg</iconset>
    </property>
    <property name="text">
     <string>Timeline</string>
    </property>
    <property name="toolTip">
-    <string>Timeline (Ctrl+J)</string>
-   </property>
-   <property name="shortcut">
-    <string>Ctrl+J</string>
+    <string>Timeline</string>
    </property>
    <property name="shortcutContext">
     <enum>Qt::ShortcutContext::ApplicationShortcut</enum>
@@ -1235,7 +1238,7 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/dock_left.svg</normaloff>:/icon/icons/dock_left.svg</iconset>
+     <normaloff>:/icon/icons/file.svg</normaloff>:/icon/icons/file.svg</iconset>
    </property>
    <property name="text">
     <string>Files</string>
@@ -1250,7 +1253,7 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+     <normaloff>:/icon/icons/info.svg</normaloff>:/icon/icons/info.svg</iconset>
    </property>
    <property name="text">
     <string>Info</string>
@@ -1265,7 +1268,7 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+     <normaloff>:/icon/icons/annotate.svg</normaloff>:/icon/icons/annotate.svg</iconset>
    </property>
    <property name="text">
     <string>Annotations</string>
@@ -1280,7 +1283,7 @@
    </property>
    <property name="icon">
     <iconset resource="../icons.qrc">
-     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+     <normaloff>:/icon/icons/label.svg</normaloff>:/icon/icons/label.svg</iconset>
    </property>
    <property name="text">
     <string>Labels</string>
@@ -1326,6 +1329,69 @@
    </property>
    <property name="text">
     <string>KeyPoint</string>
+   </property>
+  </action>
+  <action name="actionDockLeft">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_left.svg</normaloff>:/icon/icons/dock_left.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Left</string>
+   </property>
+   <property name="toolTip">
+    <string>Left (Ctrl+B)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+B</string>
+   </property>
+  </action>
+  <action name="actionDockRight">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_right.svg</normaloff>:/icon/icons/dock_right.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Right</string>
+   </property>
+   <property name="toolTip">
+    <string>Right (Ctrl+Alt+B)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+Alt+B</string>
+   </property>
+  </action>
+  <action name="actionDockBottom">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/dock_bottom.svg</normaloff>:/icon/icons/dock_bottom.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Bottom</string>
+   </property>
+   <property name="toolTip">
+    <string>Bottom (Ctrl+J)</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+J</string>
    </property>
   </action>
  </widget>

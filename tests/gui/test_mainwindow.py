@@ -222,6 +222,66 @@ def test_dock_visibility_syncs_action(populated_project):
     assert win.actionLabels.isChecked()
 
 
+def test_dock_group_toggle_actions(populated_project):
+    win, proj, anno, rebuild = populated_project
+
+    assert win.actionDockLeft.isChecked()
+    assert win.actionDockRight.isChecked()
+    assert win.actionDockBottom.isChecked()
+    assert win.dock_files.isVisible()
+    assert win.dock_infos.isVisible()
+    assert win.dock_annos.isVisible()
+    assert win.dock_labels.isVisible()
+    assert win.dock_timeline.isVisible()
+
+    # left toggles only the Files dock
+    win.actionDockLeft.trigger()
+    assert not win.dock_files.isVisible()
+    assert win.dock_infos.isVisible()
+    win.actionDockLeft.trigger()
+    assert win.dock_files.isVisible()
+
+    # right toggles all three right-side docks together
+    win.actionDockRight.trigger()
+    assert not win.actionDockRight.isChecked()
+    for dock in (win.dock_infos, win.dock_annos, win.dock_labels):
+        assert not dock.isVisible()
+    assert win.dock_files.isVisible()
+    win.actionDockRight.trigger()
+    for dock in (win.dock_infos, win.dock_annos, win.dock_labels):
+        assert dock.isVisible()
+
+    # bottom toggles the timeline dock
+    win.actionDockBottom.trigger()
+    assert not win.dock_timeline.isVisible()
+    win.actionDockBottom.trigger()
+    assert win.dock_timeline.isVisible()
+
+
+def test_dock_group_actions_sync_with_individual_docks(populated_project):
+    win, proj, anno, rebuild = populated_project
+
+    win.dock_files.hide()
+    assert not win.actionDockLeft.isChecked()
+    win.dock_files.show()
+    assert win.actionDockLeft.isChecked()
+
+    win.dock_infos.hide()
+    assert not win.actionDockRight.isChecked()
+    win.dock_infos.show()
+    assert win.actionDockRight.isChecked()
+
+    win.dock_labels.hide()
+    assert not win.actionDockRight.isChecked()
+    win.dock_labels.show()
+    assert win.actionDockRight.isChecked()
+
+    win.dock_timeline.hide()
+    assert not win.actionDockBottom.isChecked()
+    win.dock_timeline.show()
+    assert win.actionDockBottom.isChecked()
+
+
 def test_right_dock_default_height_ratio(main_window):
     win = main_window
     stretches = [

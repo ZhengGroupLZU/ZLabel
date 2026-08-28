@@ -270,6 +270,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             state_data: QByteArray = QByteArray.fromBase64(self.settings.window_state.encode("utf-8"))
             if not state_data.isEmpty():
                 self.restoreState(state_data)
+        self._sync_dock_actions()
 
     def ui_update_settings(self):
         self.cmbox_anno_type.setCurrentIndex(self.settings.annotation_type.value)
@@ -1068,6 +1069,32 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def on_dock_timeline_visibility_changed(self, visible: bool):
         self.actionTimeline.setChecked(visible)
+        self.actionDockBottom.setChecked(visible)
+
+    def _update_dock_left_action(self):
+        self.actionDockLeft.setChecked(self.dock_files.isVisible())
+
+    def _update_dock_right_action(self):
+        visible = all(d.isVisible() for d in (self.dock_infos, self.dock_annos, self.dock_labels))
+        self.actionDockRight.setChecked(visible)
+
+    def _update_dock_bottom_action(self):
+        self.actionDockBottom.setChecked(self.dock_timeline.isVisible())
+
+    def _sync_dock_actions(self):
+        self._update_dock_left_action()
+        self._update_dock_right_action()
+        self._update_dock_bottom_action()
+
+    def on_action_dock_left_triggered(self, checked: bool):
+        self.dock_files.setVisible(checked)
+
+    def on_action_dock_right_triggered(self, checked: bool):
+        for dock in (self.dock_infos, self.dock_annos, self.dock_labels):
+            dock.setVisible(checked)
+
+    def on_action_dock_bottom_triggered(self, checked: bool):
+        self.dock_timeline.setVisible(checked)
 
     def _on_timeline_group_changed(self, group: str):
         """Append the current sequence group to the Timeline dock title."""
@@ -1368,6 +1395,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # region DockLabel
     def on_dock_label_visibility_changed(self, visible: bool):
         self.actionLabels.setChecked(visible)
+        self._update_dock_right_action()
 
     def on_dock_label_listw_item_clicked(self, id: str):
         if self.is_current_anno_ok():
@@ -1516,6 +1544,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # DockInfo #####
     def on_dock_info_visibility_changed(self, visible: bool):
         self.actionInfo.setChecked(visible)
+        self._update_dock_right_action()
 
     def on_dock_info_ledit_note_changed(self, s: str):
         if self.proj.crt_anno:
@@ -1527,6 +1556,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # DockAnnotation #####
     def on_dock_anno_visibility_changed(self, visible: bool):
         self.actionAnnotations.setChecked(visible)
+        self._update_dock_right_action()
 
     def on_dock_anno_listw_item_clicked(self, item, column: int = 0):
         rid = item.data(0, ID_ROLE) if hasattr(item, "data") else getattr(item, "id_", None)
@@ -1567,6 +1597,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     # DockFiles #####
     def on_dock_files_visibility_changed(self, visible: bool):
         self.actionFiles.setChecked(visible)
+        self.actionDockLeft.setChecked(visible)
 
     def on_dock_files_item_clicked(self, task_id: str):
         # save first (only when the current annotation is not empty)
@@ -3016,6 +3047,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionInfo.triggered.connect(self.on_action_info_triggered)
         self.actionFiles.triggered.connect(self.on_action_files_triggered)
         self.actionLabels.triggered.connect(self.on_action_labels_triggered)
+        self.actionDockLeft.triggered.connect(self.on_action_dock_left_triggered)
+        self.actionDockRight.triggered.connect(self.on_action_dock_right_triggered)
+        self.actionDockBottom.triggered.connect(self.on_action_dock_bottom_triggered)
 
         self.cmbox_anno_type.currentIndexChanged.connect(self.on_cmbox_annotype_index_changed)
         self.actionAnnoTypeRectangle.triggered.connect(

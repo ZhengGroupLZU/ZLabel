@@ -1,5 +1,8 @@
 <RCC>
   <qresource prefix="icon">
+    <file>icons/label.svg</file>
+    <file>icons/info.svg</file>
+    <file>icons/timeline.svg</file>
     <file>icons/file.svg</file>
     <file>icons/edit.svg</file>
     <file>icons/window.svg</file>
