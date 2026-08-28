@@ -131,6 +131,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # bounded LRU: keeps a few decoded frames, evicts the oldest (each
         # full-res photo is large); cleared on project switch
         self._image_cache: LRUCache[str, Image.Image] = LRUCache(_IMAGE_CACHE_SIZE)
+        self._prefetching: set[str] = set()
         # display-ready numpy arrays produced by ZGetImageWorker (kept in lockstep
         # with _image_cache so cached frames don't need to be re-decoded on the UI thread)
         self._prepared_cache: LRUCache[str, PreparedImage] = LRUCache(_IMAGE_CACHE_SIZE)
@@ -524,6 +525,45 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             QMessageBox.StandardButton.Ok,
         )
 
+    def _prefetch_next_image(self):
+        """Prefetch the next task's image in the background so switching to it
+        is instant (cache hit) instead of showing the loading dialog."""
+        if self.proj.crt_task is None or self.backend is None:
+            return
+        tasks = list(self.proj.tasks.values())
+        if not tasks:
+            return
+        try:
+            idx = next(i for i, t in enumerate(tasks) if t.anno_id == self.proj.key_task)
+        except StopIteration:
+            return
+        if idx + 1 >= len(tasks):
+            return
+        nxt = tasks[idx + 1]
+        if nxt.filename in self._image_cache or nxt.filename in self._prefetching:
+            return
+        self._prefetching.add(nxt.filename)
+        worker = ZGetImageWorker(
+            self.backend,
+            nxt.filename,
+            self.settings.username,
+            self.settings.password,
+            display_max_side=self.settings.display_max_side,
+            pyramid_levels=self.settings.pyramid_levels,
+        )
+        worker.emitter.success.connect(self._on_prefetch_success)
+        worker.emitter.fail.connect(lambda msg, name=nxt.filename: self._on_prefetch_fail(name, msg))
+        self.threadpool.start(worker)
+        self.logger.debug(f"Prefetching next image {nxt.filename}")
+
+    def _on_prefetch_success(self, name: str, result: GetImageResult):
+        self._prefetching.discard(name)
+        self.cache_image(name, result)
+
+    def _on_prefetch_fail(self, name: str, msg: str):
+        self._prefetching.discard(name)
+        self.logger.debug(f"Prefetch failed for {name}: {msg}")
+
     def try_set_image(self, image: Image.Image | None = None):
         if self.proj.crt_task is None or self.backend is None:
             return
@@ -536,6 +576,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.settings.username,
                     self.settings.password,
                     display_max_side=self.settings.display_max_side,
+                    pyramid_levels=self.settings.pyramid_levels,
                 )
                 worker.emitter.success.connect(self.cache_image)
                 worker.emitter.success.connect(self.on_try_set_image_get_success)
@@ -576,6 +617,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._maybe_auto_fit_dish()
         self._update_canvas_text()
         self._refresh_timeline()
+        self._prefetch_next_image()
 
     def on_get_image_fail(self, msg: str):
         self.dialog_processing.close()

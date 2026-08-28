@@ -187,6 +187,7 @@ def test_application_advanced_settings_populated(dialog, settings):
     assert dialog.dspbox_mag_min.value() == pytest.approx(settings.magnifier_min_zoom)
     assert dialog.dspbox_mag_max.value() == pytest.approx(settings.magnifier_max_zoom)
     assert dialog.spin_display_max_side.value() == settings.display_max_side
+    assert dialog.spin_pyramid_levels.value() == settings.pyramid_levels
     assert dialog.spin_image_cache_size.value() == settings.image_cache_size
     assert dialog.spin_tl_small_side.value() == settings.timeline_small_image_side
     assert dialog.spin_tl_cache_size.value() == settings.timeline_small_image_cache_size
@@ -194,5 +195,7 @@ def test_application_advanced_settings_populated(dialog, settings):
 
     dialog.spin_display_max_side.setValue(4096)
     assert settings.display_max_side == 4096
+    dialog.spin_pyramid_levels.setValue(4)
+    assert settings.pyramid_levels == 4
     dialog.dspbox_mag_max.setValue(12.0)
     assert settings.magnifier_max_zoom == pytest.approx(12.0)

@@ -13,6 +13,56 @@ from zlabel.utils import AnnotationType, DrawMode, RgbMode, StatusMode
 # ---------------------------------------------------------------------------
 # Construction / structure
 # ---------------------------------------------------------------------------
+def test_prefetch_next_image_starts_worker_for_next_task(main_window, monkeypatch):
+    win = main_window
+    from zlabel.utils import Task
+    from zlabel.widgets.zworker import GetImageResult
+
+    proj = win.proj
+    proj.tasks = {
+        "a": Task(id=1, filename="a.png", anno_id="a", labels=[]),
+        "b": Task(id=2, filename="b.png", anno_id="b", labels=[]),
+    }
+    proj.key_task = "a"
+
+    started = []
+
+    class FakeEmitter:
+        def __init__(self):
+            self.success = self
+            self.fail = self
+
+        def connect(self, *args, **kwargs):
+            pass
+
+    class FakeWorker:
+        def __init__(self, backend, filename, username, password, display_max_side, pyramid_levels):
+            self.filename = filename
+            self.emitter = FakeEmitter()
+
+    monkeypatch.setattr("zlabel.widgets.mainwindow.ZGetImageWorker", FakeWorker)
+    monkeypatch.setattr(win.threadpool, "start", lambda worker: started.append(worker))
+
+    win._prefetch_next_image()
+    assert len(started) == 1
+    assert started[0].filename == "b.png"
+    assert "b.png" in win._prefetching
+
+    # do not start a duplicate worker while the prefetch is in flight
+    win._prefetch_next_image()
+    assert len(started) == 1
+
+    # last task has no next image to prefetch
+    proj.key_task = "b"
+    win._prefetch_next_image()
+    assert len(started) == 1
+
+    # success clears the in-flight marker and fills the cache
+    win._on_prefetch_success("b.png", GetImageResult(image=None, prepared=None))
+    assert "b.png" not in win._prefetching
+    assert "b.png" in win._image_cache
+
+
 def test_menu_actions_exist(main_window):
     win = main_window
     for name in (

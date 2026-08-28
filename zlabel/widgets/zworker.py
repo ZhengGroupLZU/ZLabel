@@ -1,6 +1,6 @@
 import os
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 import numpy as np
 from PIL import Image
@@ -31,6 +31,8 @@ class PreparedImage:
     full_hw: tuple[int, int]
     img_scale: float
     levels: tuple[float, float]
+    pyramid: list[np.ndarray] = field(default_factory=list)
+    active_idx: int = 0
 
 
 @dataclass
@@ -41,27 +43,73 @@ class GetImageResult:
     prepared: PreparedImage | None = None
 
 
-def prepare_image(image: Image.Image, display_max_side: int = DISPLAY_MAX_SIDE) -> PreparedImage:
+def build_display_pyramid(
+    img: np.ndarray,
+    display_max_side: int = DISPLAY_MAX_SIDE,
+    levels: int = 3,
+) -> list[np.ndarray]:
+    """Build rotated display levels from low to high resolution.
+
+    ``levels`` requests up to that many pyramid steps between the configured
+    display side and the full image (high side is capped to bound memory).
+    """
+    h, w = img.shape[:2]
+    max_side = max(w, h)
+    low = max(1, min(display_max_side, max_side))
+    high = min(max_side, max(display_max_side * 2, 4096))
+    high = max(high, low)
+    n = max(1, int(levels))
+    if n == 1 or high <= low:
+        targets = [low]
+    else:
+        targets = []
+        for i in range(n):
+            ratio = i / (n - 1)
+            target = low * ((high / low) ** ratio)
+            targets.append(max(1, round(target)))
+        targets = sorted(set(targets))
+    out: list[np.ndarray] = []
+    for target in targets:
+        if max_side <= target:
+            arr = img
+        else:
+            scale = target / max_side
+            arr = np.asarray(
+                Image.fromarray(img).resize(
+                    (max(1, round(w * scale)), max(1, round(h * scale))),
+                    Image.Resampling.LANCZOS,
+                )
+            )
+        out.append(np.rot90(arr, k=3, axes=(1, 0)))
+    return out
+
+
+def prepare_image(
+    image: Image.Image,
+    display_max_side: int = DISPLAY_MAX_SIDE,
+    pyramid_levels: int = 3,
+) -> PreparedImage:
     """Decode/downsample/rotate an image for canvas display in a worker thread."""
     full_hw = (image.height, image.width)
     img = np.asarray(image, dtype=np.uint8)
     h, w = img.shape[:2]
-    if max(w, h) > display_max_side:
-        s = display_max_side / max(w, h)
-        new_w = max(1, round(w * s))
-        new_h = max(1, round(h * s))
-        img = np.asarray(Image.fromarray(img).resize((new_w, new_h), Image.Resampling.LANCZOS))
-        img_scale = max(w, h) / display_max_side
-    else:
-        img_scale = 1.0
-    img = np.rot90(img, k=3, axes=(1, 0))
-    flipped = np.flipud(img)
+    pyramid = build_display_pyramid(img, display_max_side, pyramid_levels)
+    # default active level: the one closest to the configured display max side
+    active_idx = min(
+        range(len(pyramid)),
+        key=lambda i: abs(max(pyramid[i].shape[:2]) - display_max_side),
+    )
+    display = pyramid[active_idx]
+    img_scale = max(w, h) / max(display.shape[:2])
+    flipped = np.flipud(display)
     return PreparedImage(
-        display=img,
+        display=display,
         flipped=flipped,
         full_hw=full_hw,
         img_scale=img_scale,
-        levels=_levels_for(img),
+        levels=_levels_for(display),
+        pyramid=pyramid,
+        active_idx=active_idx,
     )
 
 
@@ -270,6 +318,7 @@ class ZGetImageWorker(QRunnable):
         username: str | None = None,
         password: str | None = None,
         display_max_side: int = DISPLAY_MAX_SIDE,
+        pyramid_levels: int = 3,
     ) -> None:
         super().__init__()
 
@@ -278,6 +327,7 @@ class ZGetImageWorker(QRunnable):
         self.username = username
         self.password = password
         self.display_max_side = display_max_side
+        self.pyramid_levels = pyramid_levels
         self.emitter = GetFileEmitter()
         self.setAutoDelete(True)
 
@@ -289,7 +339,10 @@ class ZGetImageWorker(QRunnable):
         if image is not None:
             self.emitter.success.emit(
                 self.filename,
-                GetImageResult(image=image, prepared=prepare_image(image, self.display_max_side)),
+                GetImageResult(
+                    image=image,
+                    prepared=prepare_image(image, self.display_max_side, self.pyramid_levels),
+                ),
             )
         else:
             self.emitter.fail.emit(f"Get image {self.filename} failed")

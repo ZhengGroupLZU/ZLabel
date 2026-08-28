@@ -264,6 +264,22 @@ class Ui_DialogSettings(object):
 
         self.grid_performance.addWidget(self.spin_tl_small_side, 2, 5, 1, 1)
 
+        self.label_pyramid_levels = QLabel(self.gbox_performance)
+        self.label_pyramid_levels.setObjectName(u"label_pyramid_levels")
+        sizePolicy1.setHeightForWidth(self.label_pyramid_levels.sizePolicy().hasHeightForWidth())
+        self.label_pyramid_levels.setSizePolicy(sizePolicy1)
+        self.label_pyramid_levels.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
+
+        self.grid_performance.addWidget(self.label_pyramid_levels, 0, 4, 1, 1)
+
+        self.spin_pyramid_levels = QSpinBox(self.gbox_performance)
+        self.spin_pyramid_levels.setObjectName(u"spin_pyramid_levels")
+        self.spin_pyramid_levels.setMinimum(1)
+        self.spin_pyramid_levels.setMaximum(8)
+        self.spin_pyramid_levels.setValue(3)
+
+        self.grid_performance.addWidget(self.spin_pyramid_levels, 0, 5, 1, 1)
+
 
         self.gridLayout.addWidget(self.gbox_performance, 3, 0, 1, 1)
 
@@ -821,6 +837,7 @@ class Ui_DialogSettings(object):
         self.ckbox_catmull_rom.setText(QCoreApplication.translate("DialogSettings", u"Enable Catmull-Rom Spline", None))
         self.label_tl_small_side.setText(QCoreApplication.translate("DialogSettings", u"Timeline small side:", None))
         self.spin_tl_small_side.setSuffix(QCoreApplication.translate("DialogSettings", u"px", None))
+        self.label_pyramid_levels.setText(QCoreApplication.translate("DialogSettings", u"Pyramid levels:", None))
         self.gbox_appearance.setTitle(QCoreApplication.translate("DialogSettings", u"Appearance", None))
         self.label.setText(QCoreApplication.translate("DialogSettings", u"Fill alpha:", None))
         self.label_default_color.setText(QCoreApplication.translate("DialogSettings", u"Default color:", None))

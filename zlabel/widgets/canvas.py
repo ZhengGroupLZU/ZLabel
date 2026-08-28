@@ -9,7 +9,7 @@ import numpy as np
 import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
-from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, Signal
+from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPixmap, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
@@ -18,7 +18,7 @@ from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
 from zlabel.widgets.graphic_objects import InstanceBBox, Point, Polygon, Rectangle, ZHandle
 from zlabel.widgets.magnifier import MagnifierOverlay
-from zlabel.widgets.zworker import PreparedImage
+from zlabel.widgets.zworker import PreparedImage, build_display_pyramid
 
 # Display-layer pyramid: images with a long edge above this are downsampled for
 # display only. Annotation coordinates, prompts and results all stay in full
@@ -144,6 +144,15 @@ class Canvas(pg.PlotWidget):
         self.addItem(self.text_item)
         self._batch_update_depth = 0
         self._refresh_bboxes_pending = False
+        self._pyramid_levels: list[np.ndarray] = []
+        self._pyramid_levels_count: int = 3
+        self._active_pyramid_idx = 0
+        self._rgb_mode: RgbMode | None = None
+        self._level_timer = QTimer(self)
+        self._level_timer.setSingleShot(True)
+        self._level_timer.setInterval(30)
+        self._level_timer.timeout.connect(self._update_display_level)
+        self.view_box.sigRangeChanged.connect(self._schedule_level_update)
 
         self.mouse_down_pos: QPointF | None = None
         self.mouse_up_pos: QPointF | None = None
@@ -303,42 +312,11 @@ class Canvas(pg.PlotWidget):
         assert isinstance(img, np.ndarray), f"img must be np.ndarray, got {type(img)}"
         h, w = img.shape[:2]
         self._image_hw = (h, w)
-        # Display-layer pyramid: downsample large photos for display only. The
-        # ImageItem is scaled up to cover the full-res rect, so annotation
-        # coordinates / prompts / results stay in full image space untouched.
-        if max(w, h) > self._display_max_side:
-            s = self._display_max_side / max(w, h)
-            new_w = max(1, round(w * s))
-            new_h = max(1, round(h * s))
-            img = np.asarray(Image.fromarray(img).resize((new_w, new_h), Image.Resampling.LANCZOS))
-            self._img_scale = max(w, h) / self._display_max_side
-        else:
-            self._img_scale = 1.0
-        img = np.rot90(img, k=3, axes=(1, 0))
-        # rot90 returns a view; keeping it (no .copy()) saves a full-res buffer.
-        # Nothing mutates _image_backup, so sharing the array with the ImageItem
-        # is safe.
-        self._image_backup = img
-        # cache flipped version for later rgb rendering to avoid repeated flipud
-        try:
-            self._image_flipped = np.flipud(self._image_backup)
-        except Exception:
-            # fallback, keep behavior even if flip fails
-            self._image_flipped = None
-        self._rgb_cache = {}
-        self._image_levels = self._levels_for(img)
-        # autoLevels=False + explicit levels avoid a full-image min/max scan on
-        # every set/update; autoRange=False (fit_view handles the range later)
-        self.image_item.setImage(
-            img,
-            autoLevels=False,
-            autoRange=False,
-            levels=self._image_levels,
-        )
-        # scale the (downsampled) texture up to the full-res rect so the whole
-        # canvas coordinate space stays in full image pixels
-        self.image_item.setScale(self._img_scale)
-        self._apply_rotation()
+        # Multi-level display pyramid: low-res textures for zoomed-out pan/zoom,
+        # higher-res levels when zoomed in so the view stays crisp.
+        self._pyramid_levels = build_display_pyramid(img, self._display_max_side, self._pyramid_levels_count)
+        self._active_pyramid_idx = -1
+        self._activate_pyramid_level(self._closest_pyramid_level(self._display_max_side))
 
     @staticmethod
     def _levels_for(img: np.ndarray) -> tuple[float, float]:
@@ -352,19 +330,77 @@ class Canvas(pg.PlotWidget):
     def set_prepared_image(self, prepared: PreparedImage):
         """Apply a display-ready image computed off the UI thread."""
         self._image_hw = prepared.full_hw
-        self._img_scale = prepared.img_scale
-        self._image_backup = prepared.display
-        self._image_flipped = prepared.flipped
+        self._pyramid_levels = list(prepared.pyramid) if prepared.pyramid else [prepared.display]
+        self._active_pyramid_idx = -1
+        active = prepared.active_idx if 0 <= prepared.active_idx < len(self._pyramid_levels) else 0
+        self._activate_pyramid_level(active)
+
+    def _closest_pyramid_level(self, target_side: int) -> int:
+        if not self._pyramid_levels:
+            return 0
+        return min(
+            range(len(self._pyramid_levels)),
+            key=lambda i: abs(max(self._pyramid_levels[i].shape[:2]) - target_side),
+        )
+
+    def _activate_pyramid_level(self, idx: int):
+        """Switch the ImageItem to pyramid level ``idx`` (keeps full-res coords)."""
+        if not self._pyramid_levels:
+            return
+        idx = max(0, min(idx, len(self._pyramid_levels) - 1))
+        if idx == self._active_pyramid_idx and self._image_backup is not None:
+            return
+        self._active_pyramid_idx = idx
+        arr = self._pyramid_levels[idx]
+        self._image_backup = arr
+        try:
+            self._image_flipped = np.flipud(arr)
+        except Exception:
+            self._image_flipped = None
         self._rgb_cache = {}
-        self._image_levels = prepared.levels
+        self._image_levels = self._levels_for(arr)
+        h, w = self._image_hw
+        max_full = max(h, w)
+        level_max = max(arr.shape[:2])
+        self._img_scale = max_full / level_max if level_max else 1.0
         self.image_item.setImage(
-            prepared.display,
+            arr,
             autoLevels=False,
             autoRange=False,
-            levels=prepared.levels,
+            levels=self._image_levels,
         )
         self.image_item.setScale(self._img_scale)
         self._apply_rotation()
+        if self._rgb_mode is not None:
+            self.set_rgb(self._rgb_mode)
+
+    def _schedule_level_update(self):
+        self._level_timer.start()
+
+    def _update_display_level(self):
+        """Pick the pyramid level matching the current zoom (throttled)."""
+        if len(self._pyramid_levels) <= 1 or self._image_backup is None:
+            return
+        vp = self.view_box.viewPixelSize()
+        if vp is None or vp[0] <= 0:
+            return
+        vpw = vp[0]
+        h, w = self._image_hw
+        max_full = max(h, w)
+        best = len(self._pyramid_levels) - 1
+        for i, arr in enumerate(self._pyramid_levels):
+            level_scale = max_full / max(arr.shape[:2])
+            if level_scale <= vpw:
+                best = i
+                break
+        if best == self._active_pyramid_idx:
+            return
+        if best > self._active_pyramid_idx:
+            self._activate_pyramid_level(best)
+        else:
+            active_scale = max_full / max(self._pyramid_levels[self._active_pyramid_idx].shape[:2])
+            if active_scale * 2 < vpw:
+                self._activate_pyramid_level(best)
 
     def _rgb_image(self, mode: RgbMode) -> np.ndarray | None:
         """Per-mode display array, computed lazily and cached (R/G/B are views;
@@ -412,6 +448,7 @@ class Canvas(pg.PlotWidget):
             item.setFillColor(color, self.effective_alpha)
 
     def set_rgb(self, mode: RgbMode):
+        self._rgb_mode = mode
         if self._image_backup is None:
             return
         arr = self._rgb_image(mode)
@@ -1551,6 +1588,7 @@ class Canvas(pg.PlotWidget):
     def apply_appearance_settings(self, settings):
         """Apply Application-tab appearance settings to the canvas."""
         self._display_max_side = int(getattr(settings, "display_max_side", DISPLAY_MAX_SIDE))
+        self._pyramid_levels_count = int(getattr(settings, "pyramid_levels", 3))
         self._magnifier_min_zoom = float(getattr(settings, "magnifier_min_zoom", 1.0))
         self._magnifier_max_zoom = float(getattr(settings, "magnifier_max_zoom", 10.0))
         self._magnifier_diameter = int(getattr(settings, "magnifier_diameter", 200))
