@@ -3,7 +3,7 @@ name = "ZLabel"
 version = "0.3.3"
 description = "ZLabel"
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
-requires-python = ">=3.10,<3.14"
+requires-python = ">=3.12,<3.14"
 readme = "README.md"
 license = "Apache-2.0"
 dependencies = [
@@ -12,13 +12,13 @@ dependencies = [
     "rich<16.0.0,>=13.7.0",
     "pydantic<3.0.0,>=2.5.2",
     "requests<3.0.0,>=2.31.0",
-    "pyqtgraph<1.0.0,>=0.14.0",
     "numpy>=2.2.6",
     "shapely>=2.1.2",
     "opencv-python-headless>=5.0.0.93",
     "protobuf>=7.35.1",
     "MNN>=3.6.0",
     "regex",
+    "pyqtgraph",
 ]
 
 [dependency-groups]
@@ -57,6 +57,9 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
+
+[tool.uv.sources]
+pyqtgraph = { git = "https://gh-proxy.org/https://github.com/pyqtgraph/pyqtgraph", rev = "dc8e538b51a2ee43ebe4730dbcf13714961f8fd2" }
 
 [tool.ruff]
 line-length = 120
