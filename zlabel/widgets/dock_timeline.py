@@ -17,6 +17,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from os.path import splitext
 
+import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QMimeData, QPoint, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import QColor, QDrag, QPainter, QPixmap
@@ -53,17 +54,20 @@ def _instance_bbox(results) -> tuple[int, int, int, int] | None:
     ys: list[float] = []
     for r in results:
         if hasattr(r, "points") and r.points:
-            xs += [p[0] for p in r.points]
-            ys += [p[1] for p in r.points]
+            xs.extend(p[0] for p in r.points)
+            ys.extend(p[1] for p in r.points)
         elif hasattr(r, "x") and hasattr(r, "w"):
-            xs += [r.x, r.x + r.w]
-            ys += [r.y, r.y + r.h]
+            xs.extend((r.x, r.x + r.w))
+            ys.extend((r.y, r.y + r.h))
         elif hasattr(r, "x"):
             xs.append(r.x)
             ys.append(r.y)
     if not xs or not ys:
         return None
-    return int(min(xs)), int(min(ys)), int(max(xs) - min(xs)), int(max(ys) - min(ys))
+    arr_x = np.asarray(xs)
+    arr_y = np.asarray(ys)
+    x0, y0 = int(arr_x.min()), int(arr_y.min())
+    return x0, y0, int(arr_x.max() - x0), int(arr_y.max() - y0)
 
 
 class _InstanceCellWidget(QWidget):

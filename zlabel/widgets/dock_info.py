@@ -1,3 +1,4 @@
+import numpy as np
 from pyqtgraph.Qt.QtCore import Qt, Signal
 from pyqtgraph.Qt.QtWidgets import (
     QFormLayout,
@@ -17,6 +18,7 @@ from zlabel.utils import (
     PolygonResult,
     RectangleResult,
 )
+from zlabel.utils.geometry import polygon_area
 
 from .ui import Ui_ZDockInfoContent
 
@@ -45,18 +47,6 @@ _ALL_FIELDS: dict[str, str] = {
 
 _IMAGE_FIELDS = ("group", "day", "ninstances", "nresults")
 _COMMON_FIELDS = ("type", "label", "score", "origin")
-
-
-def _polygon_area(points: list[tuple[float, float]]) -> float:
-    n = len(points)
-    if n < 3:
-        return 0.0
-    s = 0.0
-    for i in range(n):
-        x1, y1 = points[i]
-        x2, y2 = points[(i + 1) % n]
-        s += x1 * y2 - x2 * y1
-    return abs(s) / 2.0
 
 
 class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
@@ -169,7 +159,7 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
         elif isinstance(result, PolygonResult):
             fields += ["npoints", "area", "bbox", "instance", "part", "status"]
             self._set_field("npoints", len(result.points))
-            self._set_field("area", _polygon_area(result.points))
+            self._set_field("area", polygon_area(np.asarray(result.points, dtype=float)))
             xs = [p[0] for p in result.points]
             ys = [p[1] for p in result.points]
             bbox = (min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys)) if xs else (0, 0, 0, 0)

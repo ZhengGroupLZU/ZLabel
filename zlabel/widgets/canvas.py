@@ -838,15 +838,19 @@ class Canvas(pg.PlotWidget):
 
         self.view_box.disableAutoRange()
         self.block_item_state_changed(True)
+        self.begin_batch_update()
 
         # TODO: update existed items' state to avoid recreate
         # but it's strange that the items won't show after `setState`
         keys = list(self.showing_items.keys())
-        for k in keys:
-            item = self.showing_items.pop(k)
-            self.remove_item(item)
-        for result in anno.results.values():
-            self.create_item_by_result(result)
+        try:
+            for k in keys:
+                item = self.showing_items.pop(k)
+                self.remove_item(item)
+            for result in anno.results.values():
+                self.create_item_by_result(result)
+        finally:
+            self.end_batch_update()
 
         # new_keys = list(anno.results.keys())
         # old_keys = list(self.showing_items.keys())
@@ -1150,8 +1154,12 @@ class Canvas(pg.PlotWidget):
     ):
         if results is None:
             return
-        for r in results:
-            self.create_item_by_result(r)
+        self.begin_batch_update()
+        try:
+            for r in results:
+                self.create_item_by_result(r)
+        finally:
+            self.end_batch_update()
 
     def create_items_by_anno(self, anno: Annotation | None = None):
         if anno is None:
@@ -1174,10 +1182,14 @@ class Canvas(pg.PlotWidget):
         item.setVisible(False)
 
     def remove_selected_items(self):
-        self.sigItemsRemoved.emit([it.id_ for it in self.selected_items])
-        for item in self.selected_items:
-            self.remove_item(item)  # type: ignore
-        self.refresh_instance_bboxes()
+        self.begin_batch_update()
+        try:
+            self.sigItemsRemoved.emit([it.id_ for it in self.selected_items])
+            for item in self.selected_items:
+                self.remove_item(item)  # type: ignore
+        finally:
+            self.refresh_instance_bboxes()
+            self.end_batch_update()
 
     def remove_item(self, item: QGraphicsItem | None):
         if item is None:
@@ -1196,10 +1208,14 @@ class Canvas(pg.PlotWidget):
 
     def remove_items_by_ids(self, ids: list[str]):
         keys = list(self.showing_items.keys())
-        for id_ in keys:
-            if id_ in ids:
-                self.remove_item(self.showing_items[id_])
-        self.refresh_instance_bboxes()
+        self.begin_batch_update()
+        try:
+            for id_ in keys:
+                if id_ in ids:
+                    self.remove_item(self.showing_items[id_])
+        finally:
+            self.refresh_instance_bboxes()
+            self.end_batch_update()
 
     def clear_all_items(self):
         for item in self.showing_items.values():

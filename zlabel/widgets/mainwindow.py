@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTranslator, Signal
+from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTimer, QTranslator, Signal
 from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import (
     QApplication,
@@ -147,6 +147,16 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._label_visibility: dict[str, bool] = {}
         self._instance_status_visibility: dict[str, bool] = {}
         self._fullscreen_restore: dict = {}
+        self._timeline_dirty = False
+        self._anno_dirty = False
+        self._timeline_timer = QTimer(self)
+        self._timeline_timer.setSingleShot(True)
+        self._timeline_timer.setInterval(0)
+        self._timeline_timer.timeout.connect(self._rebuild_timeline_now)
+        self._anno_timer = QTimer(self)
+        self._anno_timer.setSingleShot(True)
+        self._anno_timer.setInterval(0)
+        self._anno_timer.timeout.connect(self._rebuild_anno_tree_now)
 
         self.init_ui()
         self.init_statusbar()
@@ -638,8 +648,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         # self.logger.debug(f"Added result {result}")
 
     def add_results(self, results: list[PointResult | RectangleResult | PolygonResult], update: bool = False):
-        for result in results:
-            self.add_result(result, update)
+        if not results:
+            return
+        self.canvas.begin_batch_update()
+        try:
+            for result in results:
+                self.add_result(result, update)
+        finally:
+            self.canvas.end_batch_update()
 
     def add_result_undo_cmd(
         self,
@@ -670,8 +686,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_anno.remove_item(id_)
 
     def remove_results(self, ids: list[str], update: bool = False):
-        for id_ in ids:
-            self.remove_result(id_, update)
+        if not ids:
+            return
+        self.canvas.begin_batch_update()
+        try:
+            for id_ in ids:
+                self.remove_result(id_, update)
+        finally:
+            self.canvas.end_batch_update()
 
     def _sync_canvas_instance_labels(self, anno: Annotation | None = None):
         """Refresh instance labels / instance-level bboxes on the canvas."""
@@ -1112,6 +1134,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_timeline_visibility_changed(self, visible: bool):
         self.actionTimeline.setChecked(visible)
         self.actionDockBottom.setChecked(visible)
+        if visible and self._timeline_dirty:
+            self._timeline_dirty = False
+            self._rebuild_timeline_now()
 
     def _update_dock_left_action(self):
         self.actionDockLeft.setChecked(self.dock_files.isVisible())
@@ -1146,7 +1171,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dock_timeline.setWindowTitle(title)
 
     def _refresh_timeline(self):
+        """Schedule an instance-timeline rebuild (coalesced per event loop)."""
+        self._timeline_timer.start()
+
+    def _rebuild_timeline_now(self):
         """Rebuild the instance timeline for the current frame's sequence group."""
+        if not self.dock_timeline.isVisible():
+            self._timeline_dirty = True
+            return
+        self._timeline_dirty = False
         task = self.proj.crt_task
         group = task.group if task else ""
         tasks = [t for t in self.proj.tasks.values() if t.group == group] if group else []
@@ -1599,6 +1632,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def on_dock_anno_visibility_changed(self, visible: bool):
         self.actionAnnotations.setChecked(visible)
         self._update_dock_right_action()
+        if visible and self._anno_dirty:
+            self._anno_dirty = False
+            self._rebuild_anno_tree_now()
 
     def on_dock_anno_listw_item_clicked(self, item, column: int = 0):
         rid = item.data(0, ID_ROLE) if hasattr(item, "data") else getattr(item, "id_", None)
@@ -1849,7 +1885,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if not candidates:
             return None
-        return max(candidates, key=lambda r: (round(circularity(r.points), 2), polygon_area(r.points)))
+        return max(
+            candidates,
+            key=lambda r: (
+                round(circularity(np.asarray(r.points, dtype=float)), 2),
+                polygon_area(np.asarray(r.points, dtype=float)),
+            ),
+        )
 
     def _maybe_fit_dish_ellipse(self, result: PolygonResult):
         """Fit an ellipse polygon when the SAM result is a dish."""
@@ -1857,7 +1899,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             return
         from zlabel.utils.geometry import fit_ellipse_polygon
 
-        pts = fit_ellipse_polygon(result.points)
+        pts = fit_ellipse_polygon(np.asarray(result.points, dtype=float))
         if pts:
             result.points = pts
 
@@ -2314,6 +2356,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self._instance_auto_new = checked
 
     def _refresh_anno_tree(self):
+        """Schedule an Annos-tree rebuild (coalesced per event loop)."""
+        self._anno_timer.start()
+
+    def _rebuild_anno_tree_now(self):
         """Rebuild the Annos dock tree from the current annotation.
 
         Silent: the rebuild clears the tree selection, which would otherwise
@@ -2321,6 +2367,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         selection; the guard keeps programmatic rebuilds from doing that."""
         if self.proj.crt_anno is None:
             return
+        if not self.dock_annos.isVisible():
+            self._anno_dirty = True
+            return
+        self._anno_dirty = False
         self._syncing_selection = True
         try:
             self.dockcnt_anno.rebuild(self.proj.crt_anno)
@@ -2761,7 +2811,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for r in anno.results.values():
             name = (r.labels[0].name if r.labels else "").lower()
             if isinstance(r, PolygonResult) and name in ("dish", "培养皿") and dish is None:
-                dish = fit_ellipse_params(r.points)
+                dish = fit_ellipse_params(np.asarray(r.points, dtype=float))
             elif isinstance(r, RectangleResult) and name in ("number", "编号") and number is None:
                 number = (r.x + r.w / 2.0, r.y + r.h / 2.0)
         return dish, number
@@ -2819,10 +2869,14 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         from zlabel.utils.geometry import similarity_transform
 
         if isinstance(result, PolygonResult):
-            result.points = [similarity_transform(p, angle, scale, src_center, tgt_center) for p in result.points]
+            pts = np.asarray(result.points, dtype=float)
+            transformed = similarity_transform(pts, angle, scale, src_center, tgt_center)
+            result.points = [(float(x), float(y)) for x, y in transformed]
         elif isinstance(result, RectangleResult):
-            x, y = similarity_transform((result.x, result.y), angle, scale, src_center, tgt_center)
-            result.x, result.y = x, y
+            x, y = similarity_transform(
+                np.asarray([(result.x, result.y)], dtype=float), angle, scale, src_center, tgt_center
+            )[0]
+            result.x, result.y = float(x), float(y)
             result.w *= scale
             result.h *= scale
             result.rotation = (result.rotation + angle) % 360

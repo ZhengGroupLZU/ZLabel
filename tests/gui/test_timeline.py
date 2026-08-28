@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import numpy as np
 import pytest
 from pyqtgraph.Qt.QtCore import QMimeData, QPointF, Qt
 from pyqtgraph.Qt.QtGui import QDragMoveEvent, QDropEvent
@@ -120,7 +121,7 @@ def test_copy_from_prev_keeps_instance_identity(main_window):
     # status carried over
     assert a2.instances[1] == "normal_seed"
     # geometry rotated 90 deg around (32,32)
-    assert seeds[0].points[0] == rotate_point((25, 25), 90.0, (32, 32))
+    assert seeds[0].points[0] == pytest.approx(tuple(rotate_point(np.asarray([(25, 25)]), 90.0, (32, 32))[0]))
     # dish copied but not an instance
     dish = next(
         r
@@ -768,8 +769,8 @@ def test_timeline_dock_at_bottom(main_window):
     assert win.dockWidgetArea(win.dock_timeline) == Qt.DockWidgetArea.BottomDockWidgetArea
 
 
-def test_new_instance_refreshes_timeline(main_window):
-    """Creating a new annotation instance updates the timeline immediately."""
+def test_new_instance_refreshes_timeline(main_window, qtbot):
+    """Creating a new annotation instance updates the timeline (coalesced)."""
     import numpy as np
     from PIL import Image as _Image
 
@@ -783,6 +784,7 @@ def test_new_instance_refreshes_timeline(main_window):
     proj.key_task = "d1"
     win._image_cache["D1.png"] = _Image.fromarray(np.full((64, 64, 3), 128, dtype=np.uint8))
     win._refresh_timeline()
+    qtbot.wait(10)
     dock = win.dockcnt_timeline
     assert dock.table.rowCount() == 1  # just the trailing empty row
 
@@ -795,12 +797,14 @@ def test_new_instance_refreshes_timeline(main_window):
         "points": [QPointF(x, y) for x, y in [(10, 10), (20, 10), (20, 20), (10, 20)]],
         "closed": True,
     })
+    qtbot.wait(10)
     assert dock.table.rowCount() == 2  # instance 1 + trailing empty row
     assert dock.table.item(0, 1).text().startswith("1")  # instance 1 in D1
 
     # manual point (keypoint) creation also refreshes the timeline
     win.settings.annotation_type = AnnotationType.POINT
     win.on_canvas_point_created({"id": "k1", "pos": QPointF(30, 30)})
+    qtbot.wait(10)
     assert dock.table.rowCount() == 3  # instances 1,2 + trailing empty row
     assert dock.table.item(1, 1).text().startswith("2")  # instance 2 in D1
 

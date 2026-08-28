@@ -337,16 +337,20 @@ def test_circularity_and_area():
     # elongated (not round)
     el = [(90 + 20 * math.cos(t), 60 + 3 * math.sin(t)) for t in np.linspace(0, 2 * math.pi, 24, endpoint=False)]
 
-    assert circularity(big) > 0.95
-    assert circularity(el) < 0.5
-    assert polygon_area(big) > polygon_area(el) > polygon_area(small)
+    big_arr = np.asarray(big)
+    small_arr = np.asarray(small)
+    el_arr = np.asarray(el)
+    assert circularity(big_arr) > 0.95
+    assert circularity(el_arr) < 0.5
+    assert polygon_area(big_arr) > polygon_area(el_arr) > polygon_area(small_arr)
 
     # ranking: roundness first, then area (mirrors _select_best_dish)
     from zlabel.utils import id_uuid4
     from zlabel.utils.project import Label, PolygonResult
 
     def key(r):
-        return round(circularity(r.points), 2), polygon_area(r.points)
+        pts = np.asarray(r.points, dtype=float)
+        return round(circularity(pts), 2), polygon_area(pts)
 
     lbl = Label(id=id_uuid4(), name="Dish")
     rs = [PolygonResult.new(labels=[lbl], points=p) for p in (el, small, big)]
@@ -384,13 +388,13 @@ def test_rotate_point():
     from zlabel.utils.geometry import rotate_point
 
     # 90 deg around origin: (10, 0) -> (0, 10)
-    x, y = rotate_point((10, 0), 90, (0, 0))
+    x, y = rotate_point(np.asarray([(10, 0)]), 90, (0, 0))[0]
     assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(10)
     # 180 deg around (5,5): (10,10) -> (0,0)
-    x, y = rotate_point((10, 10), 180, (5, 5))
+    x, y = rotate_point(np.asarray([(10, 10)]), 180, (5, 5))[0]
     assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(0, abs=1e-9)
     # 0 deg is identity
-    assert rotate_point((3, 4), 0, (1, 1)) == (3, 4)
+    assert tuple(rotate_point(np.asarray([(3, 4)]), 0, (1, 1))[0]) == (3, 4)
 
 
 def test_rotate_rect_anchor():
@@ -405,7 +409,7 @@ def test_rotate_rect_anchor():
 def test_fit_ellipse_params():
     from zlabel.utils.geometry import fit_ellipse_params
 
-    pts = [(10 + i, 10) for i in range(20)] + [(10, 10 + i) for i in range(20)]
+    pts = np.asarray([(10 + i, 10) for i in range(20)] + [(10, 10 + i) for i in range(20)], dtype=float)
     res = fit_ellipse_params(pts)
     assert res is not None
     cx, cy, angle, (ma, mi) = res
@@ -413,21 +417,21 @@ def test_fit_ellipse_params():
     assert cy == pytest.approx(10, abs=1.0)
     assert ma > 0 and mi > 0
     # degenerate input -> None
-    assert fit_ellipse_params([(1, 1), (2, 2)]) is None
+    assert fit_ellipse_params(np.asarray([(1, 1), (2, 2)])) is None
 
 
 def test_similarity_transform():
     from zlabel.utils.geometry import similarity_transform
 
     # identity
-    assert similarity_transform((3, 4), 0, 1.0, (0, 0), (0, 0)) == (3, 4)
+    assert tuple(similarity_transform(np.asarray([(3, 4)]), 0, 1.0, (0, 0), (0, 0))[0]) == (3, 4)
     # scale only
-    assert similarity_transform((10, 0), 0, 2.0, (0, 0), (0, 0)) == (20, 0)
+    assert tuple(similarity_transform(np.asarray([(10, 0)]), 0, 2.0, (0, 0), (0, 0))[0]) == (20, 0)
     # rotation 90 deg around origin
-    x, y = similarity_transform((10, 0), 90, 1.0, (0, 0), (0, 0))
+    x, y = similarity_transform(np.asarray([(10, 0)]), 90, 1.0, (0, 0), (0, 0))[0]
     assert x == pytest.approx(0, abs=1e-9) and y == pytest.approx(10)
     # full similarity: scale 2 + rotate 180 + center shift
     # p=(10,10), src=(5,5), tgt=(20,20): (5,5) -> rot180 -> (-5,-5) -> *2
     # -> (-10,-10) -> +tgt -> (10,10)
-    x, y = similarity_transform((10, 10), 180, 2.0, (5, 5), (20, 20))
+    x, y = similarity_transform(np.asarray([(10, 10)]), 180, 2.0, (5, 5), (20, 20))[0]
     assert x == pytest.approx(10, abs=1e-9) and y == pytest.approx(10, abs=1e-9)
