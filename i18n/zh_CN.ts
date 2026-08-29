@@ -527,7 +527,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">日志级别:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="881"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="891"/>
         <source>Password:</source>
         <translation>密码:</translation>
     </message>
@@ -574,100 +574,100 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>启用Catmull-Rom 样条曲线</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="911"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="956"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="921"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="966"/>
         <source>Inference</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1007"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1017"/>
         <source>Inference Mode:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="782"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1068"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="792"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1078"/>
         <source>Remote</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1073"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1083"/>
         <source>Local</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1014"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1024"/>
         <source>Backend:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="979"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="989"/>
         <source>AUTO</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="984"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="994"/>
         <source>CPU</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="989"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="999"/>
         <source>CUDA</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="994"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1004"/>
         <source>Metal</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="999"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1009"/>
         <source>OpenCL</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1060"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1070"/>
         <source>Model:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1029"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1039"/>
         <source>SAM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1034"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1044"/>
         <source>EdgeSAM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1039"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1049"/>
         <source>SlimSAM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1044"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1054"/>
         <source>SAM2</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1049"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1059"/>
         <source>SAM3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1021"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1031"/>
         <source>Model Folder:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="223"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1081"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1091"/>
         <source>Browse...</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1088"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1098"/>
         <source>Upload Image Size:</source>
         <translation type="unfinished"></translation>
     </message>
@@ -744,139 +744,144 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="482"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="492"/>
         <source>Appearance</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="494"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="504"/>
         <source>Fill alpha:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="529"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="539"/>
         <source>Default color:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="549"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="559"/>
         <source>Edit fill alpha:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="572"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="582"/>
         <source>Draw fill alpha:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="601"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="611"/>
         <source>Hline color:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="627"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="637"/>
         <source>Hline width:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="679"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="689"/>
         <source>Vline color:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="705"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="715"/>
         <source>Vline width:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="647"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="657"/>
         <source>Magnifier min zoom:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="725"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="479"/>
+        <source>Enable Mipmap Anti-aliasing</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="735"/>
         <source>Magnifier diameter:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="748"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="758"/>
         <source>Magnifier max zoom:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="827"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="837"/>
         <source>Remote API</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="867"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="877"/>
         <source>Host:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="874"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="884"/>
         <source>User name:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1116"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1161"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1126"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1171"/>
         <source>Project</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1181"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1191"/>
         <source>New</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1219"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1229"/>
         <source>Instances:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1229"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1239"/>
         <source>Labels:</source>
         <translation>标签:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1266"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1276"/>
         <source>Description:</source>
         <translation>描述:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1328"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1338"/>
         <source>Status</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1336"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1346"/>
         <source>Name:</source>
         <translation>名称:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1343"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1353"/>
         <source>Project:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1353"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1363"/>
         <source>Load default:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1361"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1371"/>
         <source>Empty</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1366"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1376"/>
         <source>Germination</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1190"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1275"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1200"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1285"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
@@ -886,30 +891,30 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1197"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1258"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1282"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1311"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1207"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1268"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1292"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1321"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1289"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1299"/>
         <source>Clear</source>
         <translation>清除</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1243"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1253"/>
         <source>ID</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1248"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1258"/>
         <source>Name</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1253"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1263"/>
         <source>Color</source>
         <translation></translation>
     </message>

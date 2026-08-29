@@ -164,7 +164,14 @@ class _GLImageState(QtCore.QObject):
         self._vbo_key = None
         self._channels = 4
 
-    def upload_texture(self, data: np.ndarray, texture_format, pixel_format, channels: int):
+    def upload_texture(
+        self,
+        data: np.ndarray,
+        texture_format,
+        pixel_format,
+        channels: int,
+        mipmap_enabled: bool = True,
+    ):
         h, w = data.shape[:2]
         if (
             self.texture is None
@@ -177,14 +184,18 @@ class _GLImageState(QtCore.QObject):
             self.texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
             self.texture.setFormat(texture_format)
             self.texture.setSize(w, h)
-            self.texture.setAutoMipMapGenerationEnabled(True)
+            self.texture.setAutoMipMapGenerationEnabled(mipmap_enabled)
             self.texture.allocateStorage()
-            self.texture.setMinMagFilters(
-                QtOpenGL.QOpenGLTexture.Filter.LinearMipMapLinear,
-                QtOpenGL.QOpenGLTexture.Filter.Linear,
-            )
-            self.texture.setWrapMode(QtOpenGL.QOpenGLTexture.WrapMode.ClampToEdge)
             self._texture_format = texture_format
+
+        mip_filter = (
+            QtOpenGL.QOpenGLTexture.Filter.LinearMipMapLinear
+            if mipmap_enabled
+            else QtOpenGL.QOpenGLTexture.Filter.Linear
+        )
+        self.texture.setAutoMipMapGenerationEnabled(mipmap_enabled)
+        self.texture.setMinMagFilters(mip_filter, QtOpenGL.QOpenGLTexture.Filter.Linear)
+        self.texture.setWrapMode(QtOpenGL.QOpenGLTexture.WrapMode.ClampToEdge)
 
         glfn = self.parent().getFunctions()
         # RGB/R8 rows are not always 4-byte aligned (e.g. 2560-long pyramid
@@ -196,7 +207,8 @@ class _GLImageState(QtCore.QObject):
             self.texture.setData(pixel_format, QtOpenGL.QOpenGLTexture.PixelType.UInt8, data)
         finally:
             glfn.glPixelStorei(gl_unpack_alignment, 4)
-        self.texture.generateMipMaps()
+        if mipmap_enabled:
+            self.texture.generateMipMaps()
         self._channels = channels
 
     def upload_vertices(self, height: int, width: int):
@@ -276,6 +288,7 @@ class GLImageItem(ImageItem):
         self._texture_image = None
         self._texture_levels_key = None
         self._texture_lut = None
+        self._mipmap_enabled = True
 
     def setImage(self, image=None, *args, **kwargs):
         super().setImage(image, *args, **kwargs)
@@ -288,6 +301,15 @@ class GLImageItem(ImageItem):
     def setLookupTable(self, lut, update: bool = True):
         super().setLookupTable(lut, update=update)
         self._texture_image = None
+
+    def set_mipmap_enabled(self, enabled: bool):
+        """Enable/disable GL mipmap minification for the current texture."""
+        enabled = bool(enabled)
+        if enabled == self._mipmap_enabled:
+            return
+        self._mipmap_enabled = enabled
+        self._texture_image = None
+        self.update()
 
     def _prepare_texture_data(self) -> tuple[np.ndarray, object, object, int]:
         img = self.image
@@ -352,7 +374,13 @@ class GLImageItem(ImageItem):
         self._gl_state.setup(widget.context(), widget)
 
         data, texture_format, pixel_format, channels = self._prepare_texture_data()
-        self._gl_state.upload_texture(data, texture_format, pixel_format, channels)
+        self._gl_state.upload_texture(
+            data,
+            texture_format,
+            pixel_format,
+            channels,
+            mipmap_enabled=self._mipmap_enabled,
+        )
         h, w = self.image.shape[:2]
         self._gl_state.upload_vertices(h, w)
 

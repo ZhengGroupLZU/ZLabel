@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `setImage()` FPS for `ImageItem` / `RawImageWidget` / `RawImageGLWidget`
   - Pyramid build, level-switch, `ImageItem.render()` and GL texture-upload timings
 - Asynchronous `ZPrepareImageWorker` for already-loaded images, avoiding UI-thread pyramid builds
+- Settings toggle to enable/disable GL mipmap anti-aliasing
 - GLImageItem unit tests and performance regression coverage
 
 ### Changed

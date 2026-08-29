@@ -109,6 +109,7 @@ For automatic timestamp OCR on rectangle annotations:
 - **Copy previous frame**: enable copying annotations from the previous frame of a sequence
 - **Display max side**: long edge used by the display pyramid (default `2560`)
 - **Pyramid levels**: number of display-resolution levels kept for smooth zoom (default `5`)
+- **Enable Mipmap Anti-aliasing**: use GPU mipmap filtering for the GL canvas texture (default on)
 
 ## Annotation Workflow
 

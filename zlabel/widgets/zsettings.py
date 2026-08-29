@@ -38,6 +38,7 @@ class ZSettings(BaseModel):
     # Application performance
     display_max_side: int = 2560
     pyramid_levels: int = 5
+    mipmap_enabled: bool = True
     image_cache_size: int = 5
     timeline_small_image_side: int = 512
     timeline_small_image_cache_size: int = 32

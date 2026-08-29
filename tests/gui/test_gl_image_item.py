@@ -34,6 +34,18 @@ def test_prepare_texture_data_uses_direct_formats():
     assert pixfmt == QtOpenGL.QOpenGLTexture.PixelFormat.RGBA
 
 
+def test_set_mipmap_enabled_invalidates_texture():
+    item = GLImageItem()
+    assert item._mipmap_enabled is True
+    item._texture_image = object()  # pretend a texture is already uploaded
+    item.set_mipmap_enabled(False)
+    assert item._mipmap_enabled is False
+    assert item._texture_image is None
+
+    item.set_mipmap_enabled(False)
+    assert item._texture_image is None  # no-op does not invalidate again
+
+
 def test_offscreen_platform_disables_gl_fast_path():
     """Offscreen (CI/test) environments must fall back to the QPainter path."""
     item = GLImageItem()

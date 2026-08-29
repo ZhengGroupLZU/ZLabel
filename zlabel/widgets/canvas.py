@@ -1621,6 +1621,8 @@ class Canvas(pg.PlotWidget):
         self._magnifier_diameter = int(getattr(settings, "magnifier_diameter", 200))
         self._edit_fill_alpha = float(getattr(settings, "edit_fill_alpha", 0.05))
         self._draw_fill_alpha = float(getattr(settings, "draw_fill_alpha", 0.05))
+        if hasattr(self.image_item, "set_mipmap_enabled"):
+            self.image_item.set_mipmap_enabled(getattr(settings, "mipmap_enabled", True))
         if self._magnifier is not None:
             self._magnifier.set_zoom_range(self._magnifier_min_zoom, self._magnifier_max_zoom)
             self._magnifier.set_diameter(self._magnifier_diameter)

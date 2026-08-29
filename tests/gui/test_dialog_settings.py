@@ -170,6 +170,7 @@ def test_settings_tabs_split(dialog):
 
     assert in_tab(dialog.dspbox_alpha, dialog.tab_application)
     assert in_tab(dialog.ckbox_auto_dish, dialog.tab_application)
+    assert in_tab(dialog.ckbox_mipmap, dialog.tab_application)
     assert in_tab(dialog.ledit_host, dialog.tab_remote)
     assert in_tab(dialog.ledit_username, dialog.tab_remote)
     assert in_tab(dialog.cmbox_inference_mode, dialog.tab_inference)
@@ -188,6 +189,7 @@ def test_application_advanced_settings_populated(dialog, settings):
     assert dialog.dspbox_mag_max.value() == pytest.approx(settings.magnifier_max_zoom)
     assert dialog.spin_display_max_side.value() == settings.display_max_side
     assert dialog.spin_pyramid_levels.value() == settings.pyramid_levels
+    assert dialog.ckbox_mipmap.isChecked() == settings.mipmap_enabled
     assert dialog.spin_image_cache_size.value() == settings.image_cache_size
     assert dialog.spin_tl_small_side.value() == settings.timeline_small_image_side
     assert dialog.spin_tl_cache_size.value() == settings.timeline_small_image_cache_size
@@ -197,5 +199,7 @@ def test_application_advanced_settings_populated(dialog, settings):
     assert settings.display_max_side == 4096
     dialog.spin_pyramid_levels.setValue(4)
     assert settings.pyramid_levels == 4
+    dialog.ckbox_mipmap.setChecked(False)
+    assert settings.mipmap_enabled is False
     dialog.dspbox_mag_max.setValue(12.0)
     assert settings.magnifier_max_zoom == pytest.approx(12.0)
