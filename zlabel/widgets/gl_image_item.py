@@ -188,13 +188,16 @@ class _GLImageState(QtCore.QObject):
             self.texture.allocateStorage()
             self._texture_format = texture_format
 
-        mip_filter = (
-            QtOpenGL.QOpenGLTexture.Filter.LinearMipMapLinear
-            if mipmap_enabled
-            else QtOpenGL.QOpenGLTexture.Filter.Linear
-        )
+        if mipmap_enabled:
+            min_filter = QtOpenGL.QOpenGLTexture.Filter.LinearMipMapLinear
+            mag_filter = QtOpenGL.QOpenGLTexture.Filter.Linear
+        else:
+            # When mipmap anti-aliasing is disabled, keep pixels crisp when
+            # zooming in (nearest-neighbour sampling) instead of bilinear blur.
+            min_filter = QtOpenGL.QOpenGLTexture.Filter.Linear
+            mag_filter = QtOpenGL.QOpenGLTexture.Filter.Nearest
         self.texture.setAutoMipMapGenerationEnabled(mipmap_enabled)
-        self.texture.setMinMagFilters(mip_filter, QtOpenGL.QOpenGLTexture.Filter.Linear)
+        self.texture.setMinMagFilters(min_filter, mag_filter)
         self.texture.setWrapMode(QtOpenGL.QOpenGLTexture.WrapMode.ClampToEdge)
 
         glfn = self.parent().getFunctions()
