@@ -218,6 +218,14 @@ class _GLImageState(QtCore.QObject):
                 1.0,
                 1.0,
                 0.0,
+                0.0,
+                0.0,
+                0.0,
+                width,
+                height,
+                1.0,
+                1.0,
+                0.0,
                 height,
                 0.0,
                 1.0,
@@ -231,6 +239,9 @@ class _GLImageState(QtCore.QObject):
 
     def draw(self, glwidget, mvp) -> None:
         glfn = glwidget.getFunctions()
+        # A triangle strip alternates winding per triangle; with face culling
+        # enabled one half of the quad would be culled, leaving a diagonal gap.
+        glfn.glDisable(GLC.GL_CULL_FACE)
         program = self.program
         program.bind()
         program.setUniformValue("u_mvp", mvp)
@@ -246,7 +257,7 @@ class _GLImageState(QtCore.QObject):
         program.enableAttributeArray(1)
         program.setAttributeBuffer(1, GLC.GL_FLOAT, 2 * 4, 2, stride)
 
-        glfn.glDrawArrays(GLC.GL_TRIANGLE_STRIP, 0, 4)
+        glfn.glDrawArrays(GLC.GL_TRIANGLES, 0, 6)
 
         program.disableAttributeArray(1)
         program.disableAttributeArray(0)
