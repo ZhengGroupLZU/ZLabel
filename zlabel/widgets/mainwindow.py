@@ -7,7 +7,7 @@ from typing import Any
 
 import numpy as np
 from PIL import Image
-from pyqtgraph.Qt.QtCore import QByteArray, QDir, QPointF, QSize, Qt, QThreadPool, QTimer, QTranslator, Signal
+from pyqtgraph.Qt.QtCore import QByteArray, QDir, QEvent, QPointF, QSize, Qt, QThreadPool, QTimer, QTranslator, Signal
 from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
 from pyqtgraph.Qt.QtWidgets import (
     QApplication,
@@ -75,6 +75,7 @@ from zlabel.widgets import (
 )
 from zlabel.widgets.dock_anno import ID_ROLE
 from zlabel.widgets.dock_timeline import ZDockTimelineContent
+from zlabel.widgets.fps_counter import FrameCounter
 from zlabel.widgets.zworker import GetImageResult, GetProjectsWorker, PreparedImage, ZPrepareImageWorker
 
 from .ui import Ui_MainWindow
@@ -345,9 +346,27 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.statusbar_inference = QLabel(self.statusbar)
         self.statusbar_inference.setStyleSheet("color: #b4b4b4;")
         self.statusbar.addPermanentWidget(self.statusbar_inference)
+
         self.statusbar_storage = QLabel(self.statusbar)
         self.statusbar_storage.setStyleSheet("color: #b4b4b4;")
         self.statusbar.addPermanentWidget(self.statusbar_storage)
+
+        self.statusbar_fps = QLabel(self.statusbar)
+        self.statusbar_fps.setStyleSheet("color: #b4b4b4;")
+        self.statusbar_fps.setText("FPS: 0")
+        self.statusbar.addPermanentWidget(self.statusbar_fps)
+
+        self._fps_counter = FrameCounter(parent=self)
+        self._fps_counter.sigFpsUpdate.connect(self._update_fps_label)
+        self.canvas.viewport().installEventFilter(self)
+
+    def _update_fps_label(self, fps: float):
+        self.statusbar_fps.setText(f"FPS: {fps:.0f}")
+
+    def eventFilter(self, obj, event):
+        if obj is self.canvas.viewport() and event.type() == QEvent.Type.Paint:
+            self._fps_counter.update()
+        return super().eventFilter(obj, event)
 
     def update_inference_status(self):
         """Show the inference mode and local model status on the right side
@@ -386,7 +405,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 img_dir = getattr(self.backend.storage, "image_dir", None)
             if img_dir is None:
                 img_dir = Path(self.proj.local_dir) if self.proj.local_dir else self.settings.project_dir / "images"
-            self.statusbar_storage.setText(f"Storage: Local | {img_dir}")
+            self.statusbar_storage.setText(f"Storage: Local @ {img_dir}")
         else:
             self.statusbar_storage.setText("Storage: Remote")
 
