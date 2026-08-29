@@ -199,7 +199,7 @@ Open **Export** and choose:
 | Undo last polygon vertex (drawing) | `Backspace` |
 | Delete hovered polygon vertex (edit) | `Backspace` |
 | SAM | `Q` |
-| Merge / group instances | `G` / `Ctrl+G` |
+| Group / merge instances | `G` (group) / `Ctrl+G` (merge) |
 | Split keypoint instances | `U` |
 | Keypoint visibility | `L` / `O` / `X` |
 | Delete | `Del` |
@@ -222,19 +222,24 @@ Open **Export** and choose:
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for environment setup, module overview,
 testing, and build instructions.
 
+### Build variants
+
+- `uv run zlabel-build` — cx-Freeze standalone + Inno Setup installer
+- `uv run zlabel-build-nuitka` — Nuitka standalone, portable `-green.7z` and Inno Setup installer
+
 ### Image performance benchmark
 
 A standalone benchmark inspired by pyqtgraph's `VideoSpeedTest.py` is available:
 
 ```bash
 # default: 6000x4000, all backends, 3 seconds per scenario
-uv run python tests/benchmarks/image_performance.py
+uv run python benchmarks/image_performance.py
 
 # Canvas only
-uv run python tests/benchmarks/image_performance.py --backend canvas
+uv run python benchmarks/image_performance.py --backend canvas
 
 # quick smoke run
-uv run python tests/benchmarks/image_performance.py --size 800x600 --duration 1 --backend canvas
+uv run python benchmarks/image_performance.py --size 800x600 --duration 1 --backend canvas
 ```
 
 It measures:

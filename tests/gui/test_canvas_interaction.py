@@ -659,19 +659,20 @@ def test_ctrl_g_toggles_group_and_split(populated_project, qtbot):
         anno.add_result(RR.new(id_=f"r{i}", x=x, y=y, w=15, h=15, labels=[proj.crt_label]))
     rebuild()
 
-    # Ctrl+G is bound on the Group action (shortcut moved into mainwindow.ui)
-    assert win.actionGroup.shortcut().toString() == "Ctrl+G"
+    # G is bound on the Group action; Ctrl+G is bound on Merge.
+    assert win.actionGroup.shortcut().toString() == "G"
+    assert win.actionMerge.shortcut().toString() == "Ctrl+G"
     win.canvas.setFocus(Qt.FocusReason.OtherFocusReason)
 
-    # group via Ctrl+G
+    # group via G
     win.canvas.select_items(["r0", "r1"])
-    QTest.keyClick(win, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    QTest.keyClick(win, Qt.Key.Key_G, Qt.KeyboardModifier.NoModifier)
     qtbot.wait(20)
     assert anno.results["r0"].instance_id == anno.results["r1"].instance_id != 0
 
-    # split again via the same Ctrl+G
+    # split again via the same G
     win.canvas.select_items(["r0", "r1"])
-    QTest.keyClick(win, Qt.Key.Key_G, Qt.KeyboardModifier.ControlModifier)
+    QTest.keyClick(win, Qt.Key.Key_G, Qt.KeyboardModifier.NoModifier)
     qtbot.wait(20)
     assert anno.results["r0"].instance_id != 0
     assert anno.results["r1"].instance_id != 0

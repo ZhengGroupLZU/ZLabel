@@ -1178,19 +1178,19 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="305"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1259"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1262"/>
         <source>Info</source>
         <translation>图片信息</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="353"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1289"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1292"/>
         <source>Labels</source>
         <translation>标签列表</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="329"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1244"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1247"/>
         <source>Files</source>
         <translation>文件列表</translation>
     </message>
@@ -1432,7 +1432,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="933"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1199"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1202"/>
         <source>Rectangle</source>
         <translation>矩形</translation>
     </message>
@@ -1509,27 +1509,43 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1349"/>
-        <source>Left (Ctrl+B)</source>
+        <location filename="../resources/ui/mainwindow.ui" line="1163"/>
+        <source>Merge (Ctrl+G)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1166"/>
+        <source>Merge multiple shapes (Ctrl+G)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1184"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1187"/>
+        <source>Group selected annotations into one instance (G); split (G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1352"/>
+        <source>Left (Ctrl+B)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1355"/>
         <source>Ctrl+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1370"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1373"/>
         <source>Right (Ctrl+Alt+B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1373"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1376"/>
         <source>Ctrl+Alt+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1394"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1397"/>
         <source>Ctrl+J</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1579,7 +1595,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>新项目</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1169"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1190"/>
         <source>G</source>
         <translation></translation>
     </message>
@@ -1589,63 +1605,63 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1187"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1169"/>
         <source>Ctrl+G</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1274"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1277"/>
         <source>Annotations</source>
         <translation>标注</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1298"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1301"/>
         <source>Restore</source>
         <translation>重置</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1310"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1313"/>
         <source>Full screen</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1313"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1316"/>
         <source>Full screen (F11)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1316"/>
         <location filename="../resources/ui/mainwindow.ui" line="1319"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1322"/>
         <source>Enter/Exit full screen mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1322"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1325"/>
         <source>F11</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1331"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1334"/>
         <source>KeyPoint</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1346"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1349"/>
         <source>Left</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1367"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1370"/>
         <source>Right</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1388"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1391"/>
         <source>Bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1391"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1394"/>
         <source>Bottom (Ctrl+J)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1655,22 +1671,15 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>合并</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1163"/>
         <source>Merge (G)</source>
-        <translation>合并 (G)</translation>
+        <translation type="vanished">合并 (G)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1166"/>
         <source>Merge multiple shapes (G)</source>
-        <translation>合并多个形状 (G)</translation>
+        <translation type="vanished">合并多个形状 (G)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1184"/>
-        <source>Group selected annotations into one instance (Ctrl+G); split (Ctrl+G)</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1219"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1222"/>
         <source>RLE Mask</source>
         <translation></translation>
     </message>
@@ -1833,7 +1842,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="756"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1211"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1214"/>
         <source>Polygon</source>
         <translation>多边形</translation>
     </message>
@@ -1884,12 +1893,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>将ISAT格式json转换为VOC单通道png图片。</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1229"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1232"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1224"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1227"/>
         <source>English</source>
         <translation>英语</translation>
     </message>

@@ -84,6 +84,38 @@ build_exe_options = {
         # Unused stdlib modules pulled in by cx_Freeze's default scanning.
         "xmlrpc",
         "wmi",
+        # Packages pulled in by dependency scanning but never used at runtime.
+        "pygments",
+        "setuptools",
+        "pkg_resources",
+        "backports.zstd",
+        # MNN submodules not used by ZLabel (only expr/nn/numpy are needed).
+        "MNN.audio",
+        "MNN.cv",
+        "MNN.data",
+        "MNN.llm",
+        "MNN.optim",
+        "MNN.tools",
+        # Pydantic optional/v1 compatibility modules not used by ZLabel.
+        "pydantic.v1",
+        "pydantic.deprecated",
+        "pydantic.mypy",
+        "pydantic.json",
+        "pydantic.parse",
+        "pydantic.schema",
+        "pydantic.type_adapter",
+        "pydantic.dataclasses",
+        "pydantic.class_validators",
+        "pydantic.color",
+        "pydantic.env_settings",
+        "pydantic.error_wrappers",
+        "pydantic.networks",
+        "pydantic.root_model",
+        "pydantic.validators",
+        "pydantic.datetime_parse",
+        "pydantic.alias_generators",
+        "pydantic.typing",
+        "pydantic.utils",
     ],
     "includes": includes,
     "bin_excludes": [
@@ -257,6 +289,44 @@ def _prune_build(build_dir: str) -> None:
 
                 shutil.rmtree(d)
                 print(f"_prune_build: removed {d}")
+
+    # Packages pulled in by dependency scanning but unused at runtime.
+    lib_dir = build_dir / "lib"
+    for rel in (
+        "pygments",
+        "setuptools",
+        "backports/zstd",
+        "MNN/audio",
+        "MNN/cv",
+        "MNN/data",
+        "MNN/llm",
+        "MNN/optim",
+        "MNN/tools",
+        "pyqtgraph/examples",
+        "pyqtgraph/jupyter",
+        "colorama/tests",
+        "certifi/tests",
+    ):
+        target = lib_dir / rel
+        if target.is_dir():
+            import shutil
+
+            shutil.rmtree(target)
+            print(f"_prune_build: removed {target}")
+
+    # Remove unused PIL image plugin bytecode. Keep the formats ZLabel opens:
+    # png, jpg, bmp and ico.
+    if pil_dir.is_dir():
+        keep_pil_plugins = {
+            "PngImagePlugin.pyc",
+            "JpegImagePlugin.pyc",
+            "BmpImagePlugin.pyc",
+            "IcoImagePlugin.pyc",
+        }
+        for p in pil_dir.glob("*ImagePlugin.pyc"):
+            if p.name not in keep_pil_plugins:
+                p.unlink()
+                print(f"_prune_build: removed {p}")
 
 
 setup(

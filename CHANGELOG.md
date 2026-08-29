@@ -21,6 +21,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Pyramid build, level-switch, `ImageItem.render()` and GL texture-upload timings
 - Asynchronous `ZPrepareImageWorker` for already-loaded images, avoiding UI-thread pyramid builds
 - Settings toggle to enable/disable GL mipmap anti-aliasing
+- Build scripts:
+  - cx-Freeze build now excludes unused packages and prunes runtime-unnecessary files
+  - Nuitka build produces a portable `-green.7z` and an Inno Setup `-installer.exe`
+  - Nuitka uses `--nofollow-import-to` to keep unused modules out of `zlabel.exe`
+  - Both build paths use `resources/icons/logo.ico`
+- Dependency cleanup: `rich` moved to dev dependencies, `imageio` and PyInstaller-related files removed
+- Shortcut adjustment: `G` groups instances, `Ctrl+G` merges shapes
+- Settings toggle to enable/disable GL mipmap anti-aliasing
 - GLImageItem unit tests and performance regression coverage
 
 ### Changed

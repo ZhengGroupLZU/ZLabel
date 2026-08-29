@@ -9,7 +9,6 @@ license = "Apache-2.0"
 dependencies = [
     "Pillow<13.0.0,>=10.1.0",
     "pyside6<7.0.0,>=6.6.1",
-    "rich<16.0.0,>=13.7.0",
     "pydantic<3.0.0,>=2.5.2",
     "requests<3.0.0,>=2.31.0",
     "numpy>=2.2.6",
@@ -23,20 +22,20 @@ dependencies = [
 
 [dependency-groups]
 dev = [
-    # "PyYAML<7.0.0,>=6.0.1",
-    # "pyinstaller-versionfile>=2.1.1,<3.0.0",
     "nuitka>=2.7.2",
     "py7zr>=1.0.0",
     "pytest>=8.4.2",
     "pytest-cov>=6.0.0",
     "pytest-qt>=4.4.0",
-    # "pyinstaller<7.0.0,>=6.3.0",
+    "rich<16.0.0,>=13.7.0",
     "tqdm>=4.67.1",
-    "imageio>=2.37.0",
     "cx-freeze>=8.7.0",
     "tomli>=2.3.0",
     "ruff>=0.14.0",
 ]
+
+[tool.uv.sources]
+pyqtgraph = { git = "https://gh-proxy.org/https://github.com/pyqtgraph/pyqtgraph", rev = "dc8e538b51a2ee43ebe4730dbcf13714961f8fd2" }
 
 [project.scripts]
 zlabel-build = "zlabel.scripts:build"
@@ -58,9 +57,6 @@ build-backend = "uv_build"
 
 [tool.uv.build-backend]
 module-root = ""
-
-[tool.uv.sources]
-pyqtgraph = { git = "https://gh-proxy.org/https://github.com/pyqtgraph/pyqtgraph", rev = "dc8e538b51a2ee43ebe4730dbcf13714961f8fd2" }
 
 [tool.ruff]
 line-length = 120
