@@ -575,6 +575,32 @@ def test_dish_crop_box(main_window):
     assert win._dish_crop_box() == (32, 40, 40, 48)
 
 
+def test_cached_image_switch_fits_view(populated_project, monkeypatch, qtbot):
+    """Switching to an already-cached image must keep the view fitted even after
+    the synchronous canvas.update_by_anno() re-enables auto range."""
+    import numpy as np
+    from PIL import Image
+
+    from zlabel.widgets.mainwindow import MainWindow
+    from zlabel.widgets.zworker import prepare_image
+
+    win, proj, anno, rebuild = populated_project
+    monkeypatch.setattr(win, "try_set_image", lambda image=None: MainWindow.try_set_image(win, image))
+    task = proj.tasks[proj.key_task]
+    img = Image.fromarray(np.zeros((3000, 4000, 3), dtype=np.uint8))
+    prepared = prepare_image(img)
+    win._image_cache[task.filename] = img
+    win._prepared_cache[task.filename] = prepared
+
+    win.on_dock_files_item_clicked(proj.key_task)
+    qtbot.wait(80)
+
+    assert win.canvas._image_hw == (3000, 4000)
+    rng = win.canvas.view_box.viewRange()
+    assert rng[0][0] < 0
+    assert rng[0][1] > 4000
+
+
 def test_image_cache_is_lru_bounded(main_window):
     """The decoded-frame cache is LRU-bounded so a session doesn't keep every
     visited full-resolution photo in memory."""

@@ -917,7 +917,6 @@ class Canvas(pg.PlotWidget):
 
         self.refresh_instance_bboxes()
         self.block_item_state_changed(False)
-        self.view_box.enableAutoRange()
 
     def begin_batch_update(self):
         """Suppress per-item instance-bbox rebuilds until end_batch_update()."""
@@ -1183,7 +1182,6 @@ class Canvas(pg.PlotWidget):
                 self.create_item_by_result(result)
         finally:
             self.end_batch_update()
-        self.view_box.enableAutoRange()
 
     # endregion
     # region remove
