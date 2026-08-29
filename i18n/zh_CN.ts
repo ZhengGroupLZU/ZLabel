@@ -1162,7 +1162,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="154"/>
-        <location filename="../resources/ui/mainwindow.ui" line="993"/>
+        <location filename="../resources/ui/mainwindow.ui" line="999"/>
         <source>Edit</source>
         <translation>编辑</translation>
     </message>
@@ -1178,19 +1178,19 @@ li.checked::marker { content: &quot;\2612&quot;; }
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="305"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1262"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1268"/>
         <source>Info</source>
         <translation>图片信息</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="353"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1292"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1298"/>
         <source>Labels</source>
         <translation>标签列表</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="329"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1247"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1253"/>
         <source>Files</source>
         <translation>文件列表</translation>
     </message>
@@ -1229,8 +1229,8 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>设置</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="465"/>
-        <location filename="../resources/ui/mainwindow.ui" line="468"/>
+        <location filename="../resources/ui/mainwindow.ui" line="471"/>
+        <location filename="../resources/ui/mainwindow.ui" line="474"/>
         <source>Exit</source>
         <translation>退出</translation>
     </message>
@@ -1239,7 +1239,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">标签保存位置</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="498"/>
+        <location filename="../resources/ui/mainwindow.ui" line="504"/>
         <source>Save</source>
         <translation>保存</translation>
     </message>
@@ -1248,7 +1248,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">上一张</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="519"/>
+        <location filename="../resources/ui/mainwindow.ui" line="525"/>
         <source>Prev image</source>
         <translation>上一张图片</translation>
     </message>
@@ -1257,12 +1257,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">下一张</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="543"/>
+        <location filename="../resources/ui/mainwindow.ui" line="549"/>
         <source>Next image</source>
         <translation>下一张图片</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="570"/>
+        <location filename="../resources/ui/mainwindow.ui" line="576"/>
         <source>About</source>
         <translation>关于</translation>
     </message>
@@ -1275,22 +1275,22 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">创建多边形</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="603"/>
+        <location filename="../resources/ui/mainwindow.ui" line="609"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="606"/>
+        <location filename="../resources/ui/mainwindow.ui" line="612"/>
         <source>Delete polygon</source>
         <translation>删除多边形</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="612"/>
+        <location filename="../resources/ui/mainwindow.ui" line="618"/>
         <source>Del</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="624"/>
+        <location filename="../resources/ui/mainwindow.ui" line="630"/>
         <source>Bit map</source>
         <translation>位图</translation>
     </message>
@@ -1299,27 +1299,27 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">编辑多边形</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="642"/>
+        <location filename="../resources/ui/mainwindow.ui" line="648"/>
         <source>To top</source>
         <translation>置顶</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="645"/>
+        <location filename="../resources/ui/mainwindow.ui" line="651"/>
         <source>Move polygon to top layer</source>
         <translation>移动多边形到顶层</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="651"/>
+        <location filename="../resources/ui/mainwindow.ui" line="657"/>
         <source>T</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="663"/>
+        <location filename="../resources/ui/mainwindow.ui" line="669"/>
         <source>To bottom</source>
         <translation>置底</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="666"/>
+        <location filename="../resources/ui/mainwindow.ui" line="672"/>
         <source>Move polygon to bottom layer</source>
         <translation>移动多边形到底层</translation>
     </message>
@@ -1336,337 +1336,337 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">语言</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="483"/>
-        <location filename="../resources/ui/mainwindow.ui" line="486"/>
+        <location filename="../resources/ui/mainwindow.ui" line="489"/>
+        <location filename="../resources/ui/mainwindow.ui" line="492"/>
         <source>Save dir</source>
         <translation>保存目录</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="489"/>
+        <location filename="../resources/ui/mainwindow.ui" line="495"/>
         <source>Select Save dir</source>
         <translation>打开保存文件夹</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="501"/>
+        <location filename="../resources/ui/mainwindow.ui" line="507"/>
         <source>Save Project (Ctrl+S)</source>
         <translation>保存项目 (Ctrl+S)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="504"/>
+        <location filename="../resources/ui/mainwindow.ui" line="510"/>
         <source>Save Project</source>
         <translation>保存项目</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="507"/>
+        <location filename="../resources/ui/mainwindow.ui" line="513"/>
         <source>Ctrl+S</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="522"/>
-        <location filename="../resources/ui/mainwindow.ui" line="525"/>
+        <location filename="../resources/ui/mainwindow.ui" line="528"/>
+        <location filename="../resources/ui/mainwindow.ui" line="531"/>
         <source>Prev image (A)</source>
         <translation>前一张图片 (A)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="528"/>
+        <location filename="../resources/ui/mainwindow.ui" line="534"/>
         <source>A</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="546"/>
-        <location filename="../resources/ui/mainwindow.ui" line="549"/>
+        <location filename="../resources/ui/mainwindow.ui" line="552"/>
+        <location filename="../resources/ui/mainwindow.ui" line="555"/>
         <source>Next image (D)</source>
         <translation>下一张图片 (D)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="552"/>
+        <location filename="../resources/ui/mainwindow.ui" line="558"/>
         <source>D</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="561"/>
+        <location filename="../resources/ui/mainwindow.ui" line="567"/>
         <source>Shortcut</source>
         <translation>快捷键</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="582"/>
+        <location filename="../resources/ui/mainwindow.ui" line="588"/>
         <source>SAM</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="585"/>
-        <location filename="../resources/ui/mainwindow.ui" line="588"/>
+        <location filename="../resources/ui/mainwindow.ui" line="591"/>
+        <location filename="../resources/ui/mainwindow.ui" line="594"/>
         <source>SAM (Q)</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="591"/>
+        <location filename="../resources/ui/mainwindow.ui" line="597"/>
         <source>Q</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="630"/>
+        <location filename="../resources/ui/mainwindow.ui" line="636"/>
         <source>Space</source>
         <translation>空格</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="672"/>
+        <location filename="../resources/ui/mainwindow.ui" line="678"/>
         <source>B</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="681"/>
+        <location filename="../resources/ui/mainwindow.ui" line="687"/>
         <source>To VOC</source>
         <translation>转为VOC</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="813"/>
-        <location filename="../resources/ui/mainwindow.ui" line="816"/>
+        <location filename="../resources/ui/mainwindow.ui" line="819"/>
+        <location filename="../resources/ui/mainwindow.ui" line="822"/>
         <source>Copy previous frame</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="819"/>
+        <location filename="../resources/ui/mainwindow.ui" line="825"/>
         <source>Copy dish/timestamp/instance parts from the previous frame of the same sequence</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="933"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1202"/>
+        <location filename="../resources/ui/mainwindow.ui" line="939"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1208"/>
         <source>Rectangle</source>
         <translation>矩形</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="936"/>
+        <location filename="../resources/ui/mainwindow.ui" line="942"/>
         <source>Rectangle (R)</source>
         <translation>矩形 (R)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="939"/>
+        <location filename="../resources/ui/mainwindow.ui" line="945"/>
         <source>Create Two-point Rectangle (R)</source>
         <translation>使用两点创建矩形 (R)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="942"/>
+        <location filename="../resources/ui/mainwindow.ui" line="948"/>
         <source>R</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="951"/>
+        <location filename="../resources/ui/mainwindow.ui" line="957"/>
         <source>Point</source>
         <translation>点</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="954"/>
+        <location filename="../resources/ui/mainwindow.ui" line="960"/>
         <source>Point (P)</source>
         <translation>点 (P)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="957"/>
+        <location filename="../resources/ui/mainwindow.ui" line="963"/>
         <source>Create a point (P)</source>
         <translation>创建点 (P)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="960"/>
+        <location filename="../resources/ui/mainwindow.ui" line="966"/>
         <source>P</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="975"/>
+        <location filename="../resources/ui/mainwindow.ui" line="981"/>
         <source>Move</source>
         <translation>移动</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="978"/>
+        <location filename="../resources/ui/mainwindow.ui" line="984"/>
         <source>Move (M)</source>
         <translation>移动 (M)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="981"/>
+        <location filename="../resources/ui/mainwindow.ui" line="987"/>
         <source>Move to select a region (M)</source>
         <translation>移动以选择一个区域 (M)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="984"/>
+        <location filename="../resources/ui/mainwindow.ui" line="990"/>
         <source>M</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="996"/>
-        <location filename="../resources/ui/mainwindow.ui" line="999"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1002"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1005"/>
         <source>Edit (E)</source>
         <translation>编辑 (E)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1002"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1008"/>
         <source>E</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1017"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1020"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1023"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1026"/>
         <source>Timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1163"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1169"/>
         <source>Merge (Ctrl+G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1166"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1172"/>
         <source>Merge multiple shapes (Ctrl+G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1184"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1187"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1190"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1193"/>
         <source>Group selected annotations into one instance (G); split (G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1352"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1358"/>
         <source>Left (Ctrl+B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1355"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1361"/>
         <source>Ctrl+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1373"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1379"/>
         <source>Right (Ctrl+Alt+B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1376"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1382"/>
         <source>Ctrl+Alt+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1397"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1403"/>
         <source>Ctrl+J</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1035"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1041"/>
         <source>OpenCV</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1038"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1044"/>
         <source>OpenCV (W)</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1041"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1047"/>
         <source>Enable OpenCV (W)</source>
         <translation>启用OpenCV (W)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1044"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1050"/>
         <source>W</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1053"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1059"/>
         <source>Undo</source>
         <translation>撤销</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1056"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1062"/>
         <source>Ctrl+Z</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1065"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1071"/>
         <source>Redo</source>
         <translation>重做</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1068"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1074"/>
         <source>Ctrl+Y</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1073"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1079"/>
         <source>New Project</source>
         <translation>新项目</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1190"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1196"/>
         <source>G</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1181"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1187"/>
         <source>Group</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1169"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1175"/>
         <source>Ctrl+G</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1277"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1283"/>
         <source>Annotations</source>
         <translation>标注</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1301"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1307"/>
         <source>Restore</source>
         <translation>重置</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1313"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1319"/>
         <source>Full screen</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1316"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1322"/>
         <source>Full screen (F11)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1319"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1322"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1325"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1328"/>
         <source>Enter/Exit full screen mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1325"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1331"/>
         <source>F11</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1334"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1340"/>
         <source>KeyPoint</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1349"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1355"/>
         <source>Left</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1370"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1376"/>
         <source>Right</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1391"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1397"/>
         <source>Bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1394"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1400"/>
         <source>Bottom (Ctrl+J)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1160"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1166"/>
         <source>Merge</source>
         <translation>合并</translation>
     </message>
@@ -1679,7 +1679,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">合并多个形状 (G)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1222"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1228"/>
         <source>RLE Mask</source>
         <translation></translation>
     </message>
@@ -1756,12 +1756,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">打开下一张图片.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="609"/>
+        <location filename="../resources/ui/mainwindow.ui" line="615"/>
         <source>Delete polygon.</source>
         <translation>删除多边形.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="627"/>
+        <location filename="../resources/ui/mainwindow.ui" line="633"/>
         <source>Show instance or segmeent state.</source>
         <translation>显示语义与实例结果.</translation>
     </message>
@@ -1770,17 +1770,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">编辑多边形属性.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="648"/>
+        <location filename="../resources/ui/mainwindow.ui" line="654"/>
         <source>Move polygon to top layer.</source>
         <translation>将多边形移动到最上层.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="669"/>
+        <location filename="../resources/ui/mainwindow.ui" line="675"/>
         <source>Move polygon to bottom layer.</source>
         <translation>将多边形移动到最下层.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="456"/>
+        <location filename="../resources/ui/mainwindow.ui" line="459"/>
         <source>Setting.</source>
         <translation>设置.</translation>
     </message>
@@ -1790,7 +1790,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="471"/>
+        <location filename="../resources/ui/mainwindow.ui" line="477"/>
         <source>Exit.</source>
         <translation>退出.</translation>
     </message>
@@ -1803,14 +1803,14 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">使用Segment anything进行快速标注.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="699"/>
-        <location filename="../resources/ui/mainwindow.ui" line="702"/>
+        <location filename="../resources/ui/mainwindow.ui" line="705"/>
         <location filename="../resources/ui/mainwindow.ui" line="708"/>
+        <location filename="../resources/ui/mainwindow.ui" line="714"/>
         <source>Backspace</source>
         <translation>回退</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="705"/>
+        <location filename="../resources/ui/mainwindow.ui" line="711"/>
         <source>Backspace.</source>
         <translation>回退.</translation>
     </message>
@@ -1827,7 +1827,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">标注取消.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="735"/>
+        <location filename="../resources/ui/mainwindow.ui" line="741"/>
         <source>Finish</source>
         <translation>完成</translation>
     </message>
@@ -1836,13 +1836,13 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">标注完成</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="741"/>
+        <location filename="../resources/ui/mainwindow.ui" line="747"/>
         <source>Annotate finished.</source>
         <translation>标注完成.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="756"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1214"/>
+        <location filename="../resources/ui/mainwindow.ui" line="762"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1220"/>
         <source>Polygon</source>
         <translation>多边形</translation>
     </message>
@@ -1855,13 +1855,13 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">通过手动绘制多边形,进行精细标注. </translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="780"/>
-        <location filename="../resources/ui/mainwindow.ui" line="783"/>
+        <location filename="../resources/ui/mainwindow.ui" line="786"/>
+        <location filename="../resources/ui/mainwindow.ui" line="789"/>
         <source>Visible</source>
         <translation>显示/隐藏</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="684"/>
+        <location filename="../resources/ui/mainwindow.ui" line="690"/>
         <source>Convert ISAT to VOC</source>
         <translation>ISAT转VOC</translation>
     </message>
@@ -1870,12 +1870,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="obsolete">将ISAT格式json转换为VOC单通道png。</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="801"/>
+        <location filename="../resources/ui/mainwindow.ui" line="807"/>
         <source>Convert ISAT to COCO</source>
         <translation>ISAT转COCO</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="804"/>
+        <location filename="../resources/ui/mainwindow.ui" line="810"/>
         <source>Convert ISAT jsons to COCO json.</source>
         <translation>将ISAT格式json转换为COCO格式json。</translation>
     </message>
@@ -1888,22 +1888,22 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">将COCO格式json转换为ISAT格式json。</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="687"/>
+        <location filename="../resources/ui/mainwindow.ui" line="693"/>
         <source>Convert ISAT jsons to VOC png images.</source>
         <translation>将ISAT格式json转换为VOC单通道png图片。</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1232"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1238"/>
         <source>中文</source>
         <translation>中文</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1227"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1233"/>
         <source>English</source>
         <translation>英语</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="717"/>
+        <location filename="../resources/ui/mainwindow.ui" line="723"/>
         <source>Clear</source>
         <translation>清除</translation>
     </message>
@@ -1943,68 +1943,78 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="720"/>
-        <location filename="../resources/ui/mainwindow.ui" line="723"/>
+        <location filename="../resources/ui/mainwindow.ui" line="456"/>
+        <source>Setting (Ctrl+,)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="462"/>
+        <source>Ctrl+,</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="726"/>
+        <location filename="../resources/ui/mainwindow.ui" line="729"/>
         <source>Clear All (Ctrl+Del)</source>
         <translation>清除所有 (Ctrl+Del)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="726"/>
+        <location filename="../resources/ui/mainwindow.ui" line="732"/>
         <source>Ctrl+Del</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="738"/>
+        <location filename="../resources/ui/mainwindow.ui" line="744"/>
         <source>Submit (Ctrl + Enter)</source>
         <translation>提交 (Ctrl + 回车)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="744"/>
+        <location filename="../resources/ui/mainwindow.ui" line="750"/>
         <source>Ctrl+Return</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="759"/>
+        <location filename="../resources/ui/mainwindow.ui" line="765"/>
         <source>Draw polygon (O)</source>
         <translation>绘制多边形 (O)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="762"/>
+        <location filename="../resources/ui/mainwindow.ui" line="768"/>
         <source>Accurately annotate by drawing polygon.  (O)</source>
         <translation>绘制多边形以准确标注 (O)</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="765"/>
+        <location filename="../resources/ui/mainwindow.ui" line="771"/>
         <source>O</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="789"/>
+        <location filename="../resources/ui/mainwindow.ui" line="795"/>
         <source>V</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="798"/>
+        <location filename="../resources/ui/mainwindow.ui" line="804"/>
         <source>Export</source>
         <translation>导出</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="828"/>
+        <location filename="../resources/ui/mainwindow.ui" line="834"/>
         <source>Import</source>
         <translation>导入</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="837"/>
+        <location filename="../resources/ui/mainwindow.ui" line="843"/>
         <source>To LabelMe</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="840"/>
+        <location filename="../resources/ui/mainwindow.ui" line="846"/>
         <source>Convert ISAT to LabelMe</source>
         <translation>ISAT转LabelMe</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="843"/>
+        <location filename="../resources/ui/mainwindow.ui" line="849"/>
         <source>Convert ISAT jsons to LabelMe jsons.</source>
         <translation>将ISAT格式json转换为LabelMe格式json。</translation>
     </message>
@@ -2026,51 +2036,51 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">类别</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="786"/>
+        <location filename="../resources/ui/mainwindow.ui" line="792"/>
         <source>Visible.</source>
         <translation>显示/隐藏.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="851"/>
+        <location filename="../resources/ui/mainwindow.ui" line="857"/>
         <source>Max only</source>
         <translation>只保存最大轮廓</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="854"/>
-        <location filename="../resources/ui/mainwindow.ui" line="857"/>
+        <location filename="../resources/ui/mainwindow.ui" line="860"/>
+        <location filename="../resources/ui/mainwindow.ui" line="863"/>
         <source>Max contour save only.</source>
         <translation>只保存最大轮廓.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="871"/>
+        <location filename="../resources/ui/mainwindow.ui" line="877"/>
         <source>External</source>
         <translation>只保存外轮廓</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="874"/>
-        <location filename="../resources/ui/mainwindow.ui" line="877"/>
+        <location filename="../resources/ui/mainwindow.ui" line="880"/>
+        <location filename="../resources/ui/mainwindow.ui" line="883"/>
         <source>External contour save only.</source>
         <translation>只保存外轮廓.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="891"/>
+        <location filename="../resources/ui/mainwindow.ui" line="897"/>
         <source>All</source>
         <translation>保存所有轮廓</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="894"/>
-        <location filename="../resources/ui/mainwindow.ui" line="897"/>
+        <location filename="../resources/ui/mainwindow.ui" line="900"/>
+        <location filename="../resources/ui/mainwindow.ui" line="903"/>
         <source>All contour save.</source>
         <translation>保存所有轮廓.</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="912"/>
+        <location filename="../resources/ui/mainwindow.ui" line="918"/>
         <source>Model manage</source>
         <translation>模型管理</translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="915"/>
-        <location filename="../resources/ui/mainwindow.ui" line="918"/>
+        <location filename="../resources/ui/mainwindow.ui" line="921"/>
+        <location filename="../resources/ui/mainwindow.ui" line="924"/>
         <source>Model manage.</source>
         <translation>模型管理.</translation>
     </message>

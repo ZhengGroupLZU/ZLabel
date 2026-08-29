@@ -452,8 +452,14 @@
    <property name="text">
     <string>Setting</string>
    </property>
+   <property name="toolTip">
+    <string>Setting (Ctrl+,)</string>
+   </property>
    <property name="statusTip">
     <string>Setting.</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+,</string>
    </property>
   </action>
   <action name="actionExit">
