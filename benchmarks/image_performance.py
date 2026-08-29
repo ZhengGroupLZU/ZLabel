@@ -185,9 +185,9 @@ def bench_setimage(widget, arr: np.ndarray, duration: float, app) -> BenchResult
 # ---------------------------------------------------------------------------
 # Render / pyramid timing
 # ---------------------------------------------------------------------------
-def bench_render_and_pyramid(img: np.ndarray) -> dict[str, float]:
+def bench_render_and_pyramid(img: np.ndarray, app: QtWidgets.QApplication) -> dict[str, object]:
     canvas = create_canvas(img, show=False)
-    result: dict[str, float] = {}
+    result: dict[str, object] = {}
 
     t0 = time.perf_counter()
     canvas.update_image(img)
@@ -207,8 +207,27 @@ def bench_render_and_pyramid(img: np.ndarray) -> dict[str, float]:
     t0 = time.perf_counter()
     item.render()
     result["imageitem_render_ms"] = (time.perf_counter() - t0) * 1000.0
-
     canvas.close()
+
+    # GL texture upload per pyramid level (only meaningful with the GL fast path).
+    gl_canvas = create_canvas(img, show=True)
+    app.processEvents()
+    gl_item = gl_canvas.image_item
+    upload_times: list[float] = []
+    if hasattr(gl_item, "_sync_texture") and gl_item._gl_state is not None:
+        viewport = gl_canvas.viewport()
+        viewport.makeCurrent()
+        try:
+            for idx in range(len(gl_canvas._pyramid_levels)):
+                gl_canvas._activate_pyramid_level(idx)
+                gl_item._texture_image = None  # force a real upload
+                t0 = time.perf_counter()
+                gl_item._sync_texture(viewport)
+                upload_times.append((time.perf_counter() - t0) * 1000.0)
+        finally:
+            viewport.doneCurrent()
+    result["texture_upload_ms"] = upload_times or None
+    gl_canvas.close()
     return result
 
 
@@ -296,11 +315,17 @@ def main(argv: list[str] | None = None) -> int:
 
     # ---- render / pyramid timings ----
     if include_canvas and args.action in ("all", "pan", "zoom", "setimage"):
-        timings = bench_render_and_pyramid(img)
+        timings = bench_render_and_pyramid(img, app)
         print(f"\nPyramid build:           {timings['pyramid_build_ms']:.2f} ms")
         level_ms = ", ".join(f"{v:.2f}" for v in timings["level_switch_ms"])
         print(f"Level switches:           [{level_ms}] ms")
         print(f"ImageItem.render():      {timings['imageitem_render_ms']:.2f} ms")
+        upload_ms = timings.get("texture_upload_ms")
+        if upload_ms:
+            upload_str = ", ".join(f"{v:.2f}" for v in upload_ms)
+            print(f"GL texture uploads:       [{upload_str}] ms")
+        else:
+            print("GL texture uploads:       n/a (non-GL fallback)")
 
     suite.print_table()
     app.processEvents()

@@ -382,6 +382,9 @@ class Canvas(pg.PlotWidget):
         """Pick the pyramid level matching the current zoom (throttled)."""
         if len(self._pyramid_levels) <= 1 or self._image_backup is None:
             return
+        if self.scene() is None or self.view_box.scene() is None:
+            # view is being closed / not attached to a scene anymore
+            return
         try:
             vp = self.view_box.viewPixelSize()
         except (RuntimeError, TypeError):

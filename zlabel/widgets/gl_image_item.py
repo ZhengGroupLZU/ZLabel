@@ -177,9 +177,10 @@ class _GLImageState(QtCore.QObject):
             self.texture = QtOpenGL.QOpenGLTexture(QtOpenGL.QOpenGLTexture.Target.Target2D)
             self.texture.setFormat(texture_format)
             self.texture.setSize(w, h)
+            self.texture.setAutoMipMapGenerationEnabled(True)
             self.texture.allocateStorage()
             self.texture.setMinMagFilters(
-                QtOpenGL.QOpenGLTexture.Filter.Linear,
+                QtOpenGL.QOpenGLTexture.Filter.LinearMipMapLinear,
                 QtOpenGL.QOpenGLTexture.Filter.Linear,
             )
             self.texture.setWrapMode(QtOpenGL.QOpenGLTexture.WrapMode.ClampToEdge)
@@ -189,11 +190,13 @@ class _GLImageState(QtCore.QObject):
         # RGB/R8 rows are not always 4-byte aligned (e.g. 2560-long pyramid
         # levels with odd widths); default GL_UNPACK_ALIGNMENT=4 can read past
         # the row and crash the process on some drivers.
-        glfn.glPixelStorei(GLC.GL_UNPACK_ALIGNMENT, 1)
+        gl_unpack_alignment = 0x0CF5  # GL_UNPACK_ALIGNMENT (missing from pyqtgraph constants)
+        glfn.glPixelStorei(gl_unpack_alignment, 1)
         try:
             self.texture.setData(pixel_format, QtOpenGL.QOpenGLTexture.PixelType.UInt8, data)
         finally:
-            glfn.glPixelStorei(GLC.GL_UNPACK_ALIGNMENT, 4)
+            glfn.glPixelStorei(gl_unpack_alignment, 4)
+        self.texture.generateMipMaps()
         self._channels = channels
 
     def upload_vertices(self, height: int, width: int):
