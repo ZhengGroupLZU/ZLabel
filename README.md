@@ -18,6 +18,7 @@ dataset formats (COCO / Ultralytics YOLO).
 - Seed-germination workflow: instance grouping, per-instance status labels, copy previous frame
 - Optional WeChat OCR for timestamp text
 - Export to COCO JSON and Ultralytics YOLO (detection / segmentation / keypoints)
+- GPU-accelerated large-image canvas rendering (OpenGL texture + mipmaps)
 - Chinese / English UI
 
 ## Download & Install
@@ -106,6 +107,8 @@ For automatic timestamp OCR on rectangle annotations:
 - **Language**: English / Chinese
 - **Auto-fit dish**: automatically segment and ellipse-fit the dish when opening a frame
 - **Copy previous frame**: enable copying annotations from the previous frame of a sequence
+- **Display max side**: long edge used by the display pyramid (default `2560`)
+- **Pyramid levels**: number of display-resolution levels kept for smooth zoom (default `5`)
 
 ## Annotation Workflow
 
@@ -217,6 +220,27 @@ Open **Export** and choose:
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for environment setup, module overview,
 testing, and build instructions.
+
+### Image performance benchmark
+
+A standalone benchmark inspired by pyqtgraph's `VideoSpeedTest.py` is available:
+
+```bash
+# default: 6000x4000, all backends, 3 seconds per scenario
+uv run python tests/benchmarks/image_performance.py
+
+# Canvas only
+uv run python tests/benchmarks/image_performance.py --backend canvas
+
+# quick smoke run
+uv run python tests/benchmarks/image_performance.py --size 800x600 --duration 1 --backend canvas
+```
+
+It measures:
+
+- Canvas pan / zoom FPS
+- `setImage()` update FPS for `ImageItem` / `RawImageWidget` / `RawImageGLWidget`
+- pyramid build, level switch, `ImageItem.render()` and GL texture upload timings
 
 ## License
 

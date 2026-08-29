@@ -16,8 +16,8 @@ from rich import print
 
 with open(Path(__file__).parent / "pyproject.toml", "rb") as f:
     project = tomli.load(f)
-__version__ = project["tool"]["poetry"]["version"]
-__proj_name = project["tool"]["poetry"]["name"]
+__version__ = project["project"]["version"]
+__proj_name = project["project"]["name"]
 
 
 CPUS: int = os.cpu_count()  # type: ignore
@@ -47,7 +47,7 @@ def publish_to_7z(build_dir: str, version: str):
 
 
 def main(version: str, enable_debug: bool = False, jobs: int = CPUS):
-    icon_png = "zlabel/resources/icons/zlabel.png"
+    icon_png = "resources/icons/zlabel.png"
     convert_png_ico(icon_png)
 
     std_out = "--force-stdout-spec=%PROGRAM_BASE%.out.txt "
