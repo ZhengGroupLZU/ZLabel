@@ -75,7 +75,7 @@ from zlabel.widgets import (
 )
 from zlabel.widgets.dock_anno import ID_ROLE
 from zlabel.widgets.dock_timeline import ZDockTimelineContent
-from zlabel.widgets.zworker import GetImageResult, GetProjectsWorker, PreparedImage
+from zlabel.widgets.zworker import GetImageResult, GetProjectsWorker, PreparedImage, ZPrepareImageWorker
 
 from .ui import Ui_MainWindow
 
@@ -599,7 +599,19 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 prepared = self._prepared_cache.get(img_name)
                 self.on_try_set_image_get_success(img_name, GetImageResult(image=img, prepared=prepared))
         else:
-            self.on_try_set_image_get_success("", GetImageResult(image=image, prepared=None))
+            self.dialog_processing.show()
+            worker = ZPrepareImageWorker(
+                image,
+                self.settings.display_max_side,
+                self.settings.pyramid_levels,
+            )
+            worker.emitter.success.connect(
+                lambda prepared, img=image: self.on_try_set_image_get_success(
+                    "", GetImageResult(image=img, prepared=prepared)
+                )
+            )
+            worker.emitter.fail.connect(self.on_get_image_fail)
+            self.threadpool.start(worker)
 
     def on_try_set_image_get_success(self, name: str, result: GetImageResult):
         if self.proj.crt_anno is None:
@@ -617,11 +629,13 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.proj.crt_anno.original_height = image.height
             self.proj.crt_anno.original_width = image.width
         self.dockcnt_info.set_info_by_anno(self.proj.crt_anno)
+        # Set the desired channel mode before (re)building the display arrays so
+        # the ImageItem is uploaded exactly once per image load.
+        self.canvas.set_rgb(self.rgb_mode)
         if prepared is not None:
             self.canvas.set_prepared_image(prepared)
         else:
             self.canvas.update_image(np.asarray(image, dtype=np.uint8))
-        self.canvas.set_rgb(self.rgb_mode)
         self.dialog_processing.close()
         self.canvas.fit_view()
         self._maybe_auto_fit_dish()

@@ -8,7 +8,7 @@ from pyqtgraph.Qt.QtWidgets import QApplication
 
 from zlabel.widgets.mainwindow import MainWindow
 
-pg.setConfigOptions(useOpenGL=True, useCupy=False, useNumba=False)
+pg.setConfigOptions(useOpenGL=True, imageAxisOrder="row-major", useCupy=False, useNumba=False)
 
 
 def main():

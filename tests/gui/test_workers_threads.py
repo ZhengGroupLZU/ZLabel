@@ -9,6 +9,7 @@ from zlabel.widgets.zworker import (
     GetProjectsWorker,
     ZGetImageWorker,
     ZGetTasksWorker,
+    ZPrepareImageWorker,
     ZSamPredictWorker,
 )
 
@@ -91,6 +92,17 @@ def test_prepare_image_downsampling_keeps_full_res_info():
     img = Image.new("RGB", (4000, 3000))
     prepared = prepare_image(img)
     assert prepared.full_hw == (3000, 4000)
+    assert max(prepared.display.shape) <= 2560
+    assert prepared.img_scale == pytest.approx(4000 / 2560)
+
+
+def test_prepare_image_worker_builds_pyramid_off_ui_thread(qtbot):
+    img = Image.new("RGB", (3000, 4000))
+    worker = ZPrepareImageWorker(img)
+    with qtbot.waitSignal(worker.emitter.success, timeout=3000) as blocker:
+        worker.run()
+    prepared = blocker.args[0]
+    assert prepared.full_hw == (4000, 3000)
     assert max(prepared.display.shape) <= 2560
     assert prepared.img_scale == pytest.approx(4000 / 2560)
 

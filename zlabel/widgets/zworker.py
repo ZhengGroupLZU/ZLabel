@@ -27,7 +27,6 @@ class PreparedImage:
     """Display-ready image data computed off the UI thread."""
 
     display: np.ndarray
-    flipped: np.ndarray
     full_hw: tuple[int, int]
     img_scale: float
     levels: tuple[float, float]
@@ -46,17 +45,19 @@ class GetImageResult:
 def build_display_pyramid(
     img: np.ndarray,
     display_max_side: int = DISPLAY_MAX_SIDE,
-    levels: int = 3,
+    levels: int = 5,
 ) -> list[np.ndarray]:
-    """Build rotated display levels from low to high resolution.
+    """Build row-major display levels from low to high resolution.
 
     ``levels`` requests up to that many pyramid steps between the configured
     display side and the full image (high side is capped to bound memory).
+    The returned arrays keep the original (row, col) orientation for use with
+    ImageItem(axisOrder='row-major'), so no runtime flip/rotate is needed.
     """
     h, w = img.shape[:2]
     max_side = max(w, h)
     low = max(1, min(display_max_side, max_side))
-    high = min(max_side, max(display_max_side * 2, 4096))
+    high = min(max_side, max(display_max_side * 4, 8192))
     high = max(high, low)
     n = max(1, int(levels))
     if n == 1 or high <= low:
@@ -80,16 +81,16 @@ def build_display_pyramid(
                     Image.Resampling.LANCZOS,
                 )
             )
-        out.append(np.rot90(arr, k=3, axes=(1, 0)))
+        out.append(np.ascontiguousarray(arr))
     return out
 
 
 def prepare_image(
     image: Image.Image,
     display_max_side: int = DISPLAY_MAX_SIDE,
-    pyramid_levels: int = 3,
+    pyramid_levels: int = 5,
 ) -> PreparedImage:
-    """Decode/downsample/rotate an image for canvas display in a worker thread."""
+    """Decode/downsample an image for canvas display in a worker thread."""
     full_hw = (image.height, image.width)
     img = np.asarray(image, dtype=np.uint8)
     h, w = img.shape[:2]
@@ -101,16 +102,43 @@ def prepare_image(
     )
     display = pyramid[active_idx]
     img_scale = max(w, h) / max(display.shape[:2])
-    flipped = np.flipud(display)
     return PreparedImage(
         display=display,
-        flipped=flipped,
         full_hw=full_hw,
         img_scale=img_scale,
         levels=_levels_for(display),
         pyramid=pyramid,
         active_idx=active_idx,
     )
+
+
+class PrepareImageEmitter(QObject):
+    success = Signal(object)  # PreparedImage
+    failed = Signal(str)
+
+
+class ZPrepareImageWorker(QRunnable):
+    """Prepare a display pyramid for an already-loaded PIL image off the UI thread."""
+
+    def __init__(
+        self,
+        image: Image.Image,
+        display_max_side: int = DISPLAY_MAX_SIDE,
+        pyramid_levels: int = 5,
+    ) -> None:
+        super().__init__()
+        self.image = image
+        self.display_max_side = display_max_side
+        self.pyramid_levels = pyramid_levels
+        self.emitter = PrepareImageEmitter()
+        self.setAutoDelete(True)
+
+    def run(self):
+        try:
+            prepared = prepare_image(self.image, self.display_max_side, self.pyramid_levels)
+            self.emitter.success.emit(prepared)
+        except Exception as e:
+            self.emitter.failed.emit(str(e))
 
 
 @dataclass
@@ -318,7 +346,7 @@ class ZGetImageWorker(QRunnable):
         username: str | None = None,
         password: str | None = None,
         display_max_side: int = DISPLAY_MAX_SIDE,
-        pyramid_levels: int = 3,
+        pyramid_levels: int = 5,
     ) -> None:
         super().__init__()
 

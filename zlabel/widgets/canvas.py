@@ -16,6 +16,7 @@ from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
+from zlabel.widgets.gl_image_item import GLImageItem
 from zlabel.widgets.graphic_objects import InstanceBBox, Point, Polygon, Rectangle, ZHandle
 from zlabel.widgets.magnifier import MagnifierOverlay
 from zlabel.widgets.zworker import PreparedImage, build_display_pyramid
@@ -92,11 +93,12 @@ class Canvas(pg.PlotWidget):
         self.viewport().installEventFilter(self)
 
         self._image_backup: np.ndarray | None = None
-        # cache flipped image for rgb channel rendering
-        self._image_flipped: np.ndarray | None = None
         # per-mode display arrays (R/G/B/GRAY/RGB) computed once, so switching
         # channels never re-runs an elementwise multiply over the full image
         self._rgb_cache: dict[RgbMode, np.ndarray] = {}
+        # the RgbMode currently uploaded to the ImageItem (avoids redundant
+        # updateImage() calls after pyramid level switches)
+        self._displayed_rgb_mode: RgbMode | None = None
         # explicit display levels (avoids pyqtgraph's full-image min/max scan)
         self._image_levels: tuple[float, float] | None = None
         # full-resolution image size (h, w) and display scale (full/display)
@@ -108,12 +110,13 @@ class Canvas(pg.PlotWidget):
         self._rotation_tr = QTransform()
         self._content_group = pg.ItemGroup()
         self.addItem(self._content_group)
-        self.image_item = pg.ImageItem()
+        self.image_item = GLImageItem(axisOrder="row-major")
         self.image_item.setZValue(-10)
         self.image_item.setParentItem(self._content_group)
-        # render a downsampled texture when zoomed out so pan/zoom does not
-        # sample the full-resolution image (the main cost on large photos)
-        self.image_item.setAutoDownsample(True)
+        # The custom pyramid picks the level closest to the view resolution;
+        # ImageItem's built-in downsample would run on every zoom/pan frame and
+        # add a CPU mean()/rescale pass on top of it, so disable it here.
+        self.image_item.setAutoDownsample(False)
 
         self.current_item: Rectangle | Point | Polygon | None = None
         self.selecting_item: Rectangle | None = None
@@ -145,7 +148,7 @@ class Canvas(pg.PlotWidget):
         self._batch_update_depth = 0
         self._refresh_bboxes_pending = False
         self._pyramid_levels: list[np.ndarray] = []
-        self._pyramid_levels_count: int = 3
+        self._pyramid_levels_count: int = 5
         self._active_pyramid_idx = 0
         self._rgb_mode: RgbMode | None = None
         self._level_timer = QTimer(self)
@@ -353,26 +356,24 @@ class Canvas(pg.PlotWidget):
         self._active_pyramid_idx = idx
         arr = self._pyramid_levels[idx]
         self._image_backup = arr
-        try:
-            self._image_flipped = np.flipud(arr)
-        except Exception:
-            self._image_flipped = None
         self._rgb_cache = {}
         self._image_levels = self._levels_for(arr)
         h, w = self._image_hw
         max_full = max(h, w)
         level_max = max(arr.shape[:2])
         self._img_scale = max_full / level_max if level_max else 1.0
+        display = self._rgb_image(self._rgb_mode) if self._rgb_mode is not None else arr
+        if display is None:
+            display = arr
         self.image_item.setImage(
-            arr,
+            display,
             autoLevels=False,
             autoRange=False,
             levels=self._image_levels,
         )
+        self._displayed_rgb_mode = self._rgb_mode
         self.image_item.setScale(self._img_scale)
         self._apply_rotation()
-        if self._rgb_mode is not None:
-            self.set_rgb(self._rgb_mode)
 
     def _schedule_level_update(self):
         self._level_timer.start()
@@ -381,7 +382,11 @@ class Canvas(pg.PlotWidget):
         """Pick the pyramid level matching the current zoom (throttled)."""
         if len(self._pyramid_levels) <= 1 or self._image_backup is None:
             return
-        vp = self.view_box.viewPixelSize()
+        try:
+            vp = self.view_box.viewPixelSize()
+        except (RuntimeError, TypeError):
+            # view is being closed / not attached to a scene anymore
+            return
         if vp is None or vp[0] <= 0:
             return
         vpw = vp[0]
@@ -405,22 +410,22 @@ class Canvas(pg.PlotWidget):
     def _rgb_image(self, mode: RgbMode) -> np.ndarray | None:
         """Per-mode display array, computed lazily and cached (R/G/B are views;
         only GRAY needs a real reduction, done once)."""
-        if self._image_flipped is None:
+        if self._image_backup is None:
             return None
         cached = self._rgb_cache.get(mode)
         if cached is not None:
             return cached
-        flip = self._image_flipped
+        base = self._image_backup
         if mode == RgbMode.RGB:
-            arr = flip
+            arr = base
         elif mode == RgbMode.R:
-            arr = np.ascontiguousarray(flip[..., 0])
+            arr = np.ascontiguousarray(base[..., 0])
         elif mode == RgbMode.G:
-            arr = np.ascontiguousarray(flip[..., 1])
+            arr = np.ascontiguousarray(base[..., 1])
         elif mode == RgbMode.B:
-            arr = np.ascontiguousarray(flip[..., 2])
+            arr = np.ascontiguousarray(base[..., 2])
         elif mode == RgbMode.GRAY:
-            gray = np.sum(flip * np.asarray([0.299, 0.587, 0.114]), 2)
+            gray = np.sum(base * np.asarray([0.299, 0.587, 0.114]), 2)
             arr = gray.astype(np.uint8)
         else:
             raise NotImplementedError
@@ -451,11 +456,14 @@ class Canvas(pg.PlotWidget):
         self._rgb_mode = mode
         if self._image_backup is None:
             return
+        if mode == self._displayed_rgb_mode:
+            return
         arr = self._rgb_image(mode)
         if arr is None:
             return
         # autoLevels=False keeps the fixed levels (no full-image scan per toggle)
         self.image_item.updateImage(arr, autoLevels=False, levels=self._image_levels)
+        self._displayed_rgb_mode = mode
 
     def _update_cursor(self):
         """Cursor for the current mode/draw tool."""

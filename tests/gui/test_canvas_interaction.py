@@ -1066,7 +1066,7 @@ def test_pyramid_level_count_drives_levels(populated_project):
     big = np.random.default_rng(2).integers(0, 255, (h, w, 3), dtype=np.uint8)
     canvas = win.canvas
     canvas.update_image(big)
-    assert len(canvas._pyramid_levels) == 3  # default setting
+    assert len(canvas._pyramid_levels) == 5  # default setting
 
     canvas._pyramid_levels_count = 4
     canvas.update_image(big)
