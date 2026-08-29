@@ -32,6 +32,7 @@ it if you are outside the intended network.
 | `uv run zlabel-uic` | Regenerate Qt `uic`/`rcc` output and update translations |
 | `uv run zlabel-translate` | Compile `i18n/zh_CN.qm` from `i18n/zh_CN.ts` |
 | `uv run zlabel-build` | Build the Windows installer (cx_Freeze + Inno Setup) |
+| `uv run zlabel-build-nuitka` | Build the portable 7z + Inno Setup installer with Nuitka |
 
 ## Project Layout
 
@@ -144,6 +145,19 @@ uv run zlabel-build
 
 This runs cx_Freeze (`setup.py build_exe`) and, on Windows, Inno Setup (`ISCC`).
 The installer is written to `dist/`.
+
+To build with Nuitka instead, use:
+
+```bash
+uv run zlabel-build-nuitka
+```
+
+This creates:
+
+- `dist/ZLabel-windows-amd64-<version>-green.7z` — portable/green version
+- `dist/ZLabel-windows-amd64-<version>-installer.exe` — Inno Setup installer
+
+Nuitka uses the same `resources/icons/logo.ico` icon as the cx-Freeze build.
 
 Notes:
 

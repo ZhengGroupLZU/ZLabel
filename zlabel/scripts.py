@@ -17,6 +17,11 @@ def build() -> None:
     _run([sys.executable, "setup.py", "build_exe"])
 
 
+def build_nuitka() -> None:
+    """Build the portable 7z + Inno Setup installer with Nuitka."""
+    _run([sys.executable, "build_nuitka.py"])
+
+
 def uic_rcc() -> None:
     """Regenerate Qt generated code (uic/rcc) and update translations."""
     _run([sys.executable, "uic_rcc.py"])
