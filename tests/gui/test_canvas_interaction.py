@@ -243,6 +243,33 @@ def test_box_select_inside_hidden_shape_does_not_pan(populated_project, canvas_v
     assert (rb_pos.x(), rb_pos.y()) == (30, 30), "hidden rect must not move"
 
 
+def test_box_select_polygon_requires_actual_intersection(populated_project, canvas_view, qtbot):
+    """Box select must not select a polygon when the box only overlaps its
+    bounding box but not the polygon itself."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="poly",
+            labels=[proj.crt_label],
+            points=[(10, 50), (50, 50), (30, 10)],
+            closed=True,
+        )
+    )
+    rebuild()
+    win.on_action_edit_triggered()
+
+    # Region inside the polygon bbox but outside the triangle (top-left corner).
+    canvas_view["drag"](win.canvas, (5, 5), (20, 20), qtbot)
+    assert "poly" not in {i.id_ for i in win.canvas.selected_items}
+
+    # Region actually inside the triangle.
+    win.canvas.clear_selections()
+    canvas_view["drag"](win.canvas, (30, 25), (45, 40), qtbot)
+    assert "poly" in {i.id_ for i in win.canvas.selected_items}
+
+
 def test_rapid_box_select_cleans_up(populated_project, canvas_view, qtbot):
     """Rapid repeated box selects must not leave a stale rubber-band item."""
     win, proj, anno, rebuild = populated_project

@@ -10,7 +10,7 @@ import pyqtgraph as pg
 from PIL import Image
 from pyqtgraph.graphicsItems.ROI import Handle
 from pyqtgraph.Qt.QtCore import QEvent, QPoint, QPointF, QRect, QRectF, Qt, QTimer, Signal
-from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPixmap, QTransform
+from pyqtgraph.Qt.QtGui import QCursor, QKeyEvent, QMouseEvent, QPainterPath, QPixmap, QTransform
 from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
@@ -1556,6 +1556,9 @@ class Canvas(pg.PlotWidget):
                         )
                     )
                 )
+                selection_polygon = self.mapToScene(QRect(lt, rb))
+                selection_path = QPainterPath()
+                selection_path.addPolygon(selection_polygon)
                 items = self.items(
                     QRect(lt, rb),
                     Qt.ItemSelectionMode.IntersectsItemShape,
@@ -1571,6 +1574,13 @@ class Canvas(pg.PlotWidget):
                     if item is selecting:
                         continue
                     if isinstance(item, (Point, Rectangle, Polygon)) and item.isVisible():
+                        if isinstance(item, Polygon):
+                            # Qt's IntersectsItemShape still behaves like a bbox
+                            # hit-test for this ROI subclass, so filter polygons
+                            # against their exact scene-space shape here.
+                            polygon_path = item.mapToScene(item.shape())
+                            if not selection_path.intersects(polygon_path):
+                                continue
                         item.setSelected(True)
                         selected_items.append(item)
                     # self.logger.debug(f"Release: {item=}, {item.isSelected()=}")
