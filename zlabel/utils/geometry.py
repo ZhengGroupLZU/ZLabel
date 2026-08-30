@@ -59,9 +59,7 @@ def rotate_point(
     cos, sin = math.cos(ang), math.sin(ang)
     dx = points[:, 0] - center[0]
     dy = points[:, 1] - center[1]
-    return np.column_stack(
-        (center[0] + dx * cos - dy * sin, center[1] + dx * sin + dy * cos)
-    )
+    return np.column_stack((center[0] + dx * cos - dy * sin, center[1] + dx * sin + dy * cos))
 
 
 def rotate_rect(

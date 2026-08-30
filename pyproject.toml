@@ -68,6 +68,7 @@ extend-exclude = [
     "icons_rc.py",
     "build/",
     "dist/",
+    "3rd_party/"
 ]
 
 [tool.ruff.lint]
