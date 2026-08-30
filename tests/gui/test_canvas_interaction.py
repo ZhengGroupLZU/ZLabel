@@ -526,7 +526,8 @@ def test_label_switch_refreshes_instance_bbox_color(populated_project):
 
     bbox = win.canvas._instance_bbox_items[1]
     assert bbox.label_color == lbl_b.color
-    assert bbox.label_text.brush().color().name().upper() == "#FFFFFF"
+    # Green (#00ff00) is bright -> black text; background keeps the label color.
+    assert bbox.label_text.brush().color().name().upper() == "#000000"
     assert bbox.label_bg.brush().color().name().upper() == QColor(lbl_b.color).name().upper()
     assert win.canvas.showing_items["p1"].label_color == lbl_b.color
     assert win.canvas.showing_items["p2"].label_color == lbl_b.color

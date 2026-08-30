@@ -67,7 +67,11 @@ class InstanceBBox(QGraphicsRectItem):
         # Object-detection style: solid background outside the bbox top-left.
         text = " ".join(x for x in (str(self.instance_id), self.label) if x)
         self.label_text.setText(text)
-        self.label_text.setBrush(QColor("#ffffff"))
+        color = QColor(self.label_color or "#888888")
+        # Perceived luminance decides black/white text for contrast.
+        lum = 0.299 * color.redF() + 0.587 * color.greenF() + 0.114 * color.blueF()
+        text_color = QColor("#000000") if lum > 0.5 else QColor("#ffffff")
+        self.label_text.setBrush(text_color)
         text_rect = self.label_text.boundingRect()
 
         # Top-level items ignoring transforms use scene coordinates directly.
