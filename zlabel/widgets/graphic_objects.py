@@ -21,35 +21,90 @@ from zlabel.utils import ZLogger, id_uuid4
 
 
 class InstanceBBox(QGraphicsRectItem):
-    """Dashed axis-aligned bbox + instance-id label for one instance.
+    """Dashed axis-aligned bbox + object-detection style label.
 
     Used for polygon instances: the bbox spans every member polygon (the union
-    / maximum bounding box), and the label sits at its top-left corner.
+    / maximum bounding box). The label has a solid colored background and text
+    in ``{ID} {label}`` format, e.g. ``1 Normal seed``.
     """
 
     def __init__(self):
         super().__init__()
         self.instance_id: int = 0
+        self.label: str = ""
         self.label_color: str | None = None
-        self.label_text = QGraphicsSimpleTextItem(self)
+        self.label_bg = QGraphicsRectItem()
+        self.label_bg.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
+        self.label_bg.setPen(Qt.PenStyle.NoPen)
+        self.label_bg.setVisible(False)
+        self.label_text = QGraphicsSimpleTextItem()
         self.label_text.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIgnoresTransformations)
         self.label_text.setVisible(False)
         self.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
         self.setBrush(Qt.BrushStyle.NoBrush)
 
-    def set_instance(self, instance_id: int, rect: QRectF, color: str | None):
+    def set_instance(self, instance_id: int, rect: QRectF, color: str | None, label: str = ""):
         self.instance_id = instance_id
+        self.label = label or ""
         self.label_color = color or "#888888"
         self.setRect(rect)
         pen = QPen(QColor(self.label_color))
         pen.setStyle(Qt.PenStyle.DashLine)
         pen.setWidth(0)  # cosmetic pen -> constant screen width
         self.setPen(pen)
-        self.label_text.setText(str(instance_id))
-        self.label_text.setBrush(QColor(self.label_color))
-        self.label_text.setPos(rect.left() + 2.0, rect.top() + 2.0)
-        self.label_text.setVisible(True)
+        self._update_label_layout()
         self.setVisible(True)
+
+    def _update_label_layout(self):
+        if self.scene() is None:
+            return
+        # Add the top-level label items to the scene once.
+        for item in (self.label_bg, self.label_text):
+            if item.scene() is None:
+                self.scene().addItem(item)
+                item.setZValue(self.zValue() + 0.6 if item is self.label_bg else self.zValue() + 0.61)
+
+        # Object-detection style: solid background outside the bbox top-left.
+        text = " ".join(x for x in (str(self.instance_id), self.label) if x)
+        self.label_text.setText(text)
+        self.label_text.setBrush(QColor("#ffffff"))
+        text_rect = self.label_text.boundingRect()
+
+        # Top-level items ignoring transforms use scene coordinates directly.
+        # When the canvas is rotated, choose the corner that is visually the
+        # top-left on screen (smallest y, then smallest x).
+        rect = self.rect()
+        corners = (
+            QPointF(rect.left(), rect.top()),
+            QPointF(rect.right(), rect.top()),
+            QPointF(rect.left(), rect.bottom()),
+            QPointF(rect.right(), rect.bottom()),
+        )
+        top_left = min((self.mapToScene(c) for c in corners), key=lambda p: (p.y(), p.x()))
+        pad_x, pad_y = 2.0, 2.0
+        label_pos = QPointF(
+            top_left.x() + pad_x,
+            top_left.y() - text_rect.height() - pad_y,
+        )
+        self.label_text.setPos(label_pos)
+
+        color = QColor(self.label_color or "#888888")
+        self.label_bg.setBrush(QBrush(color))
+        self.label_bg.setRect(text_rect.adjusted(-pad_x, -pad_y, pad_x, pad_y))
+        self.label_bg.setPos(label_pos)
+        self.label_bg.setVisible(True)
+        self.label_text.setVisible(True)
+
+    def remove_label_items(self):
+        for item in (self.label_bg, self.label_text):
+            if item.scene() is not None:
+                item.scene().removeItem(item)
+
+    def paint(self, painter, option, widget=None):
+        # Recompute the label position using the current view transform before
+        # drawing so the constant-size text stays outside the bbox top-left.
+        self._update_label_layout()
+        super().paint(painter, option, widget)
 
 
 class ZROI(pg.ROI):

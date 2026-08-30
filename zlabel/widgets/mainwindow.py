@@ -2362,6 +2362,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if item is not None:
             color = result_new.labels[0].color if result_new.labels else None
             item.set_instance_label(instance_id, color)
+        self.canvas.refresh_instance_bboxes()
 
     def on_canvas_item_state_changed(self, state: dict[str, Any]):
         if self.proj.crt_result is None or self._is_modifying:
@@ -2489,6 +2490,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.proj.crt_anno is None:
             return
         self.proj.crt_anno.instances[iid] = status
+        self.canvas.refresh_instance_bboxes()
         self._refresh_timeline()
 
     # region instance grouping (merge / split)
@@ -2558,6 +2560,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         for iid, status in inherited.items():
             anno.instances[iid] = status
         self._refresh_anno_tree()
+        self.canvas.refresh_instance_bboxes()
         self._refresh_timeline()
         self.show_toast(self.tr(f"Split {len(results)} annotations into individual instances"))
 

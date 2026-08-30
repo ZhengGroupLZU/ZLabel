@@ -526,7 +526,8 @@ def test_label_switch_refreshes_instance_bbox_color(populated_project):
 
     bbox = win.canvas._instance_bbox_items[1]
     assert bbox.label_color == lbl_b.color
-    assert bbox.label_text.brush().color().name().upper() == QColor(lbl_b.color).name().upper()
+    assert bbox.label_text.brush().color().name().upper() == "#FFFFFF"
+    assert bbox.label_bg.brush().color().name().upper() == QColor(lbl_b.color).name().upper()
     assert win.canvas.showing_items["p1"].label_color == lbl_b.color
     assert win.canvas.showing_items["p2"].label_color == lbl_b.color
 
@@ -1060,6 +1061,33 @@ def test_large_image_keeps_single_display_texture(populated_project):
     p = canvas.map_scene_to_view(scene_pt)
     assert p.x() == pytest.approx(2000, abs=1.0)
     assert p.y() == pytest.approx(3000, abs=1.0)
+
+
+def test_instance_bbox_uses_detection_style_label(populated_project):
+    """Instance bbox labels use solid background + '{ID} {label}' text."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import PolygonResult as PR
+
+    anno.add_result(
+        PR.new(
+            id_="pg",
+            labels=[proj.crt_label],
+            points=[(10, 10), (40, 10), (40, 40), (10, 40)],
+            closed=True,
+            instance_id=1,
+        )
+    )
+    anno.instances[1] = "normal_seed"
+    rebuild()
+
+    bbox = win.canvas._instance_bbox_items[1]
+    assert bbox.label_text.text() == "1 Normal seed"
+    assert bbox.label_bg.isVisible()
+    assert bbox.label_bg.brush().color().name() == bbox.label_color
+    top_left_scene = bbox.mapToScene(bbox.rect().topLeft())
+    # text starts 2px right of the top-left corner (user-configured padding)
+    assert bbox.label_text.scenePos().x() == pytest.approx(top_left_scene.x() + 2.0, abs=1e-6)
+    assert bbox.label_text.scenePos().y() < top_left_scene.y()
 
 
 def test_polygon_vertex_handles_are_circles_and_edit_uses_arrow_cursor(populated_project, canvas_view, qtbot):

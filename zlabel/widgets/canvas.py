@@ -16,6 +16,7 @@ from pyqtgraph.Qt.QtWidgets import QGraphicsItem
 from zlabel.utils import Annotation, DrawMode, PointResult, PolygonResult, RectangleResult, StatusMode, ZLogger
 from zlabel.utils.enums import RgbMode
 from zlabel.utils.polygon_ops import merge_polygons as merge_polygons_util
+from zlabel.widgets.dock_anno import humanize_status
 from zlabel.widgets.gl_image_item import GLImageItem
 from zlabel.widgets.graphic_objects import InstanceBBox, Point, Polygon, Rectangle, ZHandle
 from zlabel.widgets.magnifier import MagnifierOverlay
@@ -89,6 +90,7 @@ class Canvas(pg.PlotWidget):
         self._last_magnifier_pos: QPoint | None = None
         self._display_max_side: int = DISPLAY_MAX_SIDE
         self.view_box.sigRangeChanged.connect(self._update_points_scale)
+        self.view_box.sigRangeChanged.connect(self._update_instance_labels)
         self.view_box.sigRightClickFit.connect(self.fit_view)
         self.viewport().installEventFilter(self)
 
@@ -122,6 +124,7 @@ class Canvas(pg.PlotWidget):
         self.selecting_item: Rectangle | None = None
         self.showing_items: OrderedDict[str, Rectangle | Point | Polygon] = OrderedDict()
         self._instance_bbox_items: dict[int, InstanceBBox] = {}
+        self._current_anno: Annotation | None = None
         # Committed polygon points added by user clicks during CREATE mode
         self.polygon_points_committed: list[pg.Point] = []
         # Current preview point following mouse while drawing polygon
@@ -780,6 +783,7 @@ class Canvas(pg.PlotWidget):
     def update_by_anno(self, anno: Annotation | None):
         if anno is None:
             return
+        self._current_anno = anno
         if len(self.showing_items) == 0:
             self.logger.debug("empty self.rects, create by anno")
             self.create_items_by_anno(anno)
@@ -868,6 +872,11 @@ class Canvas(pg.PlotWidget):
             self._refresh_bboxes_pending = False
             self.refresh_instance_bboxes()
 
+    def _update_instance_labels(self, *args):
+        """Re-position constant-size instance labels after pan/zoom."""
+        for bbox in self._instance_bbox_items.values():
+            bbox._update_label_layout()
+
     def refresh_instance_bboxes(self):
         """Rebuild the per-instance dashed bboxes shown for polygon instances.
 
@@ -880,6 +889,7 @@ class Canvas(pg.PlotWidget):
             self._refresh_bboxes_pending = True
             return
         for item in self._instance_bbox_items.values():
+            item.remove_label_items()
             self.removeItem(item)
         self._instance_bbox_items.clear()
 
@@ -928,11 +938,15 @@ class Canvas(pg.PlotWidget):
             if not xs or not ys:
                 continue
             rect = QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
+            status = ""
+            if self._current_anno is not None:
+                raw_status = self._current_anno.instances.get(iid, "")
+                status = humanize_status(raw_status) if raw_status else ""
             bbox = InstanceBBox()
-            bbox.set_instance(iid, rect, entry["color"])
             bbox.setZValue(self._z_value + 0.5)
             self.addItem(bbox)
             bbox.setParentItem(self._content_group)
+            bbox.set_instance(iid, rect, entry["color"], status)
             self._instance_bbox_items[iid] = bbox
 
     def merge_items_by_id(self, ids: list[str]):
@@ -1112,6 +1126,7 @@ class Canvas(pg.PlotWidget):
     def create_items_by_anno(self, anno: Annotation | None = None):
         if anno is None:
             return
+        self._current_anno = anno
         self.view_box.disableAutoRange()  # for performance
         self.begin_batch_update()
         try:
