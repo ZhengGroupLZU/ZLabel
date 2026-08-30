@@ -5,12 +5,12 @@ from collections.abc import Mapping
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any, Literal, NamedTuple, TypeAlias
+from typing import Any, Literal, NamedTuple
 
 import pyqtgraph as pg
 from pydantic import BaseModel, Field, field_validator
 
-IncEx: TypeAlias = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
+type IncEx = set[int] | set[str] | Mapping[int, "IncEx | bool"] | Mapping[str, "IncEx | bool"]
 
 
 def id_uuid4(length: int = 9) -> str:

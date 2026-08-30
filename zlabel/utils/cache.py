@@ -7,13 +7,9 @@ session browsing many frames does not keep every decoded image around.
 from __future__ import annotations
 
 from collections import OrderedDict
-from typing import Generic, TypeVar
-
-K = TypeVar("K")
-V = TypeVar("V")
 
 
-class LRUCache(Generic[K, V]):
+class LRUCache[K, V]:
     """Bounded dict evicting the least-recently-used key on insert."""
 
     def __init__(self, maxsize: int):
