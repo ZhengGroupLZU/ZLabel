@@ -1025,9 +1025,9 @@ def test_polygon_vertex_handle_consumes_clicks(populated_project, canvas_view, q
     assert click.isAccepted(), "vertex handle must consume the click (not propagate to the polygon)"
 
 
-def test_large_image_downsampled_for_display(populated_project):
-    """Images with a long edge > DISPLAY_MAX_SIDE are downsampled for display
-    while the canvas coordinate space stays in full-resolution pixels."""
+def test_large_image_keeps_single_display_texture(populated_project):
+    """Images below the display cap keep one full-resolution texture while the
+    canvas coordinate space stays in full-resolution pixels."""
     import numpy as np
 
     win, proj, anno, rebuild = populated_project
@@ -1036,11 +1036,16 @@ def test_large_image_downsampled_for_display(populated_project):
     canvas = win.canvas
     canvas.update_image(big)
 
-    # the display data is downsampled to the 2560 long edge
+    # One full-resolution display array is used instead of a multi-level pyramid.
     dh, dw = canvas.image_item.image.shape[:2]
-    assert max(dh, dw) <= 2560
+    assert (dh, dw) == (h, w)
     assert canvas._image_hw == (h, w)
-    assert canvas._img_scale > 1.0
+    assert canvas._img_scale == pytest.approx(1.0)
+
+    # zooming does not swap in another resolution level
+    shape_before = canvas.image_item.image.shape
+    canvas.view_box.setRange(xRange=[0, 500], yRange=[0, 500], padding=0)
+    assert canvas.image_item.image.shape == shape_before
 
     # fit_view keeps the full-resolution data range (coordinate space unchanged)
     canvas.fit_view()
@@ -1055,54 +1060,6 @@ def test_large_image_downsampled_for_display(populated_project):
     p = canvas.map_scene_to_view(scene_pt)
     assert p.x() == pytest.approx(2000, abs=1.0)
     assert p.y() == pytest.approx(3000, abs=1.0)
-
-
-def test_large_image_switches_pyramid_level_on_zoom(populated_project):
-    """Zooming in switches to a higher-res pyramid level; zooming out returns
-    to the low-res level used for smooth pan/zoom."""
-    import numpy as np
-
-    win, proj, anno, rebuild = populated_project
-    h, w = 6000, 4000
-    big = np.random.default_rng(1).integers(0, 255, (h, w, 3), dtype=np.uint8)
-    canvas = win.canvas
-    canvas.update_image(big)
-    assert len(canvas._pyramid_levels) >= 2
-    assert max(canvas.image_item.image.shape[:2]) <= 2560
-
-    # zoom into a small region -> higher-resolution level is activated
-    canvas.view_box.setRange(xRange=[0, 500], yRange=[0, 500], padding=0)
-    canvas._update_display_level()
-    high = max(canvas.image_item.image.shape[:2])
-    assert high > 2560
-    assert canvas._img_scale == pytest.approx(6000 / high, abs=1e-6)
-
-    # zoom back out to the full image -> low-res level is restored
-    canvas.fit_view()
-    canvas._update_display_level()
-    low = max(canvas.image_item.image.shape[:2])
-    assert low <= 2560
-    assert canvas._img_scale == pytest.approx(6000 / low, abs=1e-6)
-
-
-def test_pyramid_level_count_drives_levels(populated_project):
-    """The configured pyramid level count controls how many levels are built."""
-    import numpy as np
-
-    win, proj, anno, rebuild = populated_project
-    h, w = 6000, 4000
-    big = np.random.default_rng(2).integers(0, 255, (h, w, 3), dtype=np.uint8)
-    canvas = win.canvas
-    canvas.update_image(big)
-    assert len(canvas._pyramid_levels) == 5  # default setting
-
-    canvas._pyramid_levels_count = 4
-    canvas.update_image(big)
-    assert len(canvas._pyramid_levels) == 4
-
-    canvas._pyramid_levels_count = 1
-    canvas.update_image(big)
-    assert len(canvas._pyramid_levels) == 1
 
 
 def test_polygon_vertex_handles_are_circles_and_edit_uses_arrow_cursor(populated_project, canvas_view, qtbot):

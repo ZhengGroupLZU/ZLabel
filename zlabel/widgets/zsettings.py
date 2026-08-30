@@ -37,8 +37,7 @@ class ZSettings(BaseModel):
     magnifier_diameter: int = 200
 
     # Application performance
-    display_max_side: int = 2560
-    pyramid_levels: int = 5
+    display_max_side: int = 8192
     mipmap_enabled: bool = True
     image_cache_size: int = 5
     timeline_small_image_side: int = 512

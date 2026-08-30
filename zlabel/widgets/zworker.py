@@ -1,6 +1,6 @@
 import os
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 import numpy as np
 from PIL import Image
@@ -12,7 +12,7 @@ from zlabel.utils.project import Task
 
 # must match Canvas.DISPLAY_MAX_SIDE; the downsample is done off the UI thread
 # so switching to a large uncached image does not freeze the interface.
-DISPLAY_MAX_SIDE = 2560
+DISPLAY_MAX_SIDE = 8192
 
 
 def _levels_for(img: np.ndarray) -> tuple[float, float]:
@@ -30,8 +30,6 @@ class PreparedImage:
     full_hw: tuple[int, int]
     img_scale: float
     levels: tuple[float, float]
-    pyramid: list[np.ndarray] = field(default_factory=list)
-    active_idx: int = 0
 
 
 @dataclass
@@ -42,73 +40,47 @@ class GetImageResult:
     prepared: PreparedImage | None = None
 
 
-def build_display_pyramid(
+def build_display_image(
     img: np.ndarray,
     display_max_side: int = DISPLAY_MAX_SIDE,
-    levels: int = 5,
-) -> list[np.ndarray]:
-    """Build row-major display levels from low to high resolution.
+) -> np.ndarray:
+    """Build a single row-major display array for the GL canvas.
 
-    ``levels`` requests up to that many pyramid steps between the configured
-    display side and the full image (high side is capped to bound memory).
-    The returned arrays keep the original (row, col) orientation for use with
-    ImageItem(axisOrder='row-major'), so no runtime flip/rotate is needed.
+    The image is kept at full resolution up to ``display_max_side`` (default
+    8192). Larger images are downsampled once so the texture remains bounded;
+    GPU mipmaps handle zoomed-out filtering instead of a CPU pyramid.
     """
     h, w = img.shape[:2]
     max_side = max(w, h)
-    low = max(1, min(display_max_side, max_side))
-    high = min(max_side, max(display_max_side * 4, 8192))
-    high = max(high, low)
-    n = max(1, int(levels))
-    if n == 1 or high <= low:
-        targets = [low]
+    target = max(1, min(display_max_side, max_side))
+    if max_side <= target:
+        arr = img
     else:
-        targets = []
-        for i in range(n):
-            ratio = i / (n - 1)
-            target = low * ((high / low) ** ratio)
-            targets.append(max(1, round(target)))
-        targets = sorted(set(targets))
-    out: list[np.ndarray] = []
-    for target in targets:
-        if max_side <= target:
-            arr = img
-        else:
-            scale = target / max_side
-            arr = np.asarray(
-                Image.fromarray(img).resize(
-                    (max(1, round(w * scale)), max(1, round(h * scale))),
-                    Image.Resampling.LANCZOS,
-                )
+        scale = target / max_side
+        arr = np.asarray(
+            Image.fromarray(img).resize(
+                (max(1, round(w * scale)), max(1, round(h * scale))),
+                Image.Resampling.LANCZOS,
             )
-        out.append(np.ascontiguousarray(arr))
-    return out
+        )
+    return np.ascontiguousarray(arr)
 
 
 def prepare_image(
     image: Image.Image,
     display_max_side: int = DISPLAY_MAX_SIDE,
-    pyramid_levels: int = 5,
 ) -> PreparedImage:
-    """Decode/downsample an image for canvas display in a worker thread."""
+    """Decode/keep a display-ready image in a worker thread."""
     full_hw = (image.height, image.width)
     img = np.asarray(image, dtype=np.uint8)
     h, w = img.shape[:2]
-    pyramid = build_display_pyramid(img, display_max_side, pyramid_levels)
-    # default active level: the one closest to the configured display max side
-    active_idx = min(
-        range(len(pyramid)),
-        key=lambda i: abs(max(pyramid[i].shape[:2]) - display_max_side),
-    )
-    display = pyramid[active_idx]
+    display = build_display_image(img, display_max_side)
     img_scale = max(w, h) / max(display.shape[:2])
     return PreparedImage(
         display=display,
         full_hw=full_hw,
         img_scale=img_scale,
         levels=_levels_for(display),
-        pyramid=pyramid,
-        active_idx=active_idx,
     )
 
 
@@ -124,18 +96,16 @@ class ZPrepareImageWorker(QRunnable):
         self,
         image: Image.Image,
         display_max_side: int = DISPLAY_MAX_SIDE,
-        pyramid_levels: int = 5,
     ) -> None:
         super().__init__()
         self.image = image
         self.display_max_side = display_max_side
-        self.pyramid_levels = pyramid_levels
         self.emitter = PrepareImageEmitter()
         self.setAutoDelete(True)
 
     def run(self):
         try:
-            prepared = prepare_image(self.image, self.display_max_side, self.pyramid_levels)
+            prepared = prepare_image(self.image, self.display_max_side)
             self.emitter.success.emit(prepared)
         except Exception as e:
             self.emitter.failed.emit(str(e))
@@ -346,7 +316,6 @@ class ZGetImageWorker(QRunnable):
         username: str | None = None,
         password: str | None = None,
         display_max_side: int = DISPLAY_MAX_SIDE,
-        pyramid_levels: int = 5,
     ) -> None:
         super().__init__()
 
@@ -355,7 +324,6 @@ class ZGetImageWorker(QRunnable):
         self.username = username
         self.password = password
         self.display_max_side = display_max_side
-        self.pyramid_levels = pyramid_levels
         self.emitter = GetFileEmitter()
         self.setAutoDelete(True)
 
@@ -369,7 +337,7 @@ class ZGetImageWorker(QRunnable):
                 self.filename,
                 GetImageResult(
                     image=image,
-                    prepared=prepare_image(image, self.display_max_side, self.pyramid_levels),
+                    prepared=prepare_image(image, self.display_max_side),
                 ),
             )
         else:

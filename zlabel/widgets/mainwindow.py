@@ -647,7 +647,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.settings.username,
             self.settings.password,
             display_max_side=self.settings.display_max_side,
-            pyramid_levels=self.settings.pyramid_levels,
         )
         worker.emitter.success.connect(self._on_prefetch_success)
         worker.emitter.fail.connect(lambda msg, name=nxt.filename: self._on_prefetch_fail(name, msg))
@@ -674,7 +673,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     self.settings.username,
                     self.settings.password,
                     display_max_side=self.settings.display_max_side,
-                    pyramid_levels=self.settings.pyramid_levels,
                 )
                 worker.emitter.success.connect(self.cache_image)
                 worker.emitter.success.connect(self.on_try_set_image_get_success)
@@ -691,7 +689,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             worker = ZPrepareImageWorker(
                 image,
                 self.settings.display_max_side,
-                self.settings.pyramid_levels,
             )
             worker.emitter.success.connect(
                 lambda prepared, img=image: self.on_try_set_image_get_success(

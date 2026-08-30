@@ -59,29 +59,30 @@ def main(args: argparse.Namespace):
     translates = " ".join([uic.src for uic in uics])
     os.system(f"{args.pyside}-lupdate  {translates} -ts i18n/zh_CN.ts")
     os.system(f"{args.pyside}-lupdate  {translates} -ts i18n/en.ts")
+    os.system(f"{args.pyside}-lrelease i18n/zh_CN.ts -qm i18n/zh_CN.qm")
 
 
 if __name__ == "__main__":
     parser = build_parser()
     ui_dir = Path("resources/ui")
     ui_dst = Path("zlabel/widgets/ui")
-    # ui_files = list(ui_dir.glob("*.ui"))
-    ui_files = [
-        ui_dir / "mainwindow.ui",
-        ui_dir / "dialog_processing.ui",
-        ui_dir / "dialog_about.ui",
-        ui_dir / "dialog_settings.ui",
-        ui_dir / "dialog_shortcuts.ui",
-        ui_dir / "dock_anno.ui",
-        ui_dir / "dock_file.ui",
-        ui_dir / "dock_info.ui",
-        ui_dir / "dock_label.ui",
-        ui_dir / "dialog_export.ui",
-        # ui_dir / "dialog_import.ui",
-        # ui_dir / "dialog_new_proj.ui",
-        # ui_dir / "dialog_category_choice.ui",
-        # ui_dir / "dialog_model_manager.ui",
-    ]
+    ui_files = list(ui_dir.glob("*.ui"))
+    # ui_files = [
+    #     ui_dir / "mainwindow.ui",
+    #     ui_dir / "dialog_processing.ui",
+    #     ui_dir / "dialog_about.ui",
+    #     ui_dir / "dialog_settings.ui",
+    #     ui_dir / "dialog_shortcuts.ui",
+    #     ui_dir / "dock_anno.ui",
+    #     ui_dir / "dock_file.ui",
+    #     ui_dir / "dock_info.ui",
+    #     ui_dir / "dock_label.ui",
+    #     ui_dir / "dialog_export.ui",
+    #     # ui_dir / "dialog_import.ui",
+    #     # ui_dir / "dialog_new_proj.ui",
+    #     # ui_dir / "dialog_category_choice.ui",
+    #     # ui_dir / "dialog_model_manager.ui",
+    # ]
     uics = [str(ui_file) + "," + str(ui_dst / f"{ui_file.stem}.py") for ui_file in ui_files]
     args = parser.parse_args([
         "--uic_path",

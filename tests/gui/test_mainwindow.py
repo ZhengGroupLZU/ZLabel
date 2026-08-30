@@ -36,7 +36,7 @@ def test_prefetch_next_image_starts_worker_for_next_task(main_window, monkeypatc
             pass
 
     class FakeWorker:
-        def __init__(self, backend, filename, username, password, display_max_side, pyramid_levels):
+        def __init__(self, backend, filename, username, password, display_max_side):
             self.filename = filename
             self.emitter = FakeEmitter()
 

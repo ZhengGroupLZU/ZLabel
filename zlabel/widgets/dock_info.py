@@ -72,7 +72,7 @@ class ZDockInfoContent(QWidget, Ui_ZDockInfoContent):
         row.addWidget(self.label_img_height)
         self._lay.addLayout(row)
 
-        self.gbox_info = QGroupBox("Annotation", self._content)
+        self.gbox_info = QGroupBox(self.tr("Annotation"), self._content)
         self.form = QFormLayout(self.gbox_info)
         self.form.setContentsMargins(6, 6, 6, 6)
         self._rows: list[str] = []

@@ -361,7 +361,7 @@
     <message>
         <location filename="../resources/ui/dialog_about.ui" line="26"/>
         <source>About</source>
-        <translation type="unfinished">关于</translation>
+        <translation>关于</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_about.ui" line="36"/>
@@ -389,7 +389,65 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/dialog_about.ui" line="72"/>
         <source>ZLabel Copyright (C) 2023-2026 Rainyl@ZhengGroup.</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
+    </message>
+</context>
+<context>
+    <name>DialogCategoryChoice</name>
+    <message>
+        <source>category:</source>
+        <translation type="obsolete">类别:</translation>
+    </message>
+    <message>
+        <source>group:</source>
+        <translation type="obsolete">组:</translation>
+    </message>
+    <message>
+        <source>group id</source>
+        <translation type="obsolete">id</translation>
+    </message>
+    <message>
+        <source>note:</source>
+        <translation type="obsolete">注释:</translation>
+    </message>
+    <message>
+        <source>add extra note here</source>
+        <translation type="obsolete">为标签添加额外注释</translation>
+    </message>
+    <message>
+        <source>layer:</source>
+        <translation type="obsolete">图层:</translation>
+    </message>
+    <message>
+        <source>is crowded</source>
+        <translation type="obsolete">拥挤</translation>
+    </message>
+    <message>
+        <source>cancel</source>
+        <translation type="obsolete">取消</translation>
+    </message>
+    <message>
+        <source>apply</source>
+        <translation type="obsolete">应用</translation>
+    </message>
+</context>
+<context>
+    <name>DialogConnectApi</name>
+    <message>
+        <source>User Name:</source>
+        <translation type="obsolete">用户名:</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation type="obsolete">描述:</translation>
+    </message>
+    <message>
+        <source>Host:</source>
+        <translation type="obsolete">主机：</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation type="obsolete">名称:</translation>
     </message>
 </context>
 <context>
@@ -397,82 +455,163 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="14"/>
         <source>Export Dataset</source>
-        <translation type="unfinished"></translation>
+        <translation>导出数据集</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="20"/>
         <source>Format:</source>
-        <translation type="unfinished"></translation>
+        <translation>格式</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="28"/>
         <source>COCO</source>
-        <translation type="unfinished"></translation>
+        <translation>COCO</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="33"/>
         <source>Ultralytics YOLO</source>
-        <translation type="unfinished"></translation>
+        <translation>Ultralytics YOLO</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="41"/>
         <source>Task:</source>
-        <translation type="unfinished"></translation>
+        <translation>任务:</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="49"/>
         <source>Object Detection</source>
-        <translation type="unfinished"></translation>
+        <translation>目标检测</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="54"/>
         <source>Segmentation</source>
-        <translation type="unfinished"></translation>
+        <translation>分割</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="59"/>
         <source>Keypoint Detection</source>
-        <translation type="unfinished"></translation>
+        <translation>关键点检测</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="67"/>
         <source>Output:</source>
-        <translation type="unfinished"></translation>
+        <translation>输出:</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="76"/>
         <source>COCO json path / YOLO output directory</source>
-        <translation type="unfinished"></translation>
+        <translation>COCO json 路径 / YOLO 输出文件夹</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="83"/>
         <source>Browse...</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览...</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="92"/>
         <source>Instance mode:</source>
-        <translation type="unfinished"></translation>
+        <translation>实例模式:</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="100"/>
         <source>Split by part</source>
-        <translation type="unfinished"></translation>
+        <translation>打散</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="105"/>
         <source>Merge by instance</source>
-        <translation type="unfinished"></translation>
+        <translation>实例合并</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="141"/>
         <source>Cancel</source>
-        <translation type="unfinished">取消</translation>
+        <translation>取消</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_export.ui" line="148"/>
         <source>Export</source>
-        <translation type="unfinished">导出</translation>
+        <translation>导出</translation>
+    </message>
+</context>
+<context>
+    <name>DialogImport</name>
+    <message>
+        <source>Import</source>
+        <translation type="obsolete">导入</translation>
+    </message>
+    <message>
+        <source>Save root</source>
+        <translation type="obsolete">保存目录</translation>
+    </message>
+    <message>
+        <source>Json path</source>
+        <translation type="obsolete">Json路径</translation>
+    </message>
+    <message>
+        <source>Keep crowd</source>
+        <translation type="obsolete">保留拥挤目标</translation>
+    </message>
+    <message>
+        <source>Convert COCO json to ISAT jsons.All layer attr is 1.</source>
+        <translation type="obsolete">将COCO格式json转为ISAT格式json,图层默认为1。</translation>
+    </message>
+    <message>
+        <source>cancel</source>
+        <translation type="obsolete">取消</translation>
+    </message>
+    <message>
+        <source>convert</source>
+        <translation type="obsolete">转换</translation>
+    </message>
+</context>
+<context>
+    <name>DialogModelManager</name>
+    <message>
+        <source>Model Manage</source>
+        <translation type="obsolete">模型管理</translation>
+    </message>
+    <message>
+        <source>model</source>
+        <translation type="obsolete">模型</translation>
+    </message>
+    <message>
+        <source>memory(GPU)</source>
+        <translation type="obsolete">显存</translation>
+    </message>
+    <message>
+        <source>params</source>
+        <translation type="obsolete">硬盘</translation>
+    </message>
+    <message>
+        <source>operate</source>
+        <translation type="obsolete">操作</translation>
+    </message>
+    <message>
+        <source>clear tmp</source>
+        <translation type="obsolete">清除临时文件</translation>
+    </message>
+    <message>
+        <source>Download model, and select it in SAM menu to use.</source>
+        <translation type="obsolete">下载模型，然后在SAM菜单中选择模型并使用。</translation>
+    </message>
+</context>
+<context>
+    <name>DialogNewProject</name>
+    <message>
+        <source>New Project</source>
+        <translation type="obsolete">新项目</translation>
+    </message>
+    <message>
+        <source>User Name:</source>
+        <translation type="obsolete">用户名:</translation>
+    </message>
+    <message>
+        <source>Description:</source>
+        <translation type="obsolete">描述:</translation>
+    </message>
+    <message>
+        <source>Name:</source>
+        <translation type="obsolete">名称:</translation>
     </message>
 </context>
 <context>
@@ -527,7 +666,7 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="vanished">日志级别:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="891"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="862"/>
         <source>Password:</source>
         <translation>密码:</translation>
     </message>
@@ -574,347 +713,342 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation>启用Catmull-Rom 样条曲线</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="921"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="966"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="892"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="937"/>
         <source>Inference</source>
-        <translation type="unfinished"></translation>
+        <translation>推理</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1017"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="988"/>
         <source>Inference Mode:</source>
-        <translation type="unfinished"></translation>
+        <translation>推理模式:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="792"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1078"/>
-        <source>Remote</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1083"/>
-        <source>Local</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1024"/>
-        <source>Backend:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="989"/>
-        <source>AUTO</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="994"/>
-        <source>CPU</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="999"/>
-        <source>CUDA</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1004"/>
-        <source>Metal</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1009"/>
-        <source>OpenCL</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1070"/>
-        <source>Model:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1039"/>
-        <source>SAM</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1044"/>
-        <source>EdgeSAM</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="763"/>
         <location filename="../resources/ui/dialog_settings.ui" line="1049"/>
-        <source>SlimSAM</source>
-        <translation type="unfinished"></translation>
+        <source>Remote</source>
+        <translation>远程</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="1054"/>
+        <source>Local</source>
+        <translation>本地</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="995"/>
+        <source>Backend:</source>
+        <translation>后端:</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="960"/>
+        <source>AUTO</source>
+        <translation>自动</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="965"/>
+        <source>CPU</source>
+        <translation>CPU</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="970"/>
+        <source>CUDA</source>
+        <translation>CUDA</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="975"/>
+        <source>Metal</source>
+        <translation>Metal</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="980"/>
+        <source>OpenCL</source>
+        <translation>OpenCL</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="1041"/>
+        <source>Model:</source>
+        <translation>模型：</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="1010"/>
+        <source>SAM</source>
+        <translation>SAM</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="1015"/>
+        <source>EdgeSAM</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="1020"/>
+        <source>SlimSAM</source>
+        <translation></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="1025"/>
         <source>SAM2</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1059"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1030"/>
         <source>SAM3</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1031"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1002"/>
         <source>Model Folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>模型文件夹：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="223"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1091"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1062"/>
         <source>Browse...</source>
-        <translation type="unfinished"></translation>
+        <translation>浏览...</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1098"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1069"/>
         <source>Upload Image Size:</source>
-        <translation type="unfinished"></translation>
+        <translation>上传图像尺寸：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="216"/>
         <source>WeChat OCR Folder:</source>
-        <translation type="unfinished"></translation>
+        <translation>WeChat OCR 路径：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="81"/>
         <location filename="../resources/ui/dialog_settings.ui" line="132"/>
         <source>Application</source>
-        <translation type="unfinished"></translation>
+        <translation>应用</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="158"/>
         <source>Log level:</source>
-        <translation type="unfinished"></translation>
+        <translation>日志级别：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="246"/>
         <source>Performance</source>
-        <translation type="unfinished"></translation>
+        <translation>性能</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="297"/>
         <source>Display max side:</source>
-        <translation type="unfinished"></translation>
+        <translation>显示图像长边：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="313"/>
         <source>Timeline cell size:</source>
-        <translation type="unfinished"></translation>
+        <translation>时间线单元格尺寸：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="323"/>
         <location filename="../resources/ui/dialog_settings.ui" line="431"/>
         <source>px</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="456"/>
-        <source>Pyramid levels:</source>
-        <translation type="unfinished"></translation>
+        <translation>px</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="348"/>
         <source>Timeline cache size:</source>
-        <translation type="unfinished"></translation>
+        <translation>时间线缓存尺寸：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="364"/>
         <source>Image cache size:</source>
-        <translation type="unfinished"></translation>
+        <translation>图像缓存尺寸：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="374"/>
         <source>Copy previous frame</source>
-        <translation type="unfinished"></translation>
+        <translation>从前帧复制</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="381"/>
         <source>Manual timestamp</source>
-        <translation type="unfinished"></translation>
+        <translation>手动时间线</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="398"/>
         <source>Auto-fit dish</source>
-        <translation type="unfinished"></translation>
+        <translation>自动拟合培养皿</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="421"/>
         <source>Timeline small side:</source>
-        <translation type="unfinished"></translation>
+        <translation>时间线短边尺寸：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="492"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="463"/>
         <source>Appearance</source>
-        <translation type="unfinished"></translation>
+        <translation>外观</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="504"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="475"/>
         <source>Fill alpha:</source>
-        <translation type="unfinished"></translation>
+        <translation>填充透明度：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="539"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="510"/>
         <source>Default color:</source>
-        <translation type="unfinished"></translation>
+        <translation>默认颜色：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="559"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="530"/>
         <source>Edit fill alpha:</source>
-        <translation type="unfinished"></translation>
+        <translation>编辑填充透明度：</translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/dialog_settings.ui" line="553"/>
+        <source>Draw fill alpha:</source>
+        <translation>绘制填充透明度：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="582"/>
-        <source>Draw fill alpha:</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="611"/>
         <source>Hline color:</source>
-        <translation type="unfinished"></translation>
+        <translation>水平线颜色：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="637"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="608"/>
         <source>Hline width:</source>
-        <translation type="unfinished"></translation>
+        <translation>水平线宽度：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="689"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="660"/>
         <source>Vline color:</source>
-        <translation type="unfinished"></translation>
+        <translation>垂直线颜色：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="715"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="686"/>
         <source>Vline width:</source>
-        <translation type="unfinished"></translation>
+        <translation>垂直线宽度：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="657"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="628"/>
         <source>Magnifier min zoom:</source>
-        <translation type="unfinished"></translation>
+        <translation>放大镜最小缩放：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="479"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="450"/>
         <source>Enable Mipmap Anti-aliasing</source>
-        <translation type="unfinished"></translation>
+        <translation>启用MipMap抗锯齿</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="735"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="706"/>
         <source>Magnifier diameter:</source>
-        <translation type="unfinished"></translation>
+        <translation>放大镜直径：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="758"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="729"/>
         <source>Magnifier max zoom:</source>
-        <translation type="unfinished"></translation>
+        <translation>放大镜最大缩放：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="837"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="808"/>
         <source>Remote API</source>
-        <translation type="unfinished"></translation>
+        <translation>远程API</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="877"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="848"/>
         <source>Host:</source>
-        <translation type="unfinished"></translation>
+        <translation>主机：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="884"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="855"/>
         <source>User name:</source>
-        <translation type="unfinished"></translation>
+        <translation>用户名：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1126"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1171"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1097"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1142"/>
         <source>Project</source>
         <translation>项目</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1191"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1162"/>
         <source>New</source>
-        <translation type="unfinished"></translation>
+        <translation>新建</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1229"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1200"/>
         <source>Instances:</source>
-        <translation type="unfinished"></translation>
+        <translation>实例：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1239"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1210"/>
         <source>Labels:</source>
         <translation>标签:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1276"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1247"/>
         <source>Description:</source>
         <translation>描述:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1338"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1309"/>
         <source>Status</source>
-        <translation type="unfinished"></translation>
+        <translation>状态：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1346"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1317"/>
         <source>Name:</source>
         <translation>名称:</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1353"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1324"/>
         <source>Project:</source>
-        <translation type="unfinished"></translation>
+        <translation>项目：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1363"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1334"/>
         <source>Load default:</source>
-        <translation type="unfinished"></translation>
+        <translation>加载默认：</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1371"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1342"/>
         <source>Empty</source>
-        <translation type="unfinished"></translation>
+        <translation>空</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1376"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1347"/>
         <source>Germination</source>
-        <translation type="unfinished"></translation>
+        <translation>发芽</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1200"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1285"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1171"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1256"/>
         <source>Add</source>
         <translation>添加</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_settings.ui" line="200"/>
         <source>Others</source>
-        <translation type="unfinished"></translation>
+        <translation>其它</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1207"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1268"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1178"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1239"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1263"/>
         <location filename="../resources/ui/dialog_settings.ui" line="1292"/>
-        <location filename="../resources/ui/dialog_settings.ui" line="1321"/>
         <source>Delete</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1299"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1270"/>
         <source>Clear</source>
         <translation>清除</translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1253"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1224"/>
         <source>ID</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1258"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1229"/>
         <source>Name</source>
         <translation></translation>
     </message>
     <message>
-        <location filename="../resources/ui/dialog_settings.ui" line="1263"/>
+        <location filename="../resources/ui/dialog_settings.ui" line="1234"/>
         <source>Color</source>
         <translation></translation>
     </message>
@@ -1079,17 +1213,17 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/dialog_shortcuts.ui" line="845"/>
         <source>Delete Hovered Vertex:</source>
-        <translation type="unfinished"></translation>
+        <translation>删除悬停顶点：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_shortcuts.ui" line="875"/>
         <source>Finish by Double-click:</source>
-        <translation type="unfinished"></translation>
+        <translation>双击完成：</translation>
     </message>
     <message>
         <location filename="../resources/ui/dialog_shortcuts.ui" line="892"/>
         <source>Double-click</source>
-        <translation type="unfinished"></translation>
+        <translation>双击：</translation>
     </message>
     <message>
         <source>Space</source>
@@ -1423,12 +1557,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <location filename="../resources/ui/mainwindow.ui" line="832"/>
         <location filename="../resources/ui/mainwindow.ui" line="835"/>
         <source>Copy previous frame</source>
-        <translation type="unfinished"></translation>
+        <translation>从前帧复制</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="838"/>
         <source>Copy dish/timestamp/instance parts from the previous frame of the same sequence</source>
-        <translation type="unfinished"></translation>
+        <translation>从同序列前帧复制培养皿/时间戳/实例</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="952"/>
@@ -1506,63 +1640,63 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <location filename="../resources/ui/mainwindow.ui" line="1036"/>
         <location filename="../resources/ui/mainwindow.ui" line="1039"/>
         <source>Timeline</source>
-        <translation type="unfinished"></translation>
+        <translation>时间线</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1182"/>
         <source>Merge (Ctrl+G)</source>
-        <translation type="unfinished"></translation>
+        <translation>合并 (Ctrl+G)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1185"/>
         <source>Merge multiple shapes (Ctrl+G)</source>
-        <translation type="unfinished"></translation>
+        <translation>合并多个形状 (Ctrl+G)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1203"/>
         <location filename="../resources/ui/mainwindow.ui" line="1206"/>
         <source>Group selected annotations into one instance (G); split (G)</source>
-        <translation type="unfinished"></translation>
+        <translation>将所选标注组合 (G)/打散 (G)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1371"/>
         <source>Left (Ctrl+B)</source>
-        <translation type="unfinished"></translation>
+        <translation>显示/隐藏左侧面板 (Ctrl+B)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1374"/>
         <source>Ctrl+B</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1392"/>
         <source>Right (Ctrl+Alt+B)</source>
-        <translation type="unfinished"></translation>
+        <translation>显示/隐藏右侧面板 (Ctrl+B)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1395"/>
         <source>Ctrl+Alt+B</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1416"/>
         <source>Ctrl+J</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1428"/>
         <source>Auto</source>
-        <translation type="unfinished"></translation>
+        <translation>自动</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1443"/>
         <source>Light</source>
-        <translation type="unfinished"></translation>
+        <translation>浅色</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1455"/>
         <source>Dark</source>
-        <translation type="unfinished"></translation>
+        <translation>深色</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1054"/>
@@ -1617,12 +1751,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1200"/>
         <source>Group</source>
-        <translation type="unfinished"></translation>
+        <translation>分组</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1188"/>
         <source>Ctrl+G</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1296"/>
@@ -1637,48 +1771,48 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1332"/>
         <source>Full screen</source>
-        <translation type="unfinished"></translation>
+        <translation>全屏</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1335"/>
         <source>Full screen (F11)</source>
-        <translation type="unfinished"></translation>
+        <translation>全屏 (F11)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1338"/>
         <location filename="../resources/ui/mainwindow.ui" line="1341"/>
         <source>Enter/Exit full screen mode.</source>
-        <translation type="unfinished"></translation>
+        <translation>进入/退出全屏模式</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1344"/>
         <source>F11</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1353"/>
         <source>KeyPoint</source>
-        <translation type="unfinished"></translation>
+        <translation>关键点</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1368"/>
         <source>Left</source>
-        <translation type="unfinished"></translation>
+        <translation>左侧面板</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1389"/>
         <source>Right</source>
-        <translation type="unfinished"></translation>
+        <translation>右侧面板</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1410"/>
         <source>Bottom</source>
-        <translation type="unfinished"></translation>
+        <translation>下方面板</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1413"/>
         <source>Bottom (Ctrl+J)</source>
-        <translation type="unfinished"></translation>
+        <translation>显示/隐藏下方面板 (Ctrl+B)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="1179"/>
@@ -1930,12 +2064,12 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="144"/>
         <source>Theme</source>
-        <translation type="unfinished"></translation>
+        <translation>主题</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="174"/>
         <source>Select annotation type (Rectangle, Polygon, KeyPoint).</source>
-        <translation type="unfinished"></translation>
+        <translation>选择标注类型 (矩形, 多边形, 关键点)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="210"/>
@@ -1950,27 +2084,27 @@ li.checked::marker { content: &quot;\2612&quot;; }
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="415"/>
         <source>Magnifier</source>
-        <translation type="unfinished"></translation>
+        <translation>放大镜</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="418"/>
         <source>Magnifier (Ctrl+M)</source>
-        <translation type="unfinished"></translation>
+        <translation>放大镜 (Ctrl+M)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="421"/>
         <source>Ctrl+M</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="469"/>
         <source>Setting (Ctrl+,)</source>
-        <translation type="unfinished"></translation>
+        <translation>设置 (Ctrl+,)</translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="475"/>
         <source>Ctrl+,</source>
-        <translation type="unfinished"></translation>
+        <translation></translation>
     </message>
     <message>
         <location filename="../resources/ui/mainwindow.ui" line="739"/>

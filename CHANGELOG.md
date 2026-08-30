@@ -5,6 +5,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.5] - 2026-08-29
+
+### Added
+
+- Theme switching: Auto / Light / Dark with persisted `theme_mode`
+  - Auto mode follows the OS `colorScheme` and reacts to changes
+  - Fusion style with light/dark palettes and canvas background sync
+
+### Changed
+
+- Removed the multi-level CPU display pyramid
+  - Canvas now keeps a single full-resolution display texture (capped at 8192)
+  - GPU mipmaps handle zoomed-out filtering instead of CPU level switching
+  - Display settings: `display_max_side` default raised to 8192, `pyramid_levels` removed
+- Updated image performance benchmark to measure single display build / texture upload
+
 ## [0.3.4] - 2026-08-29
 
 ### Added

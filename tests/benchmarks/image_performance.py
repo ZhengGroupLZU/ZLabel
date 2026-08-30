@@ -5,7 +5,7 @@ VideoSpeedTest.py.  It measures:
 
   * Canvas pan / zoom FPS (the main interaction bottleneck)
   * Canvas + RawImageWidget + RawImageGLWidget setImage() update FPS
-  * ImageItem.render() / pyramid level-switch timings
+  * ImageItem.render() / display build / GL texture upload timings
 
 Usage::
 
@@ -33,7 +33,7 @@ except Exception:  # pragma: no cover - optional OpenGL widget
     RawImageGLWidget = None
 
 from zlabel.widgets.canvas import DISPLAY_MAX_SIDE, Canvas
-from zlabel.widgets.zworker import build_display_pyramid
+from zlabel.widgets.zworker import build_display_image
 
 pg.setConfigOptions(useOpenGL=True, imageAxisOrder="row-major", useCupy=False, useNumba=False)
 
@@ -97,7 +97,7 @@ def run_loop(callback, duration: float, app: QtWidgets.QApplication) -> tuple[in
     """Call ``callback`` as fast as possible for ``duration`` seconds.
 
     ``app.processEvents()`` is called after every frame so Qt paints the
-    widgets and delivers timer events (e.g. the Canvas pyramid switch timer).
+    widgets and delivers timer events.
     """
     start = time.perf_counter()
     frames = 0
@@ -183,22 +183,15 @@ def bench_setimage(widget, arr: np.ndarray, duration: float, app) -> BenchResult
 
 
 # ---------------------------------------------------------------------------
-# Render / pyramid timing
+# Render / display timing
 # ---------------------------------------------------------------------------
-def bench_render_and_pyramid(img: np.ndarray, app: QtWidgets.QApplication) -> dict[str, object]:
+def bench_render_and_display(img: np.ndarray, app: QtWidgets.QApplication) -> dict[str, object]:
     canvas = create_canvas(img, show=False)
     result: dict[str, object] = {}
 
     t0 = time.perf_counter()
     canvas.update_image(img)
-    result["pyramid_build_ms"] = (time.perf_counter() - t0) * 1000.0
-
-    level_times: list[float] = []
-    for idx in range(len(canvas._pyramid_levels)):
-        t0 = time.perf_counter()
-        canvas._activate_pyramid_level(idx)
-        level_times.append((time.perf_counter() - t0) * 1000.0)
-    result["level_switch_ms"] = level_times
+    result["display_build_ms"] = (time.perf_counter() - t0) * 1000.0
 
     # force a full ImageItem render (downsample disabled; measures QImage path)
     item = canvas.image_item
@@ -209,24 +202,22 @@ def bench_render_and_pyramid(img: np.ndarray, app: QtWidgets.QApplication) -> di
     result["imageitem_render_ms"] = (time.perf_counter() - t0) * 1000.0
     canvas.close()
 
-    # GL texture upload per pyramid level (only meaningful with the GL fast path).
+    # GL texture upload for the single display texture.
     gl_canvas = create_canvas(img, show=True)
     app.processEvents()
     gl_item = gl_canvas.image_item
-    upload_times: list[float] = []
+    upload_ms: float | None = None
     if hasattr(gl_item, "_sync_texture") and gl_item._gl_state is not None:
         viewport = gl_canvas.viewport()
         viewport.makeCurrent()
         try:
-            for idx in range(len(gl_canvas._pyramid_levels)):
-                gl_canvas._activate_pyramid_level(idx)
-                gl_item._texture_image = None  # force a real upload
-                t0 = time.perf_counter()
-                gl_item._sync_texture(viewport)
-                upload_times.append((time.perf_counter() - t0) * 1000.0)
+            gl_item._texture_image = None  # force a real upload
+            t0 = time.perf_counter()
+            gl_item._sync_texture(viewport)
+            upload_ms = (time.perf_counter() - t0) * 1000.0
         finally:
             viewport.doneCurrent()
-    result["texture_upload_ms"] = upload_times or None
+    result["texture_upload_ms"] = upload_ms
     gl_canvas.close()
     return result
 
@@ -270,7 +261,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"Image: {width}x{height} RGB uint8, duration={duration:.1f}s per scenario")
 
     img = make_image(height, width)
-    display = build_display_pyramid(img, DISPLAY_MAX_SIDE, 1)[0]
+    display = build_display_image(img, DISPLAY_MAX_SIDE)
     suite = BenchSuite()
 
     include_canvas = args.backend in ("canvas", "all")
@@ -313,19 +304,16 @@ def main(argv: list[str] | None = None) -> int:
             suite.results.append(bench_setimage(rawgl, display, duration, app))
             rawgl.close()
 
-    # ---- render / pyramid timings ----
+    # ---- render / display timings ----
     if include_canvas and args.action in ("all", "pan", "zoom", "setimage"):
-        timings = bench_render_and_pyramid(img, app)
-        print(f"\nPyramid build:           {timings['pyramid_build_ms']:.2f} ms")
-        level_ms = ", ".join(f"{v:.2f}" for v in timings["level_switch_ms"])
-        print(f"Level switches:           [{level_ms}] ms")
+        timings = bench_render_and_display(img, app)
+        print(f"\nDisplay build:           {timings['display_build_ms']:.2f} ms")
         print(f"ImageItem.render():      {timings['imageitem_render_ms']:.2f} ms")
         upload_ms = timings.get("texture_upload_ms")
-        if upload_ms:
-            upload_str = ", ".join(f"{v:.2f}" for v in upload_ms)
-            print(f"GL texture uploads:       [{upload_str}] ms")
+        if upload_ms is not None:
+            print(f"GL texture upload:        {upload_ms:.2f} ms")
         else:
-            print("GL texture uploads:       n/a (non-GL fallback)")
+            print("GL texture upload:        n/a (non-GL fallback)")
 
     suite.print_table()
     app.processEvents()

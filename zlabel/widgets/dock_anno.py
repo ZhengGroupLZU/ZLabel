@@ -57,12 +57,16 @@ class ZDockAnnotationContent(QWidget, Ui_ZDockAnnotationContent):
 
         # header row: default-instance-status combo + auto-new-instance checkbox
         self.cmbox_default_instance = QComboBox()
-        self.cmbox_default_instance.setToolTip("Default germination status assigned to newly created instances")
-        self.chk_auto_new = QCheckBox("New instance")
+        self.cmbox_default_instance.setToolTip(
+            self.tr("Default germination status assigned to newly created instances")
+        )
+        self.chk_auto_new = QCheckBox(self.tr("New instance"))
         self.chk_auto_new.setChecked(True)
         self.chk_auto_new.setToolTip(
-            "Always create a new instance for each annotation; "
-            "uncheck to add annotations to the currently selected instance"
+            self.tr(
+                "Always create a new instance for each annotation; "
+                "uncheck to add annotations to the currently selected instance"
+            )
         )
         header_lay = QHBoxLayout()
         header_lay.addWidget(self.cmbox_default_instance)

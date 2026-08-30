@@ -107,8 +107,7 @@ For automatic timestamp OCR on rectangle annotations:
 - **Language**: English / Chinese
 - **Auto-fit dish**: automatically segment and ellipse-fit the dish when opening a frame
 - **Copy previous frame**: enable copying annotations from the previous frame of a sequence
-- **Display max side**: long edge used by the display pyramid (default `2560`)
-- **Pyramid levels**: number of display-resolution levels kept for smooth zoom (default `5`)
+- **Display max side**: cap for the single GPU display texture (default `8192`)
 - **Enable Mipmap Anti-aliasing**: use GPU mipmap filtering for the GL canvas texture (default on)
 
 ## Annotation Workflow
@@ -246,7 +245,7 @@ It measures:
 
 - Canvas pan / zoom FPS
 - `setImage()` update FPS for `ImageItem` / `RawImageWidget` / `RawImageGLWidget`
-- pyramid build, level switch, `ImageItem.render()` and GL texture upload timings
+- display build, `ImageItem.render()` and GL texture upload timings
 
 ## License
 

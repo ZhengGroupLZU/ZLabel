@@ -253,7 +253,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.dspbox_mag_max.setValue(self.settings.magnifier_max_zoom)
         self.spin_mag_diameter.setValue(self.settings.magnifier_diameter)
         self.spin_display_max_side.setValue(self.settings.display_max_side)
-        self.spin_pyramid_levels.setValue(self.settings.pyramid_levels)
         self.ckbox_mipmap.setChecked(self.settings.mipmap_enabled)
         self.spin_image_cache_size.setValue(self.settings.image_cache_size)
         self.spin_tl_small_side.setValue(self.settings.timeline_small_image_side)
@@ -313,7 +312,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
         self.dspbox_mag_max.valueChanged.connect(lambda: self.on_settings_changed("magnifier_max_zoom"))
         self.spin_mag_diameter.valueChanged.connect(lambda: self.on_settings_changed("magnifier_diameter"))
         self.spin_display_max_side.valueChanged.connect(lambda: self.on_settings_changed("display_max_side"))
-        self.spin_pyramid_levels.valueChanged.connect(lambda: self.on_settings_changed("pyramid_levels"))
         self.ckbox_mipmap.toggled.connect(lambda: self.on_settings_changed("mipmap_enabled"))
         self.spin_image_cache_size.valueChanged.connect(lambda: self.on_settings_changed("image_cache_size"))
         self.spin_tl_small_side.valueChanged.connect(lambda: self.on_settings_changed("timeline_small_image_side"))
@@ -393,8 +391,6 @@ class DialogSettings(QDialog, Ui_DialogSettings):
             self.settings.magnifier_diameter = self.spin_mag_diameter.value()
         elif k == "display_max_side":
             self.settings.display_max_side = self.spin_display_max_side.value()
-        elif k == "pyramid_levels":
-            self.settings.pyramid_levels = self.spin_pyramid_levels.value()
         elif k == "mipmap_enabled":
             self.settings.mipmap_enabled = self.ckbox_mipmap.isChecked()
         elif k == "image_cache_size":
