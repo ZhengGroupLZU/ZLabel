@@ -23,6 +23,7 @@ class ZSettings(BaseModel):
     random_select: bool = True
     enable_catmull_rom: bool = False
     language: str = "en"  # en or zh_CN
+    theme_mode: Literal["auto", "light", "dark"] = "light"
 
     # Application appearance
     hline_color: str = "#55ff00"

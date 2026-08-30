@@ -601,6 +601,22 @@ def test_cached_image_switch_fits_view(populated_project, monkeypatch, qtbot):
     assert rng[0][1] > 4000
 
 
+def test_theme_actions_switch_mode(populated_project):
+    """Theme menu actions switch the persisted mode exclusively."""
+    win, proj, anno, rebuild = populated_project
+
+    assert win.actionLightTheme.isChecked()
+    win.actionDarkTheme.trigger()
+    assert win.settings.theme_mode == "dark"
+    assert win.actionDarkTheme.isChecked()
+    assert not win.actionLightTheme.isChecked()
+
+    win.actionAutoTheme.trigger()
+    assert win.settings.theme_mode == "auto"
+    assert win.actionAutoTheme.isChecked()
+    assert not win.actionDarkTheme.isChecked()
+
+
 def test_image_cache_is_lru_bounded(main_window):
     """The decoded-frame cache is LRU-bounded so a session doesn't keep every
     visited full-resolution photo in memory."""

@@ -718,31 +718,31 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="154"/>
-        <location filename="../resources/ui/mainwindow.ui" line="999"/>
+        <location filename="../resources/ui/mainwindow.ui" line="167"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1012"/>
         <source>Edit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="239"/>
+        <location filename="../resources/ui/mainwindow.ui" line="252"/>
         <source>toolBar</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="305"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1268"/>
+        <location filename="../resources/ui/mainwindow.ui" line="318"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1281"/>
         <source>Info</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="353"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1298"/>
+        <location filename="../resources/ui/mainwindow.ui" line="366"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1311"/>
         <source>Labels</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="329"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1253"/>
+        <location filename="../resources/ui/mainwindow.ui" line="342"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1266"/>
         <source>Files</source>
         <translation type="unfinished"></translation>
     </message>
@@ -757,743 +757,763 @@ li.checked::marker { content: &quot;\2612&quot;; }
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="161"/>
+        <location filename="../resources/ui/mainwindow.ui" line="144"/>
+        <source>Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="174"/>
         <source>Select annotation type (Rectangle, Polygon, KeyPoint).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="164"/>
+        <location filename="../resources/ui/mainwindow.ui" line="177"/>
         <source>Anno Type</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="197"/>
+        <location filename="../resources/ui/mainwindow.ui" line="210"/>
         <source>Window</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="201"/>
+        <location filename="../resources/ui/mainwindow.ui" line="214"/>
         <source>Docks</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="320"/>
+        <location filename="../resources/ui/mainwindow.ui" line="333"/>
         <source>Annos</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="375"/>
+        <location filename="../resources/ui/mainwindow.ui" line="388"/>
         <source>Ctrl+O</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="384"/>
+        <location filename="../resources/ui/mainwindow.ui" line="397"/>
         <source>Zoom in</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="390"/>
+        <location filename="../resources/ui/mainwindow.ui" line="403"/>
         <source>Ctrl++</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="402"/>
+        <location filename="../resources/ui/mainwindow.ui" line="415"/>
         <source>Magnifier</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="405"/>
+        <location filename="../resources/ui/mainwindow.ui" line="418"/>
         <source>Magnifier (Ctrl+M)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="408"/>
+        <location filename="../resources/ui/mainwindow.ui" line="421"/>
         <source>Ctrl+M</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="417"/>
+        <location filename="../resources/ui/mainwindow.ui" line="430"/>
         <source>Zoom out</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="423"/>
+        <location filename="../resources/ui/mainwindow.ui" line="436"/>
         <source>Ctrl+-</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="435"/>
-        <location filename="../resources/ui/mainwindow.ui" line="438"/>
+        <location filename="../resources/ui/mainwindow.ui" line="448"/>
+        <location filename="../resources/ui/mainwindow.ui" line="451"/>
         <source>Fit window</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="444"/>
+        <location filename="../resources/ui/mainwindow.ui" line="457"/>
         <source>F</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="453"/>
+        <location filename="../resources/ui/mainwindow.ui" line="466"/>
         <source>Setting</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="456"/>
+        <location filename="../resources/ui/mainwindow.ui" line="469"/>
         <source>Setting (Ctrl+,)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="462"/>
+        <location filename="../resources/ui/mainwindow.ui" line="475"/>
         <source>Ctrl+,</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="471"/>
-        <location filename="../resources/ui/mainwindow.ui" line="474"/>
+        <location filename="../resources/ui/mainwindow.ui" line="484"/>
+        <location filename="../resources/ui/mainwindow.ui" line="487"/>
         <source>Exit</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="489"/>
-        <location filename="../resources/ui/mainwindow.ui" line="492"/>
+        <location filename="../resources/ui/mainwindow.ui" line="502"/>
+        <location filename="../resources/ui/mainwindow.ui" line="505"/>
         <source>Save dir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="495"/>
+        <location filename="../resources/ui/mainwindow.ui" line="508"/>
         <source>Select Save dir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="504"/>
+        <location filename="../resources/ui/mainwindow.ui" line="517"/>
         <source>Save</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="723"/>
+        <location filename="../resources/ui/mainwindow.ui" line="736"/>
         <source>Clear</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="726"/>
-        <location filename="../resources/ui/mainwindow.ui" line="729"/>
+        <location filename="../resources/ui/mainwindow.ui" line="739"/>
+        <location filename="../resources/ui/mainwindow.ui" line="742"/>
         <source>Clear All (Ctrl+Del)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="732"/>
+        <location filename="../resources/ui/mainwindow.ui" line="745"/>
         <source>Ctrl+Del</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="744"/>
+        <location filename="../resources/ui/mainwindow.ui" line="757"/>
         <source>Submit (Ctrl + Enter)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="765"/>
+        <location filename="../resources/ui/mainwindow.ui" line="778"/>
         <source>Draw polygon (O)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="768"/>
+        <location filename="../resources/ui/mainwindow.ui" line="781"/>
         <source>Accurately annotate by drawing polygon.  (O)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="771"/>
+        <location filename="../resources/ui/mainwindow.ui" line="784"/>
         <source>O</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="804"/>
+        <location filename="../resources/ui/mainwindow.ui" line="817"/>
         <source>Export</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="819"/>
-        <location filename="../resources/ui/mainwindow.ui" line="822"/>
+        <location filename="../resources/ui/mainwindow.ui" line="832"/>
+        <location filename="../resources/ui/mainwindow.ui" line="835"/>
         <source>Copy previous frame</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="825"/>
+        <location filename="../resources/ui/mainwindow.ui" line="838"/>
         <source>Copy dish/timestamp/instance parts from the previous frame of the same sequence</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="834"/>
+        <location filename="../resources/ui/mainwindow.ui" line="847"/>
         <source>Import</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="843"/>
+        <location filename="../resources/ui/mainwindow.ui" line="856"/>
         <source>To LabelMe</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="846"/>
+        <location filename="../resources/ui/mainwindow.ui" line="859"/>
         <source>Convert ISAT to LabelMe</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="849"/>
+        <location filename="../resources/ui/mainwindow.ui" line="862"/>
         <source>Convert ISAT jsons to LabelMe jsons.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="857"/>
+        <location filename="../resources/ui/mainwindow.ui" line="870"/>
         <source>Max only</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="860"/>
-        <location filename="../resources/ui/mainwindow.ui" line="863"/>
+        <location filename="../resources/ui/mainwindow.ui" line="873"/>
+        <location filename="../resources/ui/mainwindow.ui" line="876"/>
         <source>Max contour save only.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="877"/>
+        <location filename="../resources/ui/mainwindow.ui" line="890"/>
         <source>External</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="880"/>
-        <location filename="../resources/ui/mainwindow.ui" line="883"/>
+        <location filename="../resources/ui/mainwindow.ui" line="893"/>
+        <location filename="../resources/ui/mainwindow.ui" line="896"/>
         <source>External contour save only.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="897"/>
+        <location filename="../resources/ui/mainwindow.ui" line="910"/>
         <source>All</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="900"/>
-        <location filename="../resources/ui/mainwindow.ui" line="903"/>
+        <location filename="../resources/ui/mainwindow.ui" line="913"/>
+        <location filename="../resources/ui/mainwindow.ui" line="916"/>
         <source>All contour save.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="918"/>
+        <location filename="../resources/ui/mainwindow.ui" line="931"/>
         <source>Model manage</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="921"/>
-        <location filename="../resources/ui/mainwindow.ui" line="924"/>
+        <location filename="../resources/ui/mainwindow.ui" line="934"/>
+        <location filename="../resources/ui/mainwindow.ui" line="937"/>
         <source>Model manage.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="939"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1208"/>
+        <location filename="../resources/ui/mainwindow.ui" line="952"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1221"/>
         <source>Rectangle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="942"/>
+        <location filename="../resources/ui/mainwindow.ui" line="955"/>
         <source>Rectangle (R)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="945"/>
+        <location filename="../resources/ui/mainwindow.ui" line="958"/>
         <source>Create Two-point Rectangle (R)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="948"/>
+        <location filename="../resources/ui/mainwindow.ui" line="961"/>
         <source>R</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="957"/>
+        <location filename="../resources/ui/mainwindow.ui" line="970"/>
         <source>Point</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="960"/>
+        <location filename="../resources/ui/mainwindow.ui" line="973"/>
         <source>Point (P)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="963"/>
+        <location filename="../resources/ui/mainwindow.ui" line="976"/>
         <source>Create a point (P)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="966"/>
+        <location filename="../resources/ui/mainwindow.ui" line="979"/>
         <source>P</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="981"/>
+        <location filename="../resources/ui/mainwindow.ui" line="994"/>
         <source>Move</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="984"/>
+        <location filename="../resources/ui/mainwindow.ui" line="997"/>
         <source>Move (M)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="987"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1000"/>
         <source>Move to select a region (M)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="990"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1003"/>
         <source>M</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1002"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1005"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1015"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1018"/>
         <source>Edit (E)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1023"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1026"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1036"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1039"/>
         <source>Timeline</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1169"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1182"/>
         <source>Merge (Ctrl+G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1172"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1185"/>
         <source>Merge multiple shapes (Ctrl+G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1190"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1193"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1203"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1206"/>
         <source>Group selected annotations into one instance (G); split (G)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1358"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1371"/>
         <source>Left (Ctrl+B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1361"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1374"/>
         <source>Ctrl+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1379"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1392"/>
         <source>Right (Ctrl+Alt+B)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1382"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1395"/>
         <source>Ctrl+Alt+B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1403"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1416"/>
         <source>Ctrl+J</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1041"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1428"/>
+        <source>Auto</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1443"/>
+        <source>Light</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1455"/>
+        <source>Dark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../resources/ui/mainwindow.ui" line="1054"/>
         <source>OpenCV</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1044"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1057"/>
         <source>OpenCV (W)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1047"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1060"/>
         <source>Enable OpenCV (W)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1050"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1063"/>
         <source>W</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1059"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1072"/>
         <source>Undo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1062"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1075"/>
         <source>Ctrl+Z</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1071"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1084"/>
         <source>Redo</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1074"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1087"/>
         <source>Ctrl+Y</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1079"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1092"/>
         <source>New Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1196"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1209"/>
         <source>G</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1187"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1200"/>
         <source>Group</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1175"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1188"/>
         <source>Ctrl+G</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1283"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1296"/>
         <source>Annotations</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1307"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1320"/>
         <source>Restore</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1319"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1332"/>
         <source>Full screen</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1322"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1335"/>
         <source>Full screen (F11)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1325"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1328"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1338"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1341"/>
         <source>Enter/Exit full screen mode.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1331"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1344"/>
         <source>F11</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1340"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1353"/>
         <source>KeyPoint</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1355"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1368"/>
         <source>Left</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1376"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1389"/>
         <source>Right</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1397"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1410"/>
         <source>Bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1400"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1413"/>
         <source>Bottom (Ctrl+J)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1166"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1179"/>
         <source>Merge</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1228"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1241"/>
         <source>RLE Mask</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1238"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1251"/>
         <source>中文</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="525"/>
+        <location filename="../resources/ui/mainwindow.ui" line="538"/>
         <source>Prev image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="534"/>
+        <location filename="../resources/ui/mainwindow.ui" line="547"/>
         <source>A</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="549"/>
+        <location filename="../resources/ui/mainwindow.ui" line="562"/>
         <source>Next image</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="558"/>
+        <location filename="../resources/ui/mainwindow.ui" line="571"/>
         <source>D</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="576"/>
+        <location filename="../resources/ui/mainwindow.ui" line="589"/>
         <source>About</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="609"/>
+        <location filename="../resources/ui/mainwindow.ui" line="622"/>
         <source>Delete</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="612"/>
+        <location filename="../resources/ui/mainwindow.ui" line="625"/>
         <source>Delete polygon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="618"/>
+        <location filename="../resources/ui/mainwindow.ui" line="631"/>
         <source>Del</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="630"/>
+        <location filename="../resources/ui/mainwindow.ui" line="643"/>
         <source>Bit map</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="636"/>
+        <location filename="../resources/ui/mainwindow.ui" line="649"/>
         <source>Space</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1008"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1021"/>
         <source>E</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="648"/>
+        <location filename="../resources/ui/mainwindow.ui" line="661"/>
         <source>To top</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="507"/>
+        <location filename="../resources/ui/mainwindow.ui" line="520"/>
         <source>Save Project (Ctrl+S)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="510"/>
+        <location filename="../resources/ui/mainwindow.ui" line="523"/>
         <source>Save Project</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="513"/>
+        <location filename="../resources/ui/mainwindow.ui" line="526"/>
         <source>Ctrl+S</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="528"/>
-        <location filename="../resources/ui/mainwindow.ui" line="531"/>
+        <location filename="../resources/ui/mainwindow.ui" line="541"/>
+        <location filename="../resources/ui/mainwindow.ui" line="544"/>
         <source>Prev image (A)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="552"/>
-        <location filename="../resources/ui/mainwindow.ui" line="555"/>
+        <location filename="../resources/ui/mainwindow.ui" line="565"/>
+        <location filename="../resources/ui/mainwindow.ui" line="568"/>
         <source>Next image (D)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="588"/>
+        <location filename="../resources/ui/mainwindow.ui" line="601"/>
         <source>SAM</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="591"/>
-        <location filename="../resources/ui/mainwindow.ui" line="594"/>
+        <location filename="../resources/ui/mainwindow.ui" line="604"/>
+        <location filename="../resources/ui/mainwindow.ui" line="607"/>
         <source>SAM (Q)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="651"/>
+        <location filename="../resources/ui/mainwindow.ui" line="664"/>
         <source>Move polygon to top layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="657"/>
+        <location filename="../resources/ui/mainwindow.ui" line="670"/>
         <source>T</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="669"/>
+        <location filename="../resources/ui/mainwindow.ui" line="682"/>
         <source>To bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="672"/>
+        <location filename="../resources/ui/mainwindow.ui" line="685"/>
         <source>Move polygon to bottom layer</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="678"/>
+        <location filename="../resources/ui/mainwindow.ui" line="691"/>
         <source>B</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="369"/>
+        <location filename="../resources/ui/mainwindow.ui" line="382"/>
         <source>Images dir</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="372"/>
+        <location filename="../resources/ui/mainwindow.ui" line="385"/>
         <source>Open images dir.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="387"/>
+        <location filename="../resources/ui/mainwindow.ui" line="400"/>
         <source>Zoom in.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="420"/>
+        <location filename="../resources/ui/mainwindow.ui" line="433"/>
         <source>Zoom out.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="441"/>
+        <location filename="../resources/ui/mainwindow.ui" line="454"/>
         <source>Fit window.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="459"/>
+        <location filename="../resources/ui/mainwindow.ui" line="472"/>
         <source>Setting.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="477"/>
+        <location filename="../resources/ui/mainwindow.ui" line="490"/>
         <source>Exit.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="567"/>
+        <location filename="../resources/ui/mainwindow.ui" line="580"/>
         <source>Shortcut</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="597"/>
+        <location filename="../resources/ui/mainwindow.ui" line="610"/>
         <source>Q</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="615"/>
+        <location filename="../resources/ui/mainwindow.ui" line="628"/>
         <source>Delete polygon.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="633"/>
+        <location filename="../resources/ui/mainwindow.ui" line="646"/>
         <source>Show instance or segmeent state.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="654"/>
+        <location filename="../resources/ui/mainwindow.ui" line="667"/>
         <source>Move polygon to top layer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="675"/>
+        <location filename="../resources/ui/mainwindow.ui" line="688"/>
         <source>Move polygon to bottom layer.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="693"/>
+        <location filename="../resources/ui/mainwindow.ui" line="706"/>
         <source>Convert ISAT jsons to VOC png images.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="1233"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1246"/>
         <source>English</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="705"/>
-        <location filename="../resources/ui/mainwindow.ui" line="708"/>
-        <location filename="../resources/ui/mainwindow.ui" line="714"/>
+        <location filename="../resources/ui/mainwindow.ui" line="718"/>
+        <location filename="../resources/ui/mainwindow.ui" line="721"/>
+        <location filename="../resources/ui/mainwindow.ui" line="727"/>
         <source>Backspace</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="711"/>
+        <location filename="../resources/ui/mainwindow.ui" line="724"/>
         <source>Backspace.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="741"/>
+        <location filename="../resources/ui/mainwindow.ui" line="754"/>
         <source>Finish</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="747"/>
+        <location filename="../resources/ui/mainwindow.ui" line="760"/>
         <source>Annotate finished.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="750"/>
+        <location filename="../resources/ui/mainwindow.ui" line="763"/>
         <source>Ctrl+Return</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="762"/>
-        <location filename="../resources/ui/mainwindow.ui" line="1220"/>
+        <location filename="../resources/ui/mainwindow.ui" line="775"/>
+        <location filename="../resources/ui/mainwindow.ui" line="1233"/>
         <source>Polygon</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="786"/>
-        <location filename="../resources/ui/mainwindow.ui" line="789"/>
+        <location filename="../resources/ui/mainwindow.ui" line="799"/>
+        <location filename="../resources/ui/mainwindow.ui" line="802"/>
         <source>Visible</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="792"/>
+        <location filename="../resources/ui/mainwindow.ui" line="805"/>
         <source>Visible.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="795"/>
+        <location filename="../resources/ui/mainwindow.ui" line="808"/>
         <source>V</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="687"/>
+        <location filename="../resources/ui/mainwindow.ui" line="700"/>
         <source>To VOC</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="690"/>
+        <location filename="../resources/ui/mainwindow.ui" line="703"/>
         <source>Convert ISAT to VOC</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="807"/>
+        <location filename="../resources/ui/mainwindow.ui" line="820"/>
         <source>Convert ISAT to COCO</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../resources/ui/mainwindow.ui" line="810"/>
+        <location filename="../resources/ui/mainwindow.ui" line="823"/>
         <source>Convert ISAT jsons to COCO json.</source>
         <translation type="unfinished"></translation>
     </message>

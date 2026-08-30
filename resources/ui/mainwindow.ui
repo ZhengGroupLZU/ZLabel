@@ -139,7 +139,20 @@
      <addaction name="actionEnglish"/>
      <addaction name="actionChinese"/>
     </widget>
+    <widget class="QMenu" name="menuTheme">
+     <property name="title">
+      <string>Theme</string>
+     </property>
+     <property name="icon">
+      <iconset resource="../icons.qrc">
+       <normaloff>:/icon/icons/day_night.svg</normaloff>:/icon/icons/day_night.svg</iconset>
+     </property>
+     <addaction name="actionAutoTheme"/>
+     <addaction name="actionLightTheme"/>
+     <addaction name="actionDarkTheme"/>
+    </widget>
     <addaction name="menuLang"/>
+    <addaction name="menuTheme"/>
     <addaction name="actionShortcut"/>
     <addaction name="actionAbout"/>
    </widget>
@@ -1401,6 +1414,45 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+J</string>
+   </property>
+  </action>
+  <action name="actionAutoTheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/day_night.svg</normaloff>:/icon/icons/day_night.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Auto</string>
+   </property>
+  </action>
+  <action name="actionLightTheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="checked">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/sun.svg</normaloff>:/icon/icons/sun.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Light</string>
+   </property>
+  </action>
+  <action name="actionDarkTheme">
+   <property name="checkable">
+    <bool>true</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="../icons.qrc">
+     <normaloff>:/icon/icons/moon.svg</normaloff>:/icon/icons/moon.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Dark</string>
    </property>
   </action>
  </widget>

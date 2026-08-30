@@ -8,7 +8,17 @@ from typing import Any
 import numpy as np
 from PIL import Image
 from pyqtgraph.Qt.QtCore import QByteArray, QDir, QEvent, QPointF, QSize, Qt, QThreadPool, QTimer, QTranslator, Signal
-from pyqtgraph.Qt.QtGui import QCloseEvent, QIcon, QKeySequence, QShortcut, QSurfaceFormat, QUndoStack
+from pyqtgraph.Qt.QtGui import (
+    QActionGroup,
+    QCloseEvent,
+    QColor,
+    QIcon,
+    QKeySequence,
+    QPalette,
+    QShortcut,
+    QSurfaceFormat,
+    QUndoStack,
+)
 from pyqtgraph.Qt.QtWidgets import (
     QApplication,
     QCheckBox,
@@ -292,6 +302,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.canvas.set_enable_catmull_rom(self.settings.enable_catmull_rom)
         self.canvas.alpha = self.settings.alpha
         self.canvas.apply_appearance_settings(self.settings)
+        self._apply_theme()
         size = max(1, self.settings.image_cache_size)
         if self._image_cache.maxsize != size:
             self._image_cache = LRUCache(size)
@@ -367,6 +378,64 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if obj is self.canvas.viewport() and event.type() == QEvent.Type.Paint:
             self._fps_counter.update()
         return super().eventFilter(obj, event)
+
+    @staticmethod
+    def _theme_palette(dark: bool) -> QPalette:
+        pal = QPalette()
+        if dark:
+            pal.setColor(QPalette.ColorRole.Window, QColor("#2b2b2b"))
+            pal.setColor(QPalette.ColorRole.WindowText, QColor("#e0e0e0"))
+            pal.setColor(QPalette.ColorRole.Base, QColor("#1e1e1e"))
+            pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#2a2a2a"))
+            pal.setColor(QPalette.ColorRole.ToolTipBase, QColor("#2b2b2b"))
+            pal.setColor(QPalette.ColorRole.ToolTipText, QColor("#e0e0e0"))
+            pal.setColor(QPalette.ColorRole.Text, QColor("#e0e0e0"))
+            pal.setColor(QPalette.ColorRole.Button, QColor("#3c3c3c"))
+            pal.setColor(QPalette.ColorRole.ButtonText, QColor("#e0e0e0"))
+            pal.setColor(QPalette.ColorRole.BrightText, QColor("#ff5555"))
+            pal.setColor(QPalette.ColorRole.Link, QColor("#4d9fff"))
+            pal.setColor(QPalette.ColorRole.Highlight, QColor("#3d8bff"))
+            pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#808080"))
+        else:
+            pal.setColor(QPalette.ColorRole.Window, QColor("#f5f5f5"))
+            pal.setColor(QPalette.ColorRole.WindowText, QColor("#202020"))
+            pal.setColor(QPalette.ColorRole.Base, QColor("#ffffff"))
+            pal.setColor(QPalette.ColorRole.AlternateBase, QColor("#f0f0f0"))
+            pal.setColor(QPalette.ColorRole.ToolTipBase, QColor("#ffffff"))
+            pal.setColor(QPalette.ColorRole.ToolTipText, QColor("#202020"))
+            pal.setColor(QPalette.ColorRole.Text, QColor("#202020"))
+            pal.setColor(QPalette.ColorRole.Button, QColor("#e8e8e8"))
+            pal.setColor(QPalette.ColorRole.ButtonText, QColor("#202020"))
+            pal.setColor(QPalette.ColorRole.BrightText, QColor("#cc0000"))
+            pal.setColor(QPalette.ColorRole.Link, QColor("#1a73e8"))
+            pal.setColor(QPalette.ColorRole.Highlight, QColor("#3d8bff"))
+            pal.setColor(QPalette.ColorRole.HighlightedText, QColor("#ffffff"))
+            pal.setColor(QPalette.ColorRole.PlaceholderText, QColor("#909090"))
+        return pal
+
+    def _apply_theme(self, mode: str | None = None):
+        mode = mode or self.settings.theme_mode
+        app = QApplication.instance()
+        if app is None:
+            return
+        if mode == "auto":
+            resolved_dark = app.styleHints().colorScheme() == Qt.ColorScheme.Dark
+        else:
+            resolved_dark = mode == "dark"
+        app.setStyle("Fusion")
+        app.setPalette(self._theme_palette(resolved_dark))
+        self.canvas.setBackground(app.palette().color(QPalette.ColorRole.Window))
+
+        self.actionAutoTheme.setChecked(mode == "auto")
+        self.actionLightTheme.setChecked(mode == "light")
+        self.actionDarkTheme.setChecked(mode == "dark")
+        self.update()
+
+    def on_theme_action(self, mode: str):
+        self.settings.theme_mode = mode
+        self._apply_theme(mode)
+        self.settings.save_json(self.settings_path)
 
     def update_inference_status(self):
         """Show the inference mode and local model status on the right side
@@ -3145,6 +3214,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.actionExit.triggered.connect(self.close)
         self.actionChinese.triggered.connect(self.on_action_chinese_triggered)
         self.actionEnglish.triggered.connect(self.on_action_english_triggered)
+
+        # Theme switching: auto / light / dark (exclusive actions).
+        self.theme_action_group = QActionGroup(self)
+        for action in (self.actionAutoTheme, self.actionLightTheme, self.actionDarkTheme):
+            self.theme_action_group.addAction(action)
+        self.actionAutoTheme.triggered.connect(lambda: self.on_theme_action("auto"))
+        self.actionLightTheme.triggered.connect(lambda: self.on_theme_action("light"))
+        self.actionDarkTheme.triggered.connect(lambda: self.on_theme_action("dark"))
+        app = QApplication.instance()
+        if app is not None:
+            app.styleHints().colorSchemeChanged.connect(lambda *_: self._apply_theme())
 
         self.actionNext.triggered.connect(self.on_action_next_prev_triggered)
         self.actionPrev.triggered.connect(self.on_action_next_prev_triggered)

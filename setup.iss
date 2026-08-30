@@ -3,7 +3,7 @@
 ; Non-commercial use only
 
 #define MyAppName "ZLabel"
-#define MyAppVersion "0.3.4"
+#define MyAppVersion "0.3.5"
 #define MyAppPublisher "ZhengGroup"
 #define MyAppExeName "zlabel.exe"
 #define MyAppSrcDir "build/exe.windows-amd64"

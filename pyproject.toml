@@ -1,6 +1,6 @@
 [project]
 name = "ZLabel"
-version = "0.3.4"
+version = "0.3.5"
 description = "ZLabel"
 authors = [{ name = "rainyl", email = "rainyliusy3@gmail.com" }]
 requires-python = ">=3.12,<3.14"
