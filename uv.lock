@@ -521,6 +521,20 @@ wheels = [
 ]
 
 [[package]]
+name = "opencv-minimal"
+version = "5.0.0"
+source = { path = "3rd_party/opencv/dist/opencv_minimal-5.0.0-cp312-cp312-win_amd64.whl" }
+dependencies = [
+    { name = "numpy" },
+]
+wheels = [
+    { filename = "opencv_minimal-5.0.0-cp312-cp312-win_amd64.whl", hash = "sha256:0c5664e49a5b0bd20f2c1451f67952a55aeb967bfb8fe426ebd9cf81bee94b2c" },
+]
+
+[package.metadata]
+requires-dist = [{ name = "numpy" }]
+
+[[package]]
 name = "opencv-python-headless"
 version = "5.0.0.93"
 source = { registry = "https://pypi.org/simple" }
@@ -1191,7 +1205,8 @@ source = { editable = "." }
 dependencies = [
     { name = "mnn" },
     { name = "numpy" },
-    { name = "opencv-python-headless" },
+    { name = "opencv-minimal", marker = "python_full_version < '3.13' and sys_platform == 'win32'" },
+    { name = "opencv-python-headless", marker = "python_full_version >= '3.13' or sys_platform != 'win32'" },
     { name = "pillow" },
     { name = "protobuf" },
     { name = "pydantic" },
@@ -1220,7 +1235,8 @@ dev = [
 requires-dist = [
     { name = "mnn", specifier = ">=3.6.0" },
     { name = "numpy", specifier = ">=2.2.6" },
-    { name = "opencv-python-headless", specifier = ">=5.0.0.93" },
+    { name = "opencv-minimal", marker = "python_full_version < '3.13' and sys_platform == 'win32'", path = "3rd_party/opencv/dist/opencv_minimal-5.0.0-cp312-cp312-win_amd64.whl" },
+    { name = "opencv-python-headless", marker = "python_full_version >= '3.13' or sys_platform != 'win32'", specifier = ">=5.0.0.93" },
     { name = "pillow", specifier = ">=10.1.0,<13.0.0" },
     { name = "protobuf", specifier = ">=7.35.1" },
     { name = "pydantic", specifier = ">=2.5.2,<3.0.0" },

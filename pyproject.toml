@@ -13,7 +13,8 @@ dependencies = [
     "requests<3.0.0,>=2.31.0",
     "numpy>=2.2.6",
     "shapely>=2.1.2",
-    "opencv-python-headless>=5.0.0.93",
+    "opencv-python-headless>=5.0.0.93; sys_platform != 'win32' or python_full_version >= '3.13'",
+    "opencv-minimal>=5.0.0; sys_platform == 'win32' and python_full_version < '3.13'",
     "protobuf>=7.35.1",
     "MNN>=3.6.0",
     "regex",
@@ -36,6 +37,7 @@ dev = [
 
 [tool.uv.sources]
 pyqtgraph = { git = "https://gh-proxy.org/https://github.com/pyqtgraph/pyqtgraph", rev = "dc8e538b51a2ee43ebe4730dbcf13714961f8fd2" }
+opencv-minimal = { path = "3rd_party/opencv/dist/opencv_minimal-5.0.0-cp312-cp312-win_amd64.whl", marker = "sys_platform == 'win32' and python_full_version < '3.13'" }
 
 [project.scripts]
 zlabel-build = "zlabel.scripts:build"
