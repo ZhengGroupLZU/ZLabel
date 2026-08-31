@@ -470,7 +470,7 @@ def test_polygon_instance_bbox_union_and_label_updates(populated_project):
     bbox = win.canvas._instance_bbox_items[grouped_id]
     r = bbox.rect()
     assert (r.x(), r.y(), r.width(), r.height()) == (5.0, 5.0, 40.0, 35.0)
-    assert bbox.label_text.text() == str(grouped_id)
+    assert bbox.label_text.text().startswith(str(grouped_id))
 
     # splitting restores one bbox per polygon instance and updates their labels
     win.on_split_instances()
@@ -478,7 +478,7 @@ def test_polygon_instance_bbox_union_and_label_updates(populated_project):
     assert len(ids) == 2
     assert set(win.canvas._instance_bbox_items) == ids
     for iid, item in win.canvas._instance_bbox_items.items():
-        assert item.label_text.text() == str(iid)
+        assert item.label_text.text().startswith(str(iid))
 
     # undo restores the grouped instance and its single union bbox
     win.on_action_undo_triggered()
@@ -1064,6 +1064,30 @@ def test_large_image_keeps_single_display_texture(populated_project):
     assert p.y() == pytest.approx(3000, abs=1.0)
 
 
+def test_single_instance_bbox_uses_annotation_label(populated_project):
+    """A single-member instance shows instance id + annotation label."""
+    win, proj, anno, rebuild = populated_project
+    from zlabel.utils import Label
+    from zlabel.utils import PolygonResult as PR
+
+    lbl_seed = Label.new("Seed", "#ff0000")
+    proj.labels[lbl_seed.id] = lbl_seed
+    anno.add_result(
+        PR.new(
+            id_="pg",
+            labels=[lbl_seed],
+            points=[(10, 10), (40, 10), (40, 40), (10, 40)],
+            closed=True,
+            instance_id=1,
+        )
+    )
+    anno.instances[1] = "normal_seed"
+    rebuild()
+
+    bbox = win.canvas._instance_bbox_items[1]
+    assert bbox.label_text.text() == "1 Seed"
+
+
 def test_instance_bbox_uses_detection_style_label(populated_project):
     """Instance bbox labels use solid background + '{ID} {label}' text."""
     win, proj, anno, rebuild = populated_project
@@ -1071,9 +1095,18 @@ def test_instance_bbox_uses_detection_style_label(populated_project):
 
     anno.add_result(
         PR.new(
-            id_="pg",
+            id_="pg1",
             labels=[proj.crt_label],
             points=[(10, 10), (40, 10), (40, 40), (10, 40)],
+            closed=True,
+            instance_id=1,
+        )
+    )
+    anno.add_result(
+        PR.new(
+            id_="pg2",
+            labels=[proj.crt_label],
+            points=[(50, 50), (60, 50), (60, 60), (50, 60)],
             closed=True,
             instance_id=1,
         )

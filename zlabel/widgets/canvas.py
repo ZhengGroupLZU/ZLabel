@@ -910,9 +910,14 @@ class Canvas(pg.PlotWidget):
                 continue
             entry = groups.get(iid)
             if entry is None:
-                entry = groups[iid] = {"xs": [], "ys": [], "color": None}
+                entry = groups[iid] = {"xs": [], "ys": [], "color": None, "ids": [], "label_names": set()}
             if entry["color"] is None:
                 entry["color"] = getattr(item, "label_color", None) or item.fill_color.name()
+            entry["ids"].append(getattr(item, "id_", ""))
+            if self._current_anno is not None:
+                result = self._current_anno.results.get(getattr(item, "id_", ""))
+                if result is not None and result.labels:
+                    entry["label_names"].add(result.labels[0].name)
             if isinstance(item, Polygon):
                 pts = item.getState().get("points") or []
                 entry["xs"].extend(float(p[0]) for p in pts)
@@ -938,15 +943,22 @@ class Canvas(pg.PlotWidget):
             if not xs or not ys:
                 continue
             rect = QRectF(min(xs), min(ys), max(xs) - min(xs), max(ys) - min(ys))
-            status = ""
-            if self._current_anno is not None:
-                raw_status = self._current_anno.instances.get(iid, "")
-                status = humanize_status(raw_status) if raw_status else ""
+            # A single-member instance shows "{ID} {annotation label}",
+            # e.g. "1 Seed"; multi-member instances keep the instance status,
+            # e.g. "1 Normal seed".
+            if len(entry["ids"]) == 1 and entry["label_names"]:
+                label = next(iter(entry["label_names"]))
+            else:
+                status = ""
+                if self._current_anno is not None:
+                    raw_status = self._current_anno.instances.get(iid, "")
+                    status = humanize_status(raw_status) if raw_status else ""
+                label = status
             bbox = InstanceBBox()
             bbox.setZValue(self._z_value + 0.5)
             self.addItem(bbox)
             bbox.setParentItem(self._content_group)
-            bbox.set_instance(iid, rect, entry["color"], status)
+            bbox.set_instance(iid, rect, entry["color"], label)
             self._instance_bbox_items[iid] = bbox
 
     def merge_items_by_id(self, ids: list[str]):
