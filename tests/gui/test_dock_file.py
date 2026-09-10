@@ -31,6 +31,54 @@ def test_set_file_list_populates_table(dock):
     assert dock.get_current_task_id() == "a1"
 
 
+def test_set_file_list_shows_last_two_segments(dock):
+    # Remote nested paths should display the dish + frame name, not basename only.
+    dock.set_file_list([
+        Task(id=1, filename="zihuamuxu/2020-z-1004-1/D1.png", anno_id="a1", labels=[]),
+    ])
+    assert dock.get_row_txt(0) == "2020-z-1004-1/D1.png"
+
+
+def test_set_file_list_sort_by_name_uses_natural_order(dock):
+    names = ["D1.png", "D10.png", "D2.png"]
+    dock.set_file_list(
+        [Task(id=i + 1, filename=name, anno_id=f"a{i + 1}", labels=[]) for i, name in enumerate(names)],
+        sort_by_name=True,
+    )
+    assert [dock.get_row_txt(r) for r in range(dock.count())] == [
+        "D1.png",
+        "D2.png",
+        "D10.png",
+    ]
+
+
+def test_table_sort_uses_natural_filename_order(dock):
+    names = ["D1.png", "D10.png", "D11.png", "D12.png", "D2.png"]
+    dock.set_file_list([Task(id=i + 1, filename=name, anno_id=f"a{i + 1}", labels=[]) for i, name in enumerate(names)])
+    dock.table_files.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+    assert [dock.get_row_txt(r) for r in range(dock.count())] == [
+        "D1.png",
+        "D2.png",
+        "D10.png",
+        "D11.png",
+        "D12.png",
+    ]
+
+
+def test_table_sorting_enabled_and_sorts_by_name(dock):
+    tasks = [
+        Task(id=2, filename="b.png", anno_id="b2", labels=[]),
+        Task(id=1, filename="a.png", anno_id="a1", labels=[]),
+    ]
+    dock.set_file_list(tasks)
+    assert dock.table_files.isSortingEnabled()
+
+    dock.table_files.sortByColumn(1, Qt.SortOrder.AscendingOrder)
+    assert dock.get_row_txt(0) == "a.png"
+    dock.table_files.sortByColumn(1, Qt.SortOrder.DescendingOrder)
+    assert dock.get_row_txt(0) == "b.png"
+
+
 def test_set_row_by_txt(dock):
     dock.set_file_list(_tasks())
     dock.set_row_by_txt("b2")

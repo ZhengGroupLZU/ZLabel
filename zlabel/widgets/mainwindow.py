@@ -319,7 +319,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.dockcnt_files.set_storage_mode(self.proj.storage_mode)
         self.dockcnt_files.set_local_dir(self.proj.local_dir)
         self.dockcnt_files.set_fetch_num_idx_by_value(self.settings.fetch_num)
-        self.dockcnt_files.set_file_list(list(self.proj.tasks.values()))
+        self.dockcnt_files.set_file_list(
+            list(self.proj.tasks.values()),
+            sort_by_name=not self.settings.random_select,
+        )
         self.actionSAM.setChecked(self.settings.sam_enabled)
         self.actionOpenCV.setChecked(self.settings.cv_enabled)
         title = "ZLabel"
@@ -331,7 +334,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             tasks = list(self.proj.tasks.values())
             if self.proj.key_task is None:
                 self.proj.key_task = list(self.proj.tasks.keys())[0]
-            self.dockcnt_files.set_file_list(tasks)
+            self.dockcnt_files.set_file_list(tasks, sort_by_name=not self.settings.random_select)
             self.dockcnt_files.set_row_by_txt(self.proj.key_task)
 
             if self.proj.crt_anno is None:
@@ -577,8 +580,23 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     @staticmethod
     def _assign_remote_group(task: Task):
         """Remote tasks have no directory layout: group by filename prefix
-        (e.g. dishA_001.jpg -> group "dishA", day 1). Unknown layout: no group."""
+        (e.g. dishA_001.jpg -> group "dishA", day 1). Paths ending in
+        D{n}.png use the two directory components above the frame as the
+        sequence group (e.g. .../zihuamuxu/2020-z-1004-1/D1.png ->
+        group "zihuamuxu/2020-z-1004-1", day 1). Unknown layout: no group."""
         import re as _re
+
+        filename = task.filename.replace("\\", "/")
+        parts = filename.split("/")
+        m = _re.fullmatch(r"D(\d+)\.(?:png|jpe?g)", parts[-1], _re.IGNORECASE)
+        if m is not None and len(parts) >= 3:
+            task.group = f"{parts[-3]}/{parts[-2]}"
+            task.day = int(m.group(1))
+            return
+        if m is not None and len(parts) == 2:
+            task.group = parts[-2]
+            task.day = int(m.group(1))
+            return
 
         m = _re.fullmatch(r"(.+?)[_\-\s]*(\d+)\.(?:png|jpe?g)", task.filename, _re.IGNORECASE)
         if m:
@@ -609,7 +627,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.logger.debug(f"Loaded {len(tasks)} tasks for project: {self.settings.project_name}")
         self.refresh_tasks(tasks)
 
-        self.dockcnt_files.set_file_list(tasks)
+        self.dockcnt_files.set_file_list(tasks, sort_by_name=not self.settings.random_select)
         self.dockcnt_files.set_row_by_txt(self.proj.key_task)
 
         # Update UI after tasks are loaded

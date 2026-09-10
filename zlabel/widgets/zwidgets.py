@@ -1,3 +1,5 @@
+import re
+
 from pyqtgraph.Qt.QtCore import QByteArray, QPointF, QPropertyAnimation, QSize, Qt, QTimer, Signal
 from pyqtgraph.Qt.QtGui import (
     QBrush,
@@ -120,6 +122,11 @@ class ZTableWidget(QTableWidget):
         return super().mousePressEvent(e)
 
 
+def _natural_key(text: str):
+    """Natural sort key: numeric runs compare as numbers (D2 < D10)."""
+    return [(0, int(part)) if part.isdigit() else (1, part.casefold()) for part in re.split(r"(\d+)", text)]
+
+
 class ZTableWidgetItem(QTableWidgetItem):
     def __init__(self, id_: str, txt: str, finished: bool = False):
         super().__init__()
@@ -132,6 +139,9 @@ class ZTableWidgetItem(QTableWidgetItem):
             self.set_finished()
         else:
             self.set_unfinished()
+
+    def __lt__(self, other) -> bool:
+        return _natural_key(self.text()) < _natural_key(other.text())
 
     def set_finished(self):
         color = QColor("#24bfa5")

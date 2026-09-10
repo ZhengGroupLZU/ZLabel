@@ -21,6 +21,16 @@ def id_md5(s: str) -> str:
     return hashlib.md5(s.encode("utf-8")).hexdigest()
 
 
+def anno_id_for(project_name: str, filename: str) -> str:
+    """Canonical annotation id shared by local storage and the ZL server.
+
+    The server computes ``id_md5(f"{project_name}/{filename}")``; local storage
+    must use exactly the same project name and relative image filename so both
+    modes resolve the same ``<anno_id>.zlabel`` file.
+    """
+    return id_md5(f"{project_name}/{filename}")
+
+
 class ResultStep(NamedTuple):
     anno_id: str
     result: "Result"

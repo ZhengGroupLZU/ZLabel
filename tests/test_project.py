@@ -11,6 +11,8 @@ from zlabel.utils.project import (
     RectangleResult,
     ResultType,
     Task,
+    anno_id_for,
+    id_md5,
 )
 
 
@@ -19,6 +21,13 @@ def _project() -> Project:
     p.add_task(Task(id=1, anno_id="a1", filename="a.png", labels=["A"]))
     p.add_label(Label.new("A", "#ff0000"))
     return p
+
+
+def test_anno_id_for_matches_server_formula():
+    # The remote ZL server computes: id_md5(f"{project_name}/{filename}")
+    assert anno_id_for("seed_germ_high_res", "zihuamuxu/2020-z-1004-1/D1.png") == (
+        id_md5("seed_germ_high_res/zihuamuxu/2020-z-1004-1/D1.png")
+    )
 
 
 def test_project_defaults():

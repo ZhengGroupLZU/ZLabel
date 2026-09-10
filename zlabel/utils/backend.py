@@ -10,7 +10,7 @@ from PIL import Image
 from zlabel.utils.api_helper import ZLServerApiHelper
 from zlabel.utils.logger import ZLogger
 from zlabel.utils.paths import resource_dir
-from zlabel.utils.project import id_md5
+from zlabel.utils.project import anno_id_for, id_md5
 
 
 @runtime_checkable
@@ -262,7 +262,7 @@ class LocalStorage:
             return []
         tasks: list[dict[str, Any]] = []
         for rel, group, day in self._iter_images():
-            anno_id = id_md5(f"{self.project_name}/{rel}")
+            anno_id = anno_id_for(self.project_name, rel)
             is_finished = (self.anno_dir / f"{anno_id}.zlabel").exists()
             if finished == -1:
                 pass

@@ -63,6 +63,44 @@ def test_prefetch_next_image_starts_worker_for_next_task(main_window, monkeypatc
     assert "b.png" in win._image_cache
 
 
+def test_assign_remote_group_nested_paths():
+    """D{n}.png files under species/dish directories form a timeline group."""
+    from zlabel.utils import Task
+    from zlabel.widgets.mainwindow import MainWindow
+
+    cases = [
+        ("zihuamuxu/2020-z-1004-1/D1.png", "zihuamuxu/2020-z-1004-1", 1),
+        ("zihuamuxu/2020-z-1004-1/D2.png", "zihuamuxu/2020-z-1004-1", 2),
+        ("zihuamuxu/2020-z-1004-10/D1.png", "zihuamuxu/2020-z-1004-10", 1),
+        (
+            "/zlabel_server/projects/seed_germ_high_res/zihuamuxu/2020-z-1004-1/D2.png",
+            "zihuamuxu/2020-z-1004-1",
+            2,
+        ),
+        # existing flat-name convention is preserved
+        ("dishA_001.jpg", "dishA", 1),
+    ]
+    for filename, group, day in cases:
+        task = Task(id=1, filename=filename, anno_id="x", labels=[])
+        MainWindow._assign_remote_group(task)
+        assert task.group == group, filename
+        assert task.day == day, filename
+
+
+def test_non_random_tasks_default_sorted_by_name(main_window, monkeypatch):
+    win = main_window
+    win.settings.random_select = False
+    calls: list[bool] = []
+    monkeypatch.setattr(
+        win.dockcnt_files,
+        "set_file_list",
+        lambda tasks, sort_by_name=False: calls.append(sort_by_name),
+    )
+    win.on_get_tasks_success([])
+    assert calls
+    assert all(calls)
+
+
 def test_menu_actions_exist(main_window):
     win = main_window
     for name in (

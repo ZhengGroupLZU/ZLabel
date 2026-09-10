@@ -146,7 +146,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
                 self.table_files.setCurrentCell(row, 0)
                 return
 
-    def set_file_list(self, tasks: list[Task] | None = None):
+    def set_file_list(self, tasks: list[Task] | None = None, sort_by_name: bool = False):
         if tasks is None:
             return
         self.table_files.clear()
@@ -159,7 +159,7 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
                 0,
                 ZTableWidgetItem(task.anno_id, task.anno_id, finished=task.finished),
             )
-            filename = task.filename.split("/")[-1]
+            filename = "/".join(task.filename.split("/")[-2:])
             self.table_files.setItem(
                 row,
                 1,
@@ -167,6 +167,8 @@ class ZDockFileContent(QWidget, Ui_ZDockFileContent):
             )
             row += 1
 
+        if sort_by_name:
+            self.table_files.sortByColumn(1, Qt.SortOrder.AscendingOrder)
         self.table_files.setCurrentCell(0, 0)
         self.set_qlabels()
 

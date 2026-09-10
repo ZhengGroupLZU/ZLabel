@@ -36,7 +36,7 @@ class Ui_ZDockFileContent(object):
         self.table_files.setObjectName(u"table_files")
         self.table_files.setEditTriggers(QAbstractItemView.EditTrigger.NoEditTriggers)
         self.table_files.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectRows)
-        self.table_files.setSortingEnabled(False)
+        self.table_files.setSortingEnabled(True)
 
         self.verticalLayout.addWidget(self.table_files)
 
